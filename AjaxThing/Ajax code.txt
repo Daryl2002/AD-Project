@@ -5,7 +5,7 @@ authentication
 pensyarah -> entity=pensyarah&session_id=???&sesi=yyyy/yyyy&semester=[1|2]
 
 subjek    -> entity=subjek&sesi=yyyy/yyyy&semester=[1|2]
-Gamma => pelajar   -> entity=pelajar&session_id=???&sesi=yyyy/yyyy&semester=[1|2]&limit=num_&offset=num_
+pelajar   -> entity=pelajar&session_id=???&sesi=yyyy/yyyy&semester=[1|2]&limit=num_&offset=num_
 
 pensyarah_subjek -> entity=pensyarah_subjek&no_pekerja=???
 
