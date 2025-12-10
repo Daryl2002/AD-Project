@@ -1,0 +1,59 @@
+/* Styles/RoomAvailability.css */
+
+/* Info Box from MyTimetable */
+.info-box {
+    background: #e3f2fd;
+    padding: 15px;
+    margin-bottom: 20px;
+    border-radius: 5px;
+    border-left: 4px solid #2196F3;
+}
+
+/* Loading State */
+.loading {
+    text-align: center;
+    padding: 20px;
+    color: #666;
+    font-size: 1.1em;
+}
+
+/* Table Card Wrapper */
+.table-card {
+    box-shadow: 0 4px 10px 0 rgba(0,0,0,0.2), 0 4px 20px 0 rgba(0,0,0,0.19);
+}
+
+/* Filter Tags Cursor */
+.filter-tags span {
+    cursor: pointer;
+    margin-left: 5px;
+    transition: 0.3s;
+}
+
+.filter-tags span:hover {
+    opacity: 0.8;
+}
+
+/* Highlight for Active Tag (Red) */
+.active-tag {
+    background-color: #f44336 !important; /* Matches Table Header */
+    color: white !important;
+}
+
+/* Status Badges */
+.status-avail {
+    background-color: #d4edda;
+    color: #155724;
+    padding: 5px 10px;
+    border-radius: 15px;
+    font-weight: bold;
+    font-size: 0.85em;
+}
+
+.status-busy {
+    background-color: #f8d7da;
+    color: #721c24;
+    padding: 5px 10px;
+    border-radius: 15px;
+    font-weight: bold;
+    font-size: 0.85em;
+}
