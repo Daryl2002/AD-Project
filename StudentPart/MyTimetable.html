@@ -1,0 +1,203 @@
+<div class="w3-container w3-margin-top">
+    <h3 class="w3-text-blue-dark">📝 My Timetable (Student ID: <span id="student-id">Loading ID...</span>)</h3>
+    <p>Viewing schedule for the current active session: <strong id="current-sesi-info">Loading...</strong></p>
+    
+    <div class="w3-card w3-white w3-padding w3-margin-top w3-responsive">
+        <div id="myTimetableContainer">
+            <div class="w3-padding w3-center w3-text-gray">
+                <i class="fa fa-spinner fa-spin w3-large"></i> Fetching your current schedule...
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // --- Global Variables Inherited from Main.html ---
+    // These variables must be populated by the parent Main.html script before this file is loaded.
+    const BASE_URL = window.BASE_URL;
+    const userSession = window.userSession;
+    const currentSesi = window.currentSesi;
+    const currentSemester = window.currentSemester;
+    
+    // Dynamic Matric ID Retrieval: The student's ID is the 'login_name'
+    const MY_MATRIC_ID = userSession ? userSession.login_name : null;
+    
+    // --- Data Mapping ---
+    const DAY_MAP = { 
+        1: "AHAD", 2: "ISNIN", 3: "SELASA", 4: "RABU", 5: "KHAMIS", 6: "JUMAAT", 7: "SABTU" 
+    };
+
+    /**
+     * Converts a 'masa' index (time slot) into a displayable time range.
+     */
+    function getMasaTimeRange(masa) {
+        // Assuming masa 1 = 07:00 AM, each masa is 50 minutes long, starting on the hour.
+        const startHour = 7 + (masa - 1);
+        
+        // Simple 24-hour format logic for accurate calculation
+        const startH = startHour % 12 || 12; // Convert 0 to 12 for 12AM/PM
+        const startM = 0;
+        const startPeriod = startHour >= 12 && startHour < 24 ? 'PM' : 'AM';
+
+        const endHour = startHour + 1;
+        const endH = endHour % 12 || 12; 
+        const endM = 50; 
+        const endPeriod = endHour >= 12 && endHour < 24 ? 'PM' : 'AM';
+
+        // Display format: 07:00 AM - 07:50 AM
+        const start = `${startH.toString().padStart(2, '0')}:${startM.toString().padStart(2, '0')} ${startPeriod}`;
+        const end = `${endH.toString().padStart(2, '0')}:${endM.toString().padStart(2, '0')} ${endPeriod}`;
+        
+        return `${start} - ${end}`;
+    }
+
+    // --- Core Logic ---
+    $(document).ready(function() {
+        $('#current-sesi-info').text(`${currentSesi}-${currentSemester}` || 'N/A');
+        
+        if (MY_MATRIC_ID) {
+            $('#student-id').text(MY_MATRIC_ID);
+            
+            // Critical check: Ensure session context is available
+            if (currentSesi && currentSemester) {
+                fetchMyTimetable(MY_MATRIC_ID, currentSesi, currentSemester);
+            } else {
+                $('#myTimetableContainer').html('<p class="w3-text-red">Error: Session/Semester context is missing. Check Main.html initialization.</p>');
+            }
+        } else {
+            $('#student-id').text('N/A (Not Logged In)');
+            $('#myTimetableContainer').html('<p class="w3-text-red">Error: Could not retrieve student ID from user session. Please ensure you are logged in.</p>');
+        }
+    });
+
+    /**
+     * Executes sequential AJAX/Fetch calls to compile the student's timetable.
+     * 1. Fetches registered subjects, filtered by SESI and SEMESTER in the URL (pelajar_subjek).
+     * 2. Fetches timetable slots for each subject (jadual_subjek).
+     */
+    function fetchMyTimetable(no_matrik, sesi, semester) {
+        // 1. Fetch registered subjects with SESI and SEMESTER filtering
+        const subjekUrl = `${BASE_URL}pelajar_subjek&no_matrik=${no_matrik}&sesi=${sesi}&semester=${semester}`;
+        
+        fetch(subjekUrl)
+            .then(res => res.json())
+            .then(subjects => {
+                
+                // The returned 'subjects' array is already filtered by the server
+                const currentSubjects = subjects; 
+                
+                if (!currentSubjects || currentSubjects.length === 0) {
+                    $('#myTimetableContainer').html('<p class="w3-text-red">No subjects found for the current semester.</p>');
+                    return;
+                }
+
+                // 2. Fetch timetable slots for ALL current subjects
+                const fetchPromises = currentSubjects.map(sub => 
+                    // API call: jadual_subjek&sesi=...&semester=...&kod_subjek=...&seksyen=...
+                    fetch(`${BASE_URL}jadual_subjek&sesi=${sesi}&semester=${semester}&kod_subjek=${sub.kod_subjek}&seksyen=${sub.seksyen}`)
+                        .then(res => res.json())
+                        .then(slots => {
+                            // Attach subject details to each slot for rendering
+                            return slots.map(slot => ({ 
+                                ...slot, 
+                                nama_subjek: sub.nama_subjek,
+                                kod_subjek: sub.kod_subjek
+                            }));
+                        })
+                );
+
+                // Wait for all timetable slots to be fetched simultaneously
+                return Promise.all(fetchPromises);
+            })
+            .then(allTimetableSlotsArray => {
+                // Flatten the array of arrays into a single list of slots
+                const allSlots = [].concat.apply([], allTimetableSlotsArray);
+                
+                // 3. Render the timetable table
+                renderTimetable(allSlots);
+            })
+            .catch(error => {
+                console.error("Error fetching timetable:", error);
+                $('#myTimetableContainer').html('<p class="w3-text-red">Failed to load timetable data. Check API connection or student enrollment.</p>');
+            });
+    }
+
+    /**
+     * Renders the fetched timetable data into the visual table structure (like image_ee9d05.png).
+     */
+    function renderTimetable(slots) {
+        if (!slots || slots.length === 0) {
+            $('#myTimetableContainer').html('<p>No scheduled slots found for your registered subjects.</p>');
+            return;
+        }
+
+        const minMasa = 1; 
+        const maxMasa = 10; // Based on the visual timetable layout
+        
+        // Initialize table structure
+        const tableData = {}; 
+        const days = ["AHAD", "ISNIN", "SELASA", "RABU", "KHAMIS", "JUMAAT", "SABTU"];
+        
+        // Setup rows for each time slot (masa)
+        for (let i = minMasa; i <= maxMasa; i++) {
+            const timeRange = getMasaTimeRange(i);
+            // Masa 7 (1pm) is often highlighted as lunch/break time
+            tableData[timeRange] = { time: timeRange, isLunch: (i === 7) }; 
+            days.forEach(day => tableData[timeRange][day] = []);
+        }
+
+        // Populate tableData with API slots
+        slots.forEach(slot => {
+            const dayName = DAY_MAP[slot.hari]; // Convert hari index to day name
+            const timeRange = getMasaTimeRange(slot.masa); // Convert masa index to time range
+            
+            if (tableData[timeRange] && tableData[timeRange][dayName]) {
+                tableData[timeRange][dayName].push({
+                    subject: slot.kod_subjek + "-" + slot.seksyen,
+                    room: slot.ruang ? (slot.ruang.nama_ruang_singkatan || slot.ruang.kod_ruang) : 'N/A' // Use short name if available
+                });
+            }
+        });
+        
+        // --- Generate HTML Table ---
+        let html = '<table class="w3-table w3-border w3-white w3-small" style="table-layout: fixed; width: 100%;">';
+        
+        // Header Row
+        html += '<tr class="w3-light-grey">';
+        html += '<th style="width: 12%;">Masa | Waktu</th>';
+        days.forEach(day => html += `<th>${day}</th>`);
+        html += '</tr>';
+
+        // Data Rows
+        Object.keys(tableData).forEach(timeRange => {
+            const row = tableData[timeRange];
+            // Highlight lunch row in green, consistent with the image
+            const rowStyle = row.isLunch ? 'style="background-color: #E6FFE6;"' : ''; 
+
+            html += `<tr ${rowStyle}>`;
+            html += `<td class="w3-pale-blue">${row.time}</td>`; 
+            
+            days.forEach(day => {
+                const cellSlots = row[day];
+                let cellContent = '';
+
+                if (cellSlots.length > 0) {
+                    // Render multiple subjects/sections in the same time slot if needed
+                    cellContent = cellSlots.map(slot => 
+                        // Using colors and structure similar to the provided images
+                        `<div style="padding: 3px; border-radius: 4px; margin-bottom: 2px; background-color: #F0F8FF; border-left: 5px solid #0A2D6E; font-size: 11px;">
+                            <strong class="w3-text-red">${slot.subject}</strong><br>
+                            <span class="w3-text-gray">${slot.room}</span>
+                         </div>`
+                    ).join('');
+                }
+                
+                html += `<td>${cellContent}</td>`;
+            });
+            html += '</tr>';
+        });
+
+        html += '</table>';
+        $('#myTimetableContainer').html(html);
+    }
+</script>

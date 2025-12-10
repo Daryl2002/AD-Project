@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>TTMS - Login</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    
+    <link rel="stylesheet" href="Styles/loginStyle.css"> 
+</head>
+<body>
+
+    <div class="welcome-text">WELCOME!</div>
+
+    <div class="faculty-text">
+        Fakulti Komputeran<br>
+        Universiti Teknologi<br>
+        Malaysia
+    </div>
+
+    <div class="logo-container">
+        <img id="utm-logo" src="Logo/UTM-LOGO.png" alt="UTM Logo">
+        </div>
+
+    <div class="login-box">
+        <div class="input-group">
+            <label for="login">UserID</label>
+            <input type="text" id="login" class="input-field" value="">
+        </div>
+        
+        <div class="input-group">
+            <label for="password">Password</label>
+            <input type="password" id="password" class="input-field" value="">
+        </div>
+        
+        <button class="login-button" id="btnLogin">LOGIN</button>
+    </div>
+
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
+    <script>
+        $("#btnLogin").click(function()  {
+            console.log($("#login").val());
+            console.log($("#password").val());
+
+            var url = "http://web.fc.utm.my/ttms/web_man_webservice_json.cgi?entity=authentication&login=" + $("#login").val() + "&password=" + $("#password").val();
+
+            console.log(url);
+            fetch(url)
+            .then(res => res.json())
+            .then(jsonInst => { 
+                alert("Success login to the system!"); 
+                console.log(jsonInst);
+                console.log(JSON.stringify(jsonInst[0]));
+
+                localStorage.setItem("TTMSFC_userSession", JSON.stringify(jsonInst[0]));
+                window.location.replace("Main.html");
+            })
+            .catch(err => {
+                alert("Invalid credential!"); 
+                console.log(err);
+            });
+        });
+    </script>
+</body>
+</html>
