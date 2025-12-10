@@ -1,32 +1,62 @@
+/* timetable-styles.css */
 
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            text-align: center;
-        }
-        th, td {
-            border: 1px solid #ccc;
-            padding: 10px;
-        }
-        th {
-            background: #f44336;
-            color: white;
-        }
-        .slot {
-            background: #bbdefb;
-            border-radius: 4px;
-            padding: 5px;
-            margin: 2px;
-        }
-        .loading {
-            text-align: center;
-            padding: 20px;
-            color: #666;
-        }
-        .info-box {
-            background: #e3f2fd;
-            padding: 15px;
-            margin-bottom: 20px;
-            border-radius: 5px;
-            border-left: 4px solid #2196F3;
-        }
+/* General table structure */
+table {
+    width: 100%;
+    border-collapse: collapse;
+    text-align: center;
+}
+
+/* Cell borders and padding */
+th, td {
+    border: 1px solid #ccc;
+    padding: 10px;
+}
+
+/* Day header styling */
+th {
+    background: #f44336; /* Red color */
+    color: white;
+}
+
+/* Class slot styling */
+.slot {
+    background: #bbdefb; /* Light blue color */
+    border-radius: 4px;
+    padding: 5px;
+    margin: 2px;
+    /* Ensure the content is centered and readable */
+    display: block;
+    line-height: 1.2;
+    font-size: 12px;
+}
+
+/* Loading message styling */
+.loading {
+    text-align: center;
+    padding: 20px;
+    color: #666;
+}
+
+/* Information box styling (Student/Session info) */
+.info-box {
+    background: #e3f2fd;
+    padding: 15px;
+    margin-bottom: 20px;
+    border-radius: 5px;
+    border-left: 4px solid #2196F3;
+}
+
+/* Additional utility styles for the course list */
+.w3-center {
+    text-align: center;
+}
+.w3-text-blue {
+    color: #2196F3;
+}
+
+/* Ensure the time column stands out */
+.time-column-label {
+    background-color: #f0f0f0;
+    font-weight: bold;
+}
