@@ -1,0 +1,66 @@
+TTMS Web Service access flow:
+
+1. User login to the system:
+
+http://web.fc.utm.my/ttms/web_man_webservice_json.cgi?entity=authentication&login=A16CS4016&password=201608M10112
+
+[
+   {
+      "login_name":"A16CS4016",
+      "description":"Pelajar FSKSM",
+      "full_name":"MD MIRZA SHIHAB",
+      "session_id":"_user_session_id_"
+   }
+]
+
+
+2. Get admin type session ID:
+
+http://web.fc.utm.my/ttms/auth-admin.php?session_id=_user_session_id_
+[ 
+  { 
+    "email":"", 
+    "description":"Web Service Client", 
+    "login_name":"ad2021", 
+    "session_id":"_admin_session_id_", 
+    "full_name":"APP DEV SCSX3104. 2020/2021" 
+  } 
+] 
+
+
+3. Use admin type session ID to access authenticated entity:
+
+http://web.fc.utm.my/ttms/web_man_webservice_json.cgi?entity=pelajar&session_id=_admin_session_id_&sesi=2025/2026&semester=1&offset=0&limit=2
+
+[
+   {
+      "tahun_kursus":3,
+      "no_matrik":"B23CS0001",
+      "kod_fakulti":"FSKSM",
+      "bil_subjek":6,
+      "kod_kursus":"SECJH",
+      "nama":"'AISYAH BINTI MOHAMAD SHIRAJUDDIN",
+      "no_kp":"-"
+   },
+   {
+      "kod_kursus":"SECJH",
+      "nama":"A'ISYAH MAWADDAH BINTI MOHD RODUAN",
+      "no_kp":"-",
+      "tahun_kursus":3,
+      "no_matrik":"A22EC0129",
+      "kod_fakulti":"FSKSM",
+      "bil_subjek":6
+   }
+]
+
+### How to use limit & offset
+limit=10&offset=0 (First 10 students, 1 - 10)
+limit=10&offset=10 (Second 10 students, 11 - 20)
+limit=10&offset=20 (Third 10 students, 21 - 30)
+
+
+
+
+
+
+
