@@ -1,0 +1,129 @@
+TTMS Web Service access flow:
+
+1. User login to the system:
+
+http://web.fc.utm.my/ttms/web_man_webservice_json.cgi?entity=authentication&login=A16CS4016&password=201608M10112
+
+[
+   {
+      "login_name":"A16CS4016",
+      "description":"Pelajar FSKSM",
+      "full_name":"MD MIRZA SHIHAB",
+      "session_id":"???"
+   }
+]
+
+2. Get the current active session-semester:
+http://web.fc.utm.my/ttms/web_man_webservice_json.cgi?entity=sesisemester
+
+[
+   {
+      "tarikh_tamat":"2024-06-29",
+      "semester":2,
+      "sesi":"2023/2024",
+      "sesi_semester_id":"202320242",
+      "tarikh_mula":"2024-03-17"
+   },
+...
+]
+
+3. Get courses/subjects registered by the current user/student
+http://web.fc.utm.my/ttms/web_man_webservice_json.cgi?entity=pelajar_subjek&no_matrik=A16CS4016
+
+[
+   {
+      "nama_subjek":"Projek II Kejuruteraan Perisian",
+      "sesi":"2020/2021",
+      "kod_kursus":"SCSJ",
+      "status":"UM",
+      "kod_subjek":"SCSJ4134",
+      "semester":2,
+      "tahun_kursus":3,
+      "seksyen":1
+   },
+   {
+      "kod_kursus":"SCSJ",
+      "sesi":"2020/2021",
+      "nama_subjek":"Pembinaan Perisian",
+      "status":"-",
+      "kod_subjek":"SCSJ4383",
+      "semester":2,
+      "tahun_kursus":3,
+      "seksyen":1
+   },
+   {
+      "kod_kursus":"SCSJ",
+      "sesi":"2020/2021",
+      "nama_subjek":"Kejuruteraan Perisian Masa Nyata",
+      "status":"-",
+      "tahun_kursus":3,
+      "seksyen":3,
+      "kod_subjek":"SCSJ4423",
+      "semester":2
+   },
+  ...
+]
+
+Possible restructured model of student's courses:
+[ 
+  {"sessem": "2020/2021-2", "courses": [
+                                        {"code":"SCSJ4134", "name":"Projek II Kejuruteraan Perisian", "seksyen":1}, 
+                                        {"code":"SCSJ4383", "name":"Pembinaan Perisian", "seksyen":1},
+                                        {"code":"SCSJ4423", "name":"Kejuruteraan Perisian Masa Nyata", "seksyen":3},
+                                        . . .
+                                       ]
+  },
+
+  {"sessem": "2019/2020-2", "courses": [...]},
+]
+
+
+4. Check the course/subject timetable 
+
+http://web.fc.utm.my/ttms/web_man_webservice_json.cgi?entity=jadual_subjek&sesi=2020/2021&semester=2&kod_subjek=SCSJ4383&seksyen=1
+
+[
+   {
+      "hari":2,
+      "seksyen":1,
+      "id_jws":"31901",
+      "kod_subjek":"SCSJ4383",
+      "masa":4,
+      "ruang":{
+         "kod_ruang":"N28-506-01",
+         "nama_ruang_singkatan":"MPK3",
+         "nama_ruang":"Makmal Pengaturcaraan Komputer 03"
+      }
+   },
+
+   {
+      "masa":5,
+      "kod_subjek":"SCSJ4383",
+      "ruang":{
+         "nama_ruang_singkatan":"MPK3",
+         "kod_ruang":"N28-506-01",
+         "nama_ruang":"Makmal Pengaturcaraan Komputer 03"
+      },
+      "hari":2,
+      "id_jws":"31902",
+      "seksyen":1
+   },
+
+  ...
+]
+
+Need to interpret them as follows:
+"hari":2 => Monday
+"masa":4 => 10am - 11am
+venue => MPK3
+
+"hari":2 => Monday
+"masa":5 => 11am - 12pm
+venue => MPK3
+
+Final display: SCSJ4383 (Monday, MPK3, 10am-12pm)
+
+
+
+
+
