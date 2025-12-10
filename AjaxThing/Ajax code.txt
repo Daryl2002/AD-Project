@@ -1,0 +1,30 @@
+authentication
+
+ sesisemester -> entity=sesisemester 
+
+pensyarah -> entity=pensyarah&session_id=???&sesi=yyyy/yyyy&semester=[1|2]
+
+subjek    -> entity=subjek&sesi=yyyy/yyyy&semester=[1|2]
+Gamma => pelajar   -> entity=pelajar&session_id=???&sesi=yyyy/yyyy&semester=[1|2]&limit=num_&offset=num_
+
+pensyarah_subjek -> entity=pensyarah_subjek&no_pekerja=???
+
+pelajar_subjek   -> entity=pelajar_subjek&no_matrik=???
+
+subjek_seksyen   -> entity=subjek_seksyen&sesi=yyyy/yyyy&semester=[1|2]
+ 
+subjek_pelajar   -> entity=subjek_pelajar&session_id=???&sesi=yyyy/yyyy&semester=[1|2]&kod_subjek=???&seksyen=???
+
+subjek_pensyarah -> entity=subjek_pensyarah&kod_subjek=???[&sesi=yyyy/yyyy&semester=[1|2]&seksyen=???]
+
+kurikulum                -> entity=kurikulum
+kurikulum                -> entity=kurikulum&cohort=yyyy/yyyy
+kurikulum_subjek         -> entity=kurikulum_subjek&id_kurikulum=???
+kurikulum_subjek_elektif -> entity=kurikulum_subjek_elektif&id_kurikulum_subjek=???
+
+ruang         -> entity=ruang&kod_fakulti=???&kod_ruang_like=???
+
+jadual_ruang  -> entity=jadual_ruang&sesi=yyyy/yyyy&semester=[1|2]&kod_ruang=???
+
+jadual_subjek -> entity=jadual_subjek&sesi=yyyy/yyyy&semester=[1|2]&kod_subjek=???&seksyen=???
+
