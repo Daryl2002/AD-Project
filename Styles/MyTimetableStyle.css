@@ -1,0 +1,32 @@
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            text-align: center;
+        }
+        th, td {
+            border: 1px solid #ccc;
+            padding: 10px;
+        }
+        th {
+            background: #f44336;
+            color: white;
+        }
+        .slot {
+            background: #bbdefb;
+            border-radius: 4px;
+            padding: 5px;
+            margin: 2px;
+        }
+        .loading {
+            text-align: center;
+            padding: 20px;
+            color: #666;
+        }
+        .info-box {
+            background: #e3f2fd;
+            padding: 15px;
+            margin-bottom: 20px;
+            border-radius: 5px;
+            border-left: 4px solid #2196F3;
+        }
