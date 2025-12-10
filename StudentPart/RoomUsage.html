@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Detailed Room Usage Analysis</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    
+    <link rel="stylesheet" href="https://www.w3schools.com/w3css/4/w3.css">
+    <style>
+        /* Optional style for sticky header on large tables */
+        #roomListTable th {
+            background-color: #3f51b5; /* Blue-grey header background */
+            color: white;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+        .w3-table-all {
+            table-layout: fixed; /* Ensures columns are sized correctly */
+        }
+    </style>
+</head>
+
+<body class="w3-container">
+
+<h2 class="w3-center w3-text-blue">Detailed Room Usage Analysis</h2>
+
+<div class="w3-panel w3-border w3-light-grey w3-round-large w3-padding-16 w3-margin-bottom">
+    <p>
+        <strong>Session/Semester:</strong> <span id="sessionSem">Loading...</span> 
+        <span class="w3-right w3-tag w3-blue-grey w3-round" id="roomCount">0 Rooms Loaded</span>
+    </p>
+</div>
+
+<div class="loading w3-margin-top" id="loadingMsg">
+    🔄 Fetching list of all rooms...
+</div>
+
+<div style="overflow-x: auto;">
+    <table class="w3-table-all w3-hoverable w3-card-4" id="roomListTable" style="display:none; min-width: 900px;">
+        <thead>
+            <tr class="w3-blue-grey">
+                <th>No.</th>
+                <th>Room Code</th>
+                <th>Room Name</th>
+                <th>Abbreviated Name</th>
+                <th>Faculty</th>
+                <th>Type</th>
+                <th>Capacity</th>
+                <th colspan="2" class="w3-center">Usage</th>
+            </tr>
+            <tr class="w3-light-grey w3-small">
+                <th></th>
+                <th></th>
+                <th></th>
+                <th></th>
+                <th></th>
+                <th></th>
+                <th></th>
+                <th>Time/Week (Hrs)</th>
+                <th>No. of Subjects</th>
+            </tr>
+        </thead>
+        <tbody id="roomListBody">
+            </tbody>
+    </table>
+</div>
+
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
+
+<script>
+$(document).ready(function() {
+
+    // --- CONSTANTS ---
+    const ROOM_LIST_API_URL = "http://web.fc.utm.my/ttms/web_man_webservice_json.cgi?entity=ruang";
+    const JADUAL_RUANG_API_BASE = "http://web.fc.utm.my/ttms/web_man_webservice_json.cgi?entity=jadual_ruang";
+    
+    // --- SESSION CONTEXT ---
+    let currentSesi = window.parent.currentSesi;
+    let currentSemester = window.parent.currentSemester;
+    
+    // Check if session context is available
+    if (!currentSesi || !currentSemester) {
+        $("#sessionSem").text("Error: Session context unavailable. Cannot calculate usage.");
+        $("#loadingMsg").html("❌ Critical Session/Semester context is missing.");
+        return;
+    }
+    
+    $("#sessionSem").text(`${currentSesi} - Semester ${currentSemester}`);
+    
+    // Start the process
+    fetchAndAnalyzeRooms();
+    
+    // =================================================================
+    // MASTER CONTROL FUNCTION
+    // =================================================================
+
+    /**
+     * Executes the sequence: Fetch Rooms -> Fetch Usage for Each Room -> Display Table.
+     */
+    function fetchAndAnalyzeRooms() {
+        // 1. Fetch all rooms (Static data)
+        fetch(ROOM_LIST_API_URL)
+            .then(res => res.json())
+            .then(rooms => {
+                if (!Array.isArray(rooms) || rooms.length === 0) {
+                     $("#loadingMsg").html("⚠️ API returned no room data.");
+                     return;
+                }
+
+                $("#loadingMsg").text(`⏳ Found ${rooms.length} rooms. Calculating usage for current semester (${currentSesi}-${currentSemester})...`);
+                $("#roomCount").text(`${rooms.length} Rooms Found`);
+                
+                // 2. Fetch usage for all rooms concurrently
+                return analyzeRoomUsage(rooms);
+            })
+            .then(analyzedRooms => {
+                // 3. Display the final table
+                displayRoomList(analyzedRooms);
+                
+                $("#loadingMsg").hide();
+                $("#roomListTable").show();
+                $("#roomCount").text(`${analyzedRooms.length} Rooms Displayed`);
+            })
+            .catch(err => {
+                console.error("❌ Fatal Error during analysis:", err);
+                $("#loadingMsg").html(`❌ Fatal Error: ${err.message}. Check browser console for details.`);
+            });
+    }
+
+    // =================================================================
+    // USAGE CALCULATION LOGIC
+    // =================================================================
+
+    /**
+     * Creates a Promise to fetch the schedule for a single room.
+     * @param {Object} room - The room object.
+     * @returns {Promise<Object>} A promise that resolves to the room object augmented with usage data.
+     */
+    function fetchRoomSchedule(room) {
+        const url = `${JADUAL_RUANG_API_BASE}&sesi=${currentSesi}&semester=${currentSemester}&kod_ruang=${room.kod_ruang}`;
+
+        return fetch(url)
+            .then(res => res.json())
+            .then(schedule => {
+                return calculateUsage(room, schedule);
+            })
+            .catch(error => {
+                console.warn(`Could not fetch schedule for ${room.kod_ruang}. Assuming 0 usage.`, error);
+                // Return room with 0 usage on failure
+                return { 
+                    ...room, 
+                    usageHours: 0, 
+                    subjectCount: 0 
+                };
+            });
+    }
+
+    /**
+     * Calculates usage metrics from the room's schedule data.
+     * @param {Object} room - The static room object.
+     * @param {Array<Object>} schedule - The array of timetable slots.
+     * @returns {Object} The room object augmented with usage data.
+     */
+    function calculateUsage(room, schedule) {
+        // Time/Week is simply the count of schedule slots, as each slot is 1 hour (masa index).
+        const usageHours = schedule.length; 
+        
+        // Number of Subjects requires finding unique subject codes.
+        const uniqueSubjects = new Set();
+        schedule.forEach(slot => {
+            if (slot.kod_subjek) {
+                // Combine subject code and section to count unique subject/section entries
+                uniqueSubjects.add(`${slot.kod_subjek}-${slot.seksyen}`);
+            }
+        });
+
+        return {
+            ...room,
+            usageHours: usageHours,
+            subjectCount: uniqueSubjects.size
+        };
+    }
+
+    /**
+     * Manages concurrent fetching of usage data for all rooms.
+     * @param {Array<Object>} rooms - List of room objects.
+     * @returns {Promise<Array<Object>>} A promise that resolves to the list of rooms with usage data.
+     */
+    function analyzeRoomUsage(rooms) {
+        const promises = rooms.map(room => fetchRoomSchedule(room));
+        // Use Promise.allSettled to ensure all promises finish (success or failure)
+        return Promise.allSettled(promises)
+            .then(results => {
+                return results
+                    .filter(result => result.status === 'fulfilled')
+                    .map(result => result.value);
+            });
+    }
+
+    // =================================================================
+    // DISPLAY LOGIC
+    // =================================================================
+
+    /**
+     * Populates the room list table body with fetched and analyzed data.
+     * @param {Array<Object>} rooms - List of room objects with usage data.
+     */
+    function displayRoomList(rooms) {
+        const body = $("#roomListBody");
+        body.empty();
+        
+        // Sort by Usage Hours (most used first)
+        rooms.sort((a, b) => b.usageHours - a.usageHours);
+
+        rooms.forEach((room, index) => {
+            const row = `
+                <tr>
+                    <td>${index + 1}</td>
+                    <td><strong>${room.kod_ruang || 'N/A'}</strong></td>
+                    <td>${room.nama_ruang || 'N/A'}</td>
+                    <td>${room.nama_ruang_singkatan || 'N/A'}</td>
+                    <td>${room.kod_fakulti || 'N/A'}</td>
+                    <td>${room.jenis_ruang || 'N/A'}</td>
+                    <td class="w3-center">${room.muatan || 'N/A'}</td>
+                    <td class="w3-center">
+                        <span class="w3-tag w3-teal w3-round">${room.usageHours}</span>
+                    </td>
+                    <td class="w3-center">
+                        <span class="w3-tag w3-indigo w3-round">${room.subjectCount}</span>
+                    </td>
+                </tr>
+            `;
+            body.append(row);
+        });
+        
+        console.log(`✅ Displayed ${rooms.length} rooms with usage data.`);
+    }
+});
+</script>
+</body>
+</html>
