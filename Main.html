@@ -111,41 +111,16 @@
     // --- TTMS WEB SERVICE FETCHERS ---
 
     function getAdminSession(userSessionID) {
-    // auth-admin.php endpoint
-    return fetch(AUTH_URL + userSessionID)
-        .then(res => {
-            if (!res.ok) {
-                // Handle non-200 HTTP status codes
-                throw new Error(`Admin Auth Failed. Status: ${res.status}`);
-            }
-            // Safely parse JSON. This is where the SyntaxError occurs if response is text.
-            return res.json().catch(e => {
-                console.error("JSON parsing error in getAdminSession:", e);
-                throw new Error("Invalid response for Admin Session (Not JSON).");
-            });
-        })
-        .then(data => {
-            // Check if the expected data structure is present
-            if (!Array.isArray(data) || data.length === 0 || !data[0].session_id) {
-                 throw new Error("Invalid or empty data returned for Admin Session.");
-            }
-            return data[0];
-        });
+        // auth-admin.php endpoint
+        return fetch(AUTH_URL + userSessionID)
+            .then(res => res.json())
+            .then(data => data[0] || Promise.reject("Invalid Admin Session response"));
     }
 
     function getCurrentSessionSemester() {
-    // sesisemester entity
-    return fetch(BASE_URL + "sesisemester")
-        .then(res => {
-            if (!res.ok) {
-                throw new Error(`Session Fetch Failed. Status: ${res.status}`);
-            }
-            // Safely parse JSON
-            return res.json().catch(e => {
-                 console.error("JSON parsing error in getCurrentSessionSemester:", e);
-                 throw new Error("Invalid response for Session Semester (Not JSON).");
-            });
-        }); 
+        // sesisemester entity
+        return fetch(BASE_URL + "sesisemester")
+            .then(res => res.json()); 
     }
     
     // --- NAVIGATION LOGIC ---
