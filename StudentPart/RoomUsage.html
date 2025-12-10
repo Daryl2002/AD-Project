@@ -15,8 +15,21 @@
             z-index: 10;
         }
         .w3-table-all {
-            table-layout: fixed; /* Ensures columns are sized correctly */
+            /* Sets fixed column widths for better control */
+            table-layout: fixed; 
+            width: 100%;
         }
+        /* Define column widths */
+        #roomListTable th:nth-child(1) { width: 5%; } /* No. */
+        #roomListTable th:nth-child(2) { width: 10%; } /* Room Code */
+        #roomListTable th:nth-child(3) { width: 20%; } /* Room Name */
+        #roomListTable th:nth-child(4) { width: 12%; } /* Abbreviated Name */
+        #roomListTable th:nth-child(5) { width: 8%; } /* Faculty */
+        #roomListTable th:nth-child(6) { width: 8%; } /* Type */
+        #roomListTable th:nth-child(7) { width: 8%; } /* Capacity */
+        /* Usage columns */
+        #roomListTable th:nth-child(8) { width: 14%; } /* Time/Week */
+        #roomListTable th:nth-child(9) { width: 15%; } /* No. of Subjects */
     </style>
 </head>
 
@@ -57,7 +70,7 @@
                 <th></th>
                 <th></th>
                 <th>Time/Week (Hrs)</th>
-                <th>No. of Subjects</th>
+                <th>Number of Subject</th>
             </tr>
         </thead>
         <tbody id="roomListBody">
@@ -71,14 +84,23 @@
 $(document).ready(function() {
 
     // --- CONSTANTS ---
-    const ROOM_LIST_API_URL = "http://web.fc.utm.my/ttms/web_man_webservice_json.cgi?entity=ruang";
-    const JADUAL_RUANG_API_BASE = "http://web.fc.utm.my/ttms/web_man_webservice_json.cgi?entity=jadual_ruang";
+    // Hardcoded URLs to bypass parent window dependency and fix the 'undefinedruang' error
+    const BASE_API_URL = "http://web.fc.utm.my/ttms/web_man_webservice_json.cgi?entity=";
+    const ROOM_LIST_API_URL = BASE_API_URL + "ruang";
+    const JADUAL_RUANG_ENTITY = "jadual_ruang";
     
     // --- SESSION CONTEXT ---
-    let currentSesi = window.parent.currentSesi;
-    let currentSemester = window.parent.currentSemester;
+    let currentSesi = null;
+    let currentSemester = null;
     
-    // Check if session context is available
+    try {
+        currentSesi = window.parent.currentSesi;
+        currentSemester = window.parent.currentSemester;
+    } catch (e) {
+        // Fallback or warning if main.html context is inaccessible
+        console.warn("Could not access parent window variables. Running page in isolation.");
+    }
+
     if (!currentSesi || !currentSemester) {
         $("#sessionSem").text("Error: Session context unavailable. Cannot calculate usage.");
         $("#loadingMsg").html("❌ Critical Session/Semester context is missing.");
@@ -107,7 +129,7 @@ $(document).ready(function() {
                      return;
                 }
 
-                $("#loadingMsg").text(`⏳ Found ${rooms.length} rooms. Calculating usage for current semester (${currentSesi}-${currentSemester})...`);
+                $("#loadingMsg").text(`⏳ Found ${rooms.length} rooms. Calculating usage for current semester...`);
                 $("#roomCount").text(`${rooms.length} Rooms Found`);
                 
                 // 2. Fetch usage for all rooms concurrently
@@ -133,11 +155,10 @@ $(document).ready(function() {
 
     /**
      * Creates a Promise to fetch the schedule for a single room.
-     * @param {Object} room - The room object.
-     * @returns {Promise<Object>} A promise that resolves to the room object augmented with usage data.
      */
     function fetchRoomSchedule(room) {
-        const url = `${JADUAL_RUANG_API_BASE}&sesi=${currentSesi}&semester=${currentSemester}&kod_ruang=${room.kod_ruang}`;
+        // Construct URL: entity=jadual_ruang&sesi=yyyy/yyyy&semester=[1|2]&kod_ruang=???
+        const url = `${BASE_API_URL}${JADUAL_RUANG_ENTITY}&sesi=${currentSesi}&semester=${currentSemester}&kod_ruang=${room.kod_ruang}`;
 
         return fetch(url)
             .then(res => res.json())
@@ -145,8 +166,8 @@ $(document).ready(function() {
                 return calculateUsage(room, schedule);
             })
             .catch(error => {
+                // Log and return 0 usage if schedule fetch fails
                 console.warn(`Could not fetch schedule for ${room.kod_ruang}. Assuming 0 usage.`, error);
-                // Return room with 0 usage on failure
                 return { 
                     ...room, 
                     usageHours: 0, 
@@ -157,19 +178,16 @@ $(document).ready(function() {
 
     /**
      * Calculates usage metrics from the room's schedule data.
-     * @param {Object} room - The static room object.
-     * @param {Array<Object>} schedule - The array of timetable slots.
-     * @returns {Object} The room object augmented with usage data.
      */
     function calculateUsage(room, schedule) {
-        // Time/Week is simply the count of schedule slots, as each slot is 1 hour (masa index).
+        // Time/Week (Hours) is the count of distinct time slots scheduled.
         const usageHours = schedule.length; 
         
-        // Number of Subjects requires finding unique subject codes.
+        // Number of Subjects: Use a Set to count unique Subject-Section combinations.
         const uniqueSubjects = new Set();
         schedule.forEach(slot => {
-            if (slot.kod_subjek) {
-                // Combine subject code and section to count unique subject/section entries
+            if (slot.kod_subjek && slot.seksyen) {
+                // Use a unique key combining code and section (e.g., 'SCSD3613-1')
                 uniqueSubjects.add(`${slot.kod_subjek}-${slot.seksyen}`);
             }
         });
@@ -183,14 +201,13 @@ $(document).ready(function() {
 
     /**
      * Manages concurrent fetching of usage data for all rooms.
-     * @param {Array<Object>} rooms - List of room objects.
-     * @returns {Promise<Array<Object>>} A promise that resolves to the list of rooms with usage data.
      */
     function analyzeRoomUsage(rooms) {
         const promises = rooms.map(room => fetchRoomSchedule(room));
         // Use Promise.allSettled to ensure all promises finish (success or failure)
         return Promise.allSettled(promises)
             .then(results => {
+                // Filter out any promises that failed entirely and extract the fulfilled values
                 return results
                     .filter(result => result.status === 'fulfilled')
                     .map(result => result.value);
@@ -203,7 +220,6 @@ $(document).ready(function() {
 
     /**
      * Populates the room list table body with fetched and analyzed data.
-     * @param {Array<Object>} rooms - List of room objects with usage data.
      */
     function displayRoomList(rooms) {
         const body = $("#roomListBody");
@@ -220,8 +236,8 @@ $(document).ready(function() {
                     <td>${room.nama_ruang || 'N/A'}</td>
                     <td>${room.nama_ruang_singkatan || 'N/A'}</td>
                     <td>${room.kod_fakulti || 'N/A'}</td>
-                    <td>${room.jenis_ruang || 'N/A'}</td>
-                    <td class="w3-center">${room.muatan || 'N/A'}</td>
+                    <td>${room.jenis || 'N/A'}</td>
+                    <td class="w3-center">${room.kapasiti || 'N/A'}</td>
                     <td class="w3-center">
                         <span class="w3-tag w3-teal w3-round">${room.usageHours}</span>
                     </td>
