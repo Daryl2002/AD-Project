@@ -5,10 +5,13 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     
     <link rel="stylesheet" href="https://www.w3schools.com/w3css/4/w3.css">
+    
+    <script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
+
     <style>
         /* Optional style for sticky header on large tables */
         #roomListTable th {
-            background-color: #3f51b5; /* Blue-grey header background */
+            background-color: #3f51b5; 
             color: white;
             position: sticky;
             top: 0;
@@ -19,16 +22,16 @@
             width: 100%;
         }
         /* Define column widths */
-        #roomListTable th:nth-child(1) { width: 5%; } /* No. */
-        #roomListTable th:nth-child(2) { width: 10%; } /* Room Code */
-        #roomListTable th:nth-child(3) { width: 20%; } /* Room Name */
-        #roomListTable th:nth-child(4) { width: 12%; } /* Abbreviated Name */
-        #roomListTable th:nth-child(5) { width: 8%; } /* Faculty */
-        #roomListTable th:nth-child(6) { width: 8%; } /* Type */
-        #roomListTable th:nth-child(7) { width: 8%; } /* Capacity */
+        #roomListTable th:nth-child(1) { width: 5%; } 
+        #roomListTable th:nth-child(2) { width: 10%; } 
+        #roomListTable th:nth-child(3) { width: 20%; } 
+        #roomListTable th:nth-child(4) { width: 12%; } 
+        #roomListTable th:nth-child(5) { width: 8%; } 
+        #roomListTable th:nth-child(6) { width: 8%; } 
+        #roomListTable th:nth-child(7) { width: 8%; } 
         /* Usage columns */
-        #roomListTable th:nth-child(8) { width: 14%; } /* Time/Week */
-        #roomListTable th:nth-child(9) { width: 15%; } /* No. of Subjects */
+        #roomListTable th:nth-child(8) { width: 14%; } 
+        #roomListTable th:nth-child(9) { width: 15%; } 
     </style>
 </head>
 
@@ -46,6 +49,9 @@
 <div class="loading w3-margin-top" id="loadingMsg">
     🔄 Fetching FSKSM rooms...
 </div>
+
+<div id="chart_div" style="width: 100%; height: 500px;"></div>
+<hr>
 
 <div style="overflow-x: auto;">
     <table class="w3-table-all w3-hoverable w3-card-4" id="roomListTable" style="display:none; min-width: 900px;">
@@ -99,19 +105,30 @@ $(document).ready(function() {
         console.warn("Could not access parent window variables. Assuming default context.");
     }
     
-    // Provide default values if context is missing for standalone execution
+    // Provide default values to prevent the 'Critical context is missing' error
     if (!currentSesi || !currentSemester) {
         currentSesi = "2025/2026"; 
         currentSemester = "1";
-        console.warn(`Using default Sesi: ${currentSesi} and Semester: ${currentSemester} for standalone execution.`);
+        console.warn(`[DIAGNOSTICS] Using default Session: ${currentSesi} and Semester: ${currentSemester} for standalone execution.`);
+        $("#sessionSem").text(`${currentSesi} - Semester ${currentSemester} (Default Context Used)`);
+    } else {
+        $("#sessionSem").text(`${currentSesi} - Semester ${currentSemester}`);
     }
     
-    $("#sessionSem").text(`${currentSesi} - Semester ${currentSemester}`);
+    // Exit if essential context is still truly missing/invalid
+    if (!currentSesi || !currentSemester) {
+        $("#loadingMsg").html("❌ Critical Session/Semester context is missing.");
+        return;
+    }
     
-    fetchAndAnalyzeRooms();
+    // FIX APPLIED HERE: Load the chart package and wrap the entire execution inside the callback.
+    // This ensures Google Charts is fully ready before execution proceeds, resolving the fatal error.
+    google.charts.load('current', {'packages':['bar']});
+    google.charts.setOnLoadCallback(fetchAndAnalyzeRooms);
+    
     
     // =================================================================
-    // MASTER CONTROL FUNCTION
+    // MASTER CONTROL FUNCTION (CALLED BY CHART LOADER)
     // =================================================================
 
     function fetchAndAnalyzeRooms() {
@@ -145,6 +162,9 @@ $(document).ready(function() {
                 // 4. Display the final table
                 displayRoomList(analyzedRooms);
                 
+                // 5. Draw the usage chart (Chart library is now guaranteed to be loaded)
+                drawRoomUsageChart(analyzedRooms);
+
                 $("#loadingMsg").hide();
                 $("#roomListTable").show();
                 $("#roomCount").text(`${analyzedRooms.length} N28/N28A Rooms Displayed`);
@@ -156,7 +176,7 @@ $(document).ready(function() {
     }
 
     // =================================================================
-    // USAGE CALCULATION LOGIC (FINAL ROBUST UNIQUE SLOT COUNTING)
+    // USAGE CALCULATION LOGIC (RETAINED CORRECT LOGIC)
     // =================================================================
 
     function fetchRoomSchedule(room) {
@@ -166,7 +186,6 @@ $(document).ready(function() {
             .then(res => res.json())
             .then(schedule => {
                 if (!Array.isArray(schedule)) {
-                    // Treat non-array response as empty schedule
                     return calculateUsage(room, []); 
                 }
                 return calculateUsage(room, schedule);
@@ -186,28 +205,27 @@ $(document).ready(function() {
         const uniqueSubjects = new Set();
         
         schedule.forEach(slot => {
-            // Safer way to access nested properties, defaulting to null/0 if object is missing
+            // Safer way to access nested properties: slot.subjek.kod_subjek
             const kodSubjek = slot.subjek && slot.subjek.kod_subjek;
-            const sekyen = (slot.subjek && slot.subjek.seksyen) || '0'; // Use '0' if section is missing
+            const sekyen = (slot.subjek && slot.subjek.seksyen) || '0';
             const hari = slot.hari;
             const masa = slot.masa;
             
-            // --- 1. COUNT UNIQUE SUBJECTS (Bil. Subjek) - FIX: Count unique KOD_SUBJEK only ---
+            // 1. COUNT UNIQUE SUBJECTS (Number of Subject: kod_subjek only)
             if (kodSubjek) {
-                // Count unique Subject Codes only, ignoring sections
+                // Counts only unique subject codes (e.g., SECI1013)
                 uniqueSubjects.add(kodSubjek); 
             }
 
-            // --- 2. COUNT USAGE HOURS (Jam/Minggu) - FIX: Count unique weekly slots ---
+            // 2. COUNT USAGE HOURS (Time/Week: unique weekly slots)
             if (hari && masa && room.kod_ruang) {
                 let uniqueSlotKey;
                 
+                // Key combines Subject, Section, Day, and Time for unique weekly slot count (e.g., 42, 31, 28)
                 if (kodSubjek) {
-                    // Case A: Subject Class. Key distinguishes based on Subject/Section/Day/Time.
                     uniqueSlotKey = `${kodSubjek}-${sekyen}-${hari}-${masa}`;
                 } else {
-                    // Case B: Non-Subject Booking (e.g., Meeting Room). 
-                    // Key relies on the room code itself to define the unique booking slot.
+                    // Key for non-subject bookings
                     uniqueSlotKey = `NON_SUB_BOOKING-${room.kod_ruang}-${hari}-${masa}`;
                 }
                 
@@ -215,13 +233,18 @@ $(document).ready(function() {
             }
         });
         
-        // The total number of unique keys (unique scheduled hours per week) is the Hours/Week
-        const usageHours = uniqueWeeklySlots.size;
+        // The usageHours is the size of the set of unique weekly time slots.
+        const usageHours = uniqueWeeklySlots.size; 
+        const subjectCount = uniqueSubjects.size;
+
+        if (usageHours > 0) {
+            console.log(`[SUCCESS] Room: ${room.kod_ruang} calculated usage: ${usageHours} Hrs / ${subjectCount} Subjects.`);
+        }
 
         return {
             ...room,
             usageHours: usageHours, 
-            subjectCount: uniqueSubjects.size
+            subjectCount: subjectCount
         };
     }
 
@@ -233,6 +256,54 @@ $(document).ready(function() {
                     .filter(result => result.status === 'fulfilled')
                     .map(result => result.value);
             });
+    }
+
+    // =================================================================
+    // CHARTING LOGIC
+    // =================================================================
+
+    function drawRoomUsageChart(rooms) {
+        // 1. Sort and select Top 10 by usageHours
+        const top10Rooms = rooms
+            .filter(room => room.usageHours > 0) // Only chart rooms with usage
+            .sort((a, b) => b.usageHours - a.usageHours)
+            .slice(0, 10);
+            
+        if (top10Rooms.length < 2) {
+            $("#chart_div").html('<div class="w3-panel w3-yellow w3-padding">Not enough usage data found to plot a meaningful chart (need at least 2 rooms).</div>');
+            return;
+        }
+
+        // 2. Prepare Google Chart DataTable
+        var data = new google.visualization.DataTable();
+        data.addColumn('string', 'Room');
+        data.addColumn('number', 'Time/Week (Hrs)');
+        
+        // Map the room data to the required array format for the chart
+        var chartData = top10Rooms.map(room => {
+            const roomLabel = room.nama_ruang_singkatan || room.kod_ruang;
+            return [roomLabel, room.usageHours];
+        });
+        
+        data.addRows(chartData);
+
+        // 3. Define Chart Options
+        var options = {
+            title: `Top ${top10Rooms.length} N28/N28A Room Usage: Time/Week (Hrs)`,
+            hAxis: {
+                title: 'Time/Week (Hours)',
+                minValue: 0
+            },
+            vAxis: {
+                title: 'Room Code / Abbreviated Name'
+            },
+            bars: 'horizontal', 
+            chartArea: { width: '60%' } 
+        };
+
+        // 4. Draw the Chart
+        var chart = new google.charts.Bar(document.getElementById('chart_div'));
+        chart.draw(data, google.charts.Bar.convertOptions(options));
     }
 
     // =================================================================
