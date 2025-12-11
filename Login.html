@@ -18,17 +18,17 @@
 
     <div class="logo-container">
         <img id="utm-logo" src="Logo/UTM-LOGO.png" alt="UTM Logo">
-        </div>
+    </div>
 
     <div class="login-box">
         <div class="input-group">
             <label for="login">UserID</label>
-            <input type="text" id="login" class="input-field" value="A24CS0064">
+            <input type="text" id="login" class="input-field" value="">
         </div>
         
         <div class="input-group">
             <label for="password">Password</label>
-            <input type="password" id="password" class="input-field" value="020620120897">
+            <input type="password" id="password" class="input-field" value="">
         </div>
         
         <button class="login-button" id="btnLogin">LOGIN</button>
@@ -36,28 +36,74 @@
 
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
     <script>
-        $("#btnLogin").click(function()  {
-            console.log($("#login").val());
-            console.log($("#password").val());
+        // TTMS Web Service Base URL
+        const BASE_URL = "http://web.fc.utm.my/ttms/web_man_webservice_json.cgi";
 
-            var url = "http://web.fc.utm.my/ttms/web_man_webservice_json.cgi?entity=authentication&login=" + $("#login").val() + "&password=" + $("#password").val();
+        $("#btnLogin").click(function()  {
+            
+            const loginId = $("#login").val();
+            const password = $("#password").val();
 
-            console.log(url);
-            fetch(url)
+            if (!loginId || !password) {
+                alert("Please enter both UserID and Password.");
+                return;
+            }
+
+            const authUrl = `${BASE_URL}?entity=authentication&login=${loginId}&password=${password}`;
+            
+            // 1. Perform Authentication
+            fetch(authUrl)
             .then(res => res.json())
             .then(jsonInst => { 
-                alert("Success login to the system!"); 
-                console.log(jsonInst);
-                console.log(JSON.stringify(jsonInst[0]));
+                
+                if (!Array.isArray(jsonInst) || jsonInst.length === 0 || !jsonInst[0].session_id) {
+                    throw new Error("Invalid credential or authentication API error.");
+                }
 
-                localStorage.setItem("TTMSFC_userSession", JSON.stringify(jsonInst[0]));
-                window.location.replace("Main.html");
+                alert("Successfully logged in to the system!"); 
+                const userData = jsonInst[0];
+                
+                // Save user session data to localStorage
+                localStorage.setItem("TTMSFC_userSession", JSON.stringify(userData));
+
+                // 2. Determine Role via secondary API check
+                determineUserRole(userData);
             })
             .catch(err => {
-                alert("Invalid credential!"); 
-                console.log(err);
+                alert("Invalid credential or connection error!"); 
+                console.error("Login Error:", err);
             });
         });
+
+        // ===============================================
+        // FUNCTION: Determine Role and Redirect
+        // ===============================================
+        function determineUserRole(userData) {
+            const loginName = userData.login_name;
+            
+            // Use loginName as no_matrik to check if the user is registered as a student
+            const studentCheckUrl = `${BASE_URL}?entity=pelajar_subjek&no_matrik=${loginName}`;
+
+            fetch(studentCheckUrl)
+            .then(res => res.json())
+            .then(subjects => {
+                
+                if (Array.isArray(subjects) && subjects.length > 0) {
+                    // User is a student: they have subject records
+                    console.log(`User ${loginName} confirmed as STUDENT (Found ${subjects.length} subject records). Redirecting to Main.html.`);
+                    window.location.replace("Main.html");
+                } else {
+                    // User is not a student (no student subject records), redirect as Lecturer/Staff
+                    console.log(`User ${loginName} detected as LECTURER/STAFF (No student subject records found). Redirecting to MainLecturer.html.`);
+                    window.location.replace("MainLecturer.html");
+                }
+            })
+            .catch(err => {
+                console.error("Error determining user role, defaulting to student homepage.", err);
+                // If the role determination API fails (e.g., network issue), default to the student page for safety.
+                window.location.replace("Main.html"); 
+            });
+        }
     </script>
 </body>
 </html>

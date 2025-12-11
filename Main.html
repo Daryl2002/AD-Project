@@ -26,9 +26,8 @@
     
     <h5 class="w3-bar-item w3-text-gray w3-border-bottom"><b>TIMETABLE</b></h5>
     
-    <a href="#" class="w3-bar-item w3-button w3-hover-light-grey" id="my-timetable">📝 My Timetable</a>
+    <a href="#" class="w3-bar-item w3-button w3-hover-light-grey" id="my-timetable">📅 My Timetable</a>
     <a href="#" class="w3-bar-item w3-button w3-hover-light-grey" id="room-availability">🏫 Room Availability</a>
-    <a href="#" class="w3-bar-item w3-button w3-hover-light-grey" id="exam-schedule">📅 Final Exam Schedule and venue</a>
     <hr>
     <h5 class="w3-bar-item w3-text-gray w3-border-bottom"><b>ANALYSIS</b></h5>
     
@@ -155,14 +154,12 @@
     $('#announcement-dashboard').click(() => handleMenuClick('announcement-dashboard', 'StudentPart/Announcement.html'));
 
     // TIMETABLE Category
-    $('#my-timetable').click(() => handleMenuClick('my-timetable', 'StudentPart/MyTimetable.html'));
+    $('#my-timetable').click(() => handleMenuClick('my-timetable', 'StudentPart/Timetable/MyTimetable.html'));
     $('#room-availability').click(() => handleMenuClick('room-availability', 'StudentPart/RoomAvailability.html'));
-    $('#exam-schedule').click(() => handleMenuClick('exam-schedule', 'StudentPart/FinalExamSchedule.html'));
 
     // ANALYSIS Category
-    $('#clash-analyzer').click(() => handleMenuClick('clash-analyzer', 'StudentPart/TimetableClashAnalyzer.html')); 
-    $('#schedule-overlap').click(() => handleMenuClick('schedule-overlap', 'StudentPart/ScheduleOverlapAnalyzer.html')); 
-    $('#room-usage').click(() => handleMenuClick('room-usage', 'StudentPart/RoomUsage.html'));
+    $('#clash-analyzer').click(() => handleMenuClick('clash-analyzer', 'StudentPart/TimetableClash/TimetableClashAnalyzer.html')); 
+    $('#room-usage').click(() => handleMenuClick('room-usage', 'StudentPart/RoomUsage/RoomUsage.html'));
     $('#course-list').click(() => handleMenuClick('course-list', 'StudentPart/CourseList.html')); 
 
 </script>
