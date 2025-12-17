@@ -280,7 +280,7 @@
     
     <!-- No Clash Message -->
     <div id="noClashMessage" class="no-clash-message" style="display:none;">
-        <h3>✅ No Clashes Detected!</h3>
+        <h3>No Clashes Detected!</h3>
         <p>Your timetable is perfectly scheduled with no overlapping courses.</p>
     </div>
 </div>
@@ -396,7 +396,7 @@ $(document).ready(function() {
     // ==========================================
     function buildEmptyTable() {
         let body = "";
-        for (let hour = 1; hour <= 10; hour++) {
+        for (let hour = 1; hour <= 9; hour++) {
             body += "<tr>";
             body += `<td><strong>${formatTime(hour)}</strong></td>`;
             
@@ -473,7 +473,7 @@ $(document).ready(function() {
     function addCourseToTimetable(subject, slot) {
         const day = slot.hari;
         const time = slot.masa;
-        const key = `${day}-${time}`;
+        const key = `${day}-${time-1}`;
         
         // Add course to this time slot
         const courseData = {
