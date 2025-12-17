@@ -289,12 +289,12 @@ $(document).ready(function() {
         const time = slot.masa -1;     
         
         // Track occupied slots using the day-time key
-        const slotKey = `${day}-${time}`;
+        const slotKey = `${day}-${time-1}`;
         occupiedSlots.add(slotKey);
 
         const room = slot.ruang.nama_ruang_singkatan || slot.ruang.kod_ruang || 'N/A';
 
-        const cell = $(`td[data-day='${day}'][data-time='${time}']`);
+        const cell = $(`td[data-day='${day}'][data-time='${time-1}']`);
 
         const slotHTML = `
             <div class="slot">
