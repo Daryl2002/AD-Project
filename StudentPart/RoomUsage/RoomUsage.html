@@ -253,7 +253,7 @@ $(document).ready(function() {
     // --- USAGE ANALYSIS LOGIC ---
     function analyzeRoomUsage(rooms) {
         const promises = rooms.map(room => {
-            return fetch(`http://web.fc.utm.my/ttms/web_man_webservice_json.cgi?entity=jadual_ruang&sesi=${currentSesi}&semester=${currentSemester}&kod_ruang=${room.kod_ruang}`)
+            return fetch(`http://web.fc.utm.my/ttms/web_man_webservice_json.cgi?entity=jadual_ruang&sesi=${currentSesi}&semester=${currentSemester}&kod_ruang=${room.kod_ruang}`) //so this where room schedule is fetched
             .then(res => res.json())
             .then(schedule => calculateUsage(room, Array.isArray(schedule) ? schedule : []))
             .catch(() => ({ ...room, usageHours: 0, subjectCount: 0 }));
