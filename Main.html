@@ -104,7 +104,7 @@
         $(`#${targetId}`).addClass('w3-blue');
         
         // AJAX Load content
-        $('#mainContent').load(url, function(response, status, xhr) {
+        $('#mainContent').load(url, function(response, status, xhr) { //this loadContent function
             if (status == "error") {
                 $("#mainContent").html(`<div class="w3-padding"><h3>File Not Found</h3><p>Could not load: ${url}</p></div>`);
             }
