@@ -3,9 +3,7 @@
 <head>
     <title>TTMS - Visualization Dashboard</title>
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    
     <link rel="stylesheet" href="https://www.w3schools.com/w3css/4/w3.css">
-    
     <link rel="stylesheet" href="Styles/mainStyle.css"> 
 </head>
 <body>
@@ -21,173 +19,110 @@
 </div>
 
 <nav class="w3-sidebar w3-bar-block w3-light-grey">
-    
-    <a href="#" class="w3-bar-item w3-button w3-hover-light-grey w3-blue-dark" id="announcement-dashboard">📢 Announcements</a>
+    <a href="#" class="w3-bar-item w3-button w3-hover-light-grey" id="announcement-dashboard">📢 Announcements</a>
     
     <h5 class="w3-bar-item w3-text-gray w3-border-bottom"><b>TIMETABLE</b></h5>
-    
-    <a href="#" class="w3-bar-item w3-button w3-hover-light-grey" id="my-timetable">📝 My Timetable</a>
+    <a href="#" class="w3-bar-item w3-button w3-hover-light-grey" id="my-timetable">📅 My Timetable</a>
     <a href="#" class="w3-bar-item w3-button w3-hover-light-grey" id="room-availability">🏫 Room Availability</a>
-    <a href="#" class="w3-bar-item w3-button w3-hover-light-grey" id="exam-schedule">📅 Final Exam Schedule and venue</a>
     <hr>
     <h5 class="w3-bar-item w3-text-gray w3-border-bottom"><b>ANALYSIS</b></h5>
-    
     <a href="#" class="w3-bar-item w3-button w3-hover-light-grey" id="clash-analyzer">🔍 Timetable Clash Analyzer</a>
     <a href="#" class="w3-bar-item w3-button w3-hover-light-grey" id="room-usage">📈 Room Usage</a>
     <a href="#" class="w3-bar-item w3-button w3-hover-light-grey" id="course-list">📚 Courses</a>
-
 </nav>
 
 <div id="mainContent">
-    <div class="w3-container">
+    <div class="w3-container w3-center" style="margin-top:100px;">
+        <i class="fa fa-spinner fa-spin" style="font-size:64px"></i>
         <h2>System Loading...</h2>
         <p>Initializing TTMS session and fetching current semester context. Please wait...</p>
     </div>
 </div>
 
 <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
-<script src="PageCtrl.js"></script> 
 <script>
-    // --- GLOBAL VARIABLES & CONSTANTS ---
+    // --- GLOBAL VARIABLES ---
     const BASE_URL = "http://web.fc.utm.my/ttms/web_man_webservice_json.cgi?entity=";
     const AUTH_URL = "http://web.fc.utm.my/ttms/auth-admin.php?session_id=";
     
-    // Global variables must be window-scoped to be accessible by content pages (e.g., MyTimetable.html)
     window.userSession = JSON.parse(localStorage.getItem("TTMSFC_userSession"));
     window.adminSessionID = null;
     window.currentSesi = null;
     window.currentSemester = null;
 
-    // --- SESSION GUARD & INITIALIZATION ---
-
+    // --- SESSION GUARD ---
     if (!userSession) {
-        // Redirect to login if user session is not found
         window.location.replace("Login.html");
     }
 
-    // Display user name
-    $('#user').text(userSession.full_name || 'Admin');
-    
-    // Start Initialization Sequence
-    initDashboard();
+    $(document).ready(function() {
+        $('#user').text(userSession.full_name || 'User');
+        initDashboard();
+    });
 
     /**
-     * Executes sequential AJAX calls to fetch critical context data.
-     * This uses a Promise chain to ensure variables are set before loading the default page.
+     * HANDSHAKE LOGIC:
+     * We wait for Admin Session AND Semester data before loading the first page.
      */
     function initDashboard() {
-        // 1. Get Admin Session ID
         getAdminSession(userSession.session_id)
             .then(adminData => {
                 window.adminSessionID = adminData.session_id;
-                console.log("Admin Session ID obtained.");
-                // 2. Get the current active session-semester
                 return getCurrentSessionSemester();
             })
             .then(sesiData => {
-                // Find the active session object
                 const activeSession = Array.isArray(sesiData) ? sesiData.find(s => s.sesi_semester_id) : sesiData;
 
                 if (activeSession) {
                     window.currentSesi = activeSession.sesi;
                     window.currentSemester = activeSession.semester;
-                    console.log(`Current Sesi: ${window.currentSesi}, Semester: ${window.currentSemester}`);
-                } else {
-                    throw new Error("Could not determine current active session/semester.");
                 }
 
-                // *** DEFAULT VIEW: LOAD ANNOUNCEMENT.HTML ***
-                // This executes ONLY after all context variables are set.
-                $('#mainContent').load('Announcement.html');
-                
+                // SUCCESS: Load the default page and highlight the menu
+                handleMenuClick('announcement-dashboard', 'StudentPart/Announcement.html');
             })
             .catch(error => {
                 console.error("Initialization failed:", error);
-                // Display error message if critical data fails to load
-                $('#mainContent').html('<div class="w3-panel w3-red w3-margin-top"><p><strong>System Error:</strong> Failed to initialize critical context. Please check network and API access.</p></div>');
+                $('#mainContent').html('<div class="w3-panel w3-red"><h3>Error</h3><p>Failed to connect to TTMS API.</p></div>');
             });
     }
 
-    // --- TTMS WEB SERVICE FETCHERS ---
-
+    // --- API FETCHERS ---
     function getAdminSession(userSessionID) {
-    // auth-admin.php endpoint
-    return fetch(AUTH_URL + userSessionID)
-        .then(res => {
-            if (!res.ok) {
-                // Handle non-200 HTTP status codes
-                throw new Error(`Admin Auth Failed. Status: ${res.status}`);
-            }
-            // Safely parse JSON. This is where the SyntaxError occurs if response is text.
-            return res.json().catch(e => {
-                console.error("JSON parsing error in getAdminSession:", e);
-                throw new Error("Invalid response for Admin Session (Not JSON).");
-            });
-        })
-        .then(data => {
-            // Check if the expected data structure is present
-            if (!Array.isArray(data) || data.length === 0 || !data[0].session_id) {
-                 throw new Error("Invalid or empty data returned for Admin Session.");
-            }
-            return data[0];
-        });
+        return fetch(AUTH_URL + userSessionID).then(res => res.json()).then(data => data[0]);
     }
 
     function getCurrentSessionSemester() {
-    // sesisemester entity
-    return fetch(BASE_URL + "sesisemester")
-        .then(res => {
-            if (!res.ok) {
-                throw new Error(`Session Fetch Failed. Status: ${res.status}`);
-            }
-            // Safely parse JSON
-            return res.json().catch(e => {
-                 console.error("JSON parsing error in getCurrentSessionSemester:", e);
-                 throw new Error("Invalid response for Session Semester (Not JSON).");
-            });
-        }); 
+        return fetch(BASE_URL + "sesisemester").then(res => res.json()); 
     }
     
     // --- NAVIGATION LOGIC ---
-
-    // Function to handle content loading
-    function loadContent(url) {
-        $('#mainContent').load(url);
+    function handleMenuClick(targetId, url) {
+        // Remove active color from all buttons
+        $('.w3-bar-item').removeClass('w3-blue'); 
+        // Add active color to clicked button
+        $(`#${targetId}`).addClass('w3-blue');
+        
+        // AJAX Load content
+        $('#mainContent').load(url, function(response, status, xhr) { //this loadContent function
+            if (status == "error") {
+                $("#mainContent").html(`<div class="w3-padding"><h3>File Not Found</h3><p>Could not load: ${url}</p></div>`);
+            }
+        });
     }
 
     // Logout Function 
     $('#logout').click(function() {
         localStorage.removeItem("TTMSFC_userSession");
-        localStorage.removeItem("TTMSFC_sessionList");
         window.location.replace("Login.html");
     });
     
-    // --- MENU HANDLERS ---
-    // Change the default active highlight when clicking a menu item
-    function handleMenuClick(targetId, url) {
-        $('.w3-bar-item.w3-blue-dark').removeClass('w3-blue-dark');
-        
-        let target = $(`#${targetId}`);
-        if (!target.is('a')) {
-             // If it's a submenu link, highlight the parent button
-             target = $(`#${targetId}`).closest('.w3-dropdown-content').prev('button');
-        }
-        target.addClass('w3-blue-dark');
-        loadContent(url);
-    }
-
-    // Default Page
+    // --- MENU EVENT LISTENERS ---
     $('#announcement-dashboard').click(() => handleMenuClick('announcement-dashboard', 'StudentPart/Announcement.html'));
-
-    // TIMETABLE Category
-    $('#my-timetable').click(() => handleMenuClick('my-timetable', 'StudentPart/MyTimetable.html'));
-    $('#room-availability').click(() => handleMenuClick('room-availability', 'StudentPart/RoomAvailability.html'));
-    $('#exam-schedule').click(() => handleMenuClick('exam-schedule', 'StudentPart/FinalExamSchedule.html'));
-
-    // ANALYSIS Category
-    $('#clash-analyzer').click(() => handleMenuClick('clash-analyzer', 'StudentPart/TimetableClashAnalyzer.html')); 
-    $('#schedule-overlap').click(() => handleMenuClick('schedule-overlap', 'StudentPart/ScheduleOverlapAnalyzer.html')); 
-    $('#room-usage').click(() => handleMenuClick('room-usage', 'StudentPart/RoomUsage.html'));
+    $('#my-timetable').click(() => handleMenuClick('my-timetable', 'StudentPart/Timetable/MyTimetable.html'));
+    $('#room-availability').click(() => handleMenuClick('room-availability', 'StudentPart/RoomAvailability/RoomAvailability.html'));
+    $('#clash-analyzer').click(() => handleMenuClick('clash-analyzer', 'StudentPart/TimetableClash/TimetableClashAnalyzer.html')); 
+    $('#room-usage').click(() => handleMenuClick('room-usage', 'StudentPart/RoomUsage/RoomUsage.html'));
     $('#course-list').click(() => handleMenuClick('course-list', 'StudentPart/CourseList.html')); 
 
 </script>
