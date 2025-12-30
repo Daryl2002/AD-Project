@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>My Current Course List</title>
+    <link rel="stylesheet" href="https://www.w3schools.com/w3css/5/w3.css"> 
+
+    
+    <style>
+        /* Center the chart placeholder (though chart is removed, keeping for future use) */
+        #chart_div {
+            margin: 0 auto; 
+            text-align: center;
+        }
+        /* Style the table container */
+        .w3-container {
+            width: 80%; 
+            margin: 20px auto; /* Center the table */
+        }
+    </style>
+</head>
+<body>
+
+<div id="chart_div" style="width: 900px; height: 100px;">
+    <h2>My Current Subjects (Filtered)</h2>
+    <p>Loading subject history for A24CS0064...</p>
+</div>
+<hr>
+
+<div class="w3-container">
+    <table class="w3-table-all w3-hoverable">
+        <thead>
+            <tr>
+                <th>Course Name</th>
+                <th>Course Code</th>
+                <th>Section</th>
+                <th>Sesion</th>
+                <th>Semester</th>
+            </tr>
+        </thead>
+        <tbody id="subjects-list">
+            <tr><td colspan="5">Processing data...</td></tr>
+        </tbody>
+    </table>
+</div>
+
+<p></p>
+
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
+
+<script>
+    // --- Configuration ---
+    // The entity for fetching all subjects taken by a student
+    var url = "http://web.fc.utm.my/ttms/web_man_webservice_json.cgi?entity=pelajar_subjek&no_matrik=A24CS0064";
+
+    // Define the specific academic term to FILTER for (your "latest" term)
+    const CURRENT_SESI = "2025/2026";
+    const CURRENT_SEMESTER = 1;
+    
+    // Get the table body element
+    const $subjectsList = $('#subjects-list');
+    
+    // Alert is for debugging/confirmation, can be removed for production
+    alert("Access TTMS-AJAX service for A24CS0064's subjects");
+
+    // Clear the loading message before fetching starts
+    $subjectsList.empty();
+
+    // Fetch data using the modern Fetch API
+    fetch(url)
+    .then(res => {
+        // Check for HTTP errors
+        if (!res.ok) {
+            throw new Error('Network response was not ok: ' + res.statusText);
+        }
+        return res.json(); // Parse the response as JSON
+    })
+    .then(jsonInst => { 
+        
+        // 1. FILTER the data for the current term
+        const currentSubjects = jsonInst.filter(subject => {
+            // Match both the Sesi (string) and the Semester (number)
+            return subject.sesi === CURRENT_SESI && subject.semester === CURRENT_SEMESTER;
+        });
+
+        // Check if subjects were found after filtering
+        if (currentSubjects.length === 0) {
+            $subjectsList.append(`<tr><td colspan="5" class="w3-text-red">No subjects found for Sesi ${CURRENT_SESI}, Semester ${CURRENT_SEMESTER}.</td></tr>`);
+            return; // Stop execution
+        }
+        
+        // 2. DISPLAY the filtered subjects in the table
+        currentSubjects.forEach(subject => {
+            // Create a new row using jQuery
+            var row = $('<tr></tr>');
+            
+            // Append the columns using the required fields from your JSON
+            row.append('<td>' + subject.nama_subjek + '</td>');
+            row.append('<td>' + subject.kod_subjek + '</td>');
+            row.append('<td>' + subject.seksyen + '</td>');
+            row.append('<td>' + subject.sesi + '</td>');
+            row.append('<td>' + subject.semester + '</td>');
+            
+            // Append the new row to the table body
+            $subjectsList.append(row);
+        });
+
+        // Update the header with the current term information
+        $('#chart_div h2').text(`My Current Subjects`);
+        $('#chart_div p').text(`Displaying subjects for Sesi ${CURRENT_SESI}, Semester ${CURRENT_SEMESTER}.`);
+
+        // NOTE: Charting code is removed because 'pelajar_subjek' does not provide 'bil_pelajar' needed for the chart.
+        
+    })
+    .catch(err => {
+        console.error("Fetch or Processing Error:", err);
+        $subjectsList.html(`<tr><td colspan="5" class="w3-text-red">Error fetching data: ${err.message}</td></tr>`);
+        $('#chart_div p').text(`Data loading failed.`);
+    });
+</script>
+
+</body>
+</html>
