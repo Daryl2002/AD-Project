@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Lecturer Clash Analyzer</title>
+    <link rel="stylesheet" href="https://www.w3schools.com/w3css/4/w3.css">
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
+    <script src="../Authenticate.js"></script>
+    <style>
+        /* Heatmap color styles */
+        .slot-clash { background-color: #ffcccc !important; border-left: 5px solid #ff4444 !important; font-weight: bold; }
+        .slot-ok { background-color: #ccffcc !important; border-left: 5px solid #44cc44 !important; }
+        .slot-empty { background-color: #ffffcc !important; border-left: 5px solid #cccc00 !important; }
+        
+        .slot { padding: 5px; margin: 2px 0; border-radius: 4px; font-size: 0.8em; line-height: 1.2; min-height: 65px; position: relative; }
+        .clash-count { position: absolute; top: 5px; right: 5px; background-color: #ff4444; color: white; border-radius: 50%; width: 22px; height: 22px; text-align: center; line-height: 22px; font-size: 0.75em; }
+        
+        .info-box { background-color: #fff3e0; padding: 15px; border-radius: 5px; margin-bottom: 20px; border-left: 5px solid #ff9800; }
+        .legend { display: flex; justify-content: center; margin: 20px 0; gap: 20px; }
+        .legend-color { width: 20px; height: 20px; margin-right: 8px; border-radius: 3px; border: 1px solid #ddd; }
+        .clash-table th { background-color: #d32f2f; color: white; padding: 12px; }
+    </style>
+</head>
+
+<body class="w3-container">
+
+<h2 class="w3-center">👨‍🏫 Lecturer Timetable Clash Analyzer</h2>
+
+<div class="info-box">
+    <p><strong>Lecturer:</strong> <span id="lecturerName">Loading...</span></p>
+    <p><strong>Staff No:</strong> <span id="staffNo">Loading...</span></p>
+    <p><strong>Session/Semester:</strong> <span id="sessionSem">Loading...</span></p>
+</div>
+
+<div class="w3-center" id="loadingMsg">
+    <div class="w3-panel w3-light-grey w3-padding">🔄 Analyzing teaching schedule for clashes...</div>
+</div>
+
+<div class="legend">
+    <div class="w3-display-container" style="display:flex; align-items:center;">
+        <div class="legend-color" style="background-color: #ccffcc;"></div> No Clash
+    </div>
+    <div class="w3-display-container" style="display:flex; align-items:center; margin-left:15px;">
+        <div class="legend-color" style="background-color: #ffcccc;"></div> Clash Detected
+    </div>
+</div>
+
+<div class="w3-responsive">
+    <table class="w3-table-all w3-card-4" id="timetableTable" style="display:none;">
+        <thead>
+            <tr class="w3-orange w3-text-white">
+                <th style="width:120px">Time</th>
+                <th>Monday</th><th>Tuesday</th><th>Wednesday</th><th>Thursday</th><th>Friday</th>
+            </tr>
+        </thead>
+        <tbody id="timetableBody"></tbody>
+    </table>
+</div>
+
+<div id="clashResultsSection" class="w3-container w3-padding-32" style="display:none;">
+    <h3 class="w3-border-bottom w3-border-red">Detailed Clash Report</h3>
+    <div id="clashDetails">       
+        <table class="w3-table w3-bordered w3-card-4 clash-table">
+            <thead>
+                <tr>
+                    <th>Day</th><th>Time</th><th>Conflicting Sessions</th>
+                </tr>
+            </thead>
+            <tbody id="clashTableBody"></tbody>
+        </table>
+    </div>
+    <div id="noClashMessage" class="w3-panel w3-green w3-padding-16" style="display:none;">
+        <h3>✅ Clear Schedule</h3>
+        <p>No overlapping classes detected for this semester.</p>
+    </div>
+</div>
+
+<script>
+$(document).ready(function() {
+    let timetableData = {};
+    const DAY_NAMES = ['', '', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
+
+    // 1. Get Lecturer Info
+    const userSession = JSON.parse(localStorage.getItem("TTMSFC_userSession"));
+    const staffID = userSession ? userSession.login_name : '12085'; 
+    $("#lecturerName").text(userSession ? userSession.full_name : 'Demo Lecturer');
+    $("#staffNo").text(staffID);
+
+    // 2. Init logic
+    async function startAnalysis() {
+        // Build Grid
+        let body = "";
+        for (let hour = 1; hour <= 10; hour++) {
+            body += `<tr><td class="w3-light-grey"><b>${hour+7}:00-${hour+8}:00</b></td>`;
+            for (let day = 2; day <= 6; day++) {
+                const key = `${day}-${hour}`;
+                timetableData[key] = [];
+                body += `<td id="cell-${key}" data-day="${day}" data-time="${hour}"></td>`;
+            }
+            body += "</tr>";
+        }
+        $("#timetableBody").html(body);
+
+        // Fetch Session
+        const sesRes = await $.getJSON("http://web.fc.utm.my/ttms/web_man_webservice_json.cgi?entity=sesisemester");
+        const sesi = sesRes[0].sesi;
+        const sem = sesRes[0].semester;
+        $("#sessionSem").text(`${sesi} - Sem ${sem}`);
+
+        // Fetch Lecturer Subjects
+        const subjects = await $.getJSON(`http://web.fc.utm.my/ttms/web_man_webservice_json.cgi?entity=pensyarah_subjek&no_pekerja=${staffID}`);
+        const currentClasses = subjects.filter(s => s.sesi === sesi && s.semester == sem);
+
+        // Fetch Timetable for each Class
+        const promises = currentClasses.map(cls => 
+            $.getJSON(`http://web.fc.utm.my/ttms/web_man_webservice_json.cgi?entity=jadual_subjek&sesi=${sesi}&semester=${sem}&kod_subjek=${cls.kod_subjek}&seksyen=${cls.seksyen}`)
+            .done(slots => {
+                if(Array.isArray(slots)) {
+                    slots.forEach(slot => {
+                        const key = `${slot.hari}-${slot.masa}`;
+                        if(timetableData[key]) {
+                            timetableData[key].push({
+                                code: cls.kod_subjek,
+                                sec: cls.seksyen,
+                                room: slot.ruang ? (slot.ruang.nama_ruang_singkatan || slot.ruang.kod_ruang) : 'N/A'
+                            });
+                        }
+                    });
+                }
+            })
+        );
+
+        await Promise.all(promises);
+        renderTable();
+    }
+
+    function renderTable() {
+        let clashFound = false;
+        let clashRows = "";
+
+        for (const [key, courses] of Object.entries(timetableData)) {
+            const cell = $(`#cell-${key}`);
+            if (courses.length === 0) {
+                cell.addClass("slot-empty");
+            } else if (courses.length === 1) {
+                cell.addClass("slot-ok").html(`<div class="slot"><b>${courses[0].code}</b><br>Sec: ${courses[0].sec}<br>📍 ${courses[0].room}</div>`);
+            } else {
+                clashFound = true;
+                cell.addClass("slot-clash");
+                let html = `<div class="slot"><span class="clash-count">${courses.length}</span>`;
+                courses.forEach(c => html += `<div class="w3-tiny w3-border-bottom"><b>${c.code}-${c.sec}</b><br>${c.room}</div>`);
+                cell.html(html + `</div>`);
+
+                // Add to report table
+                const [d, t] = key.split('-');
+                clashRows += `<tr><td>${DAY_NAMES[d]}</td><td>${parseInt(t)+7}:00</td><td class="w3-text-red"><b>${courses.map(c => c.code + ' (Sec ' + c.sec + ')').join(' vs ')}</b></td></tr>`;
+            }
+        }
+
+        $("#loadingMsg").hide();
+        $("#timetableTable").show();
+        $("#clashResultsSection").show();
+        if(clashFound) {
+            $("#clashTableBody").html(clashRows);
+            $("#clashDetails").show();
+            $("#noClashMessage").hide();
+        } else {
+            $("#clashDetails").hide();
+            $("#noClashMessage").show();
+        }
+    }
+
+    startAnalysis();
+});
+</script>
+</body>
+</html>
