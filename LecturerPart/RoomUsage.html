@@ -101,8 +101,8 @@ $(document).ready(function() {
     const itemsPerPage = 20;
     
     // Get Session Info
-    let currentSesi = window.parent.currentSesi || "2024/2025";
-    let currentSemester = window.parent.currentSemester || "1";
+    let currentSesi = window.parent.currentSesi;
+    let currentSemester = window.parent.currentSemester;
     $("#sessionSem").text(`${currentSesi} - Semester ${currentSemester}`);
 
     // Load Charts
