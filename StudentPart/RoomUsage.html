@@ -266,6 +266,7 @@ $(document).ready(function() {
         const uniqueSlots = new Set();
         const uniqueSubs = new Set();
         schedule.forEach(s => {
+
         if (s.subjek && s.hari && s.masa) {
             uniqueSlots.add(`${s.hari}-${s.masa}`);
             uniqueSubs.add(s.subjek.kod_subjek);
@@ -286,7 +287,7 @@ $(document).ready(function() {
         
         topData.forEach(r => {
             // Label combines type and code: e.g. "MAKMAL (N28-01)"
-            const label = `${r.jenis || 'ROOM'} (${r.kod_ruang})`;
+            const label = `${r.jenis || 'ROOM'} (${r.nama_ruang_singkatan})`;
             gData.addRow([label, r.usageHours]);
         });
 
