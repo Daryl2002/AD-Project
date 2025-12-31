@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Room Clash Analyzer (FSKSM N28/N28A)</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="stylesheet" href="https://www.w3schools.com/w3css/4/w3.css">
+    <style>
+        /* Exact color and font matching from your sample */
+        #clashTable th { background-color: #FFF9C4; color: #000; position: sticky; top: 0; border: 1px solid #ddd; font-size: 13px; }
+        .room-row td { color: #FF5722; font-size: 13px; border: 1px solid #eee; padding: 4px; }
+        .bil-col { width: 45px; text-align: right; font-weight: bold; }
+        .w3-table-all tr:nth-child(even) { background-color: #fdfdfd; }
+    </style>
+</head>
+<body class="w3-container">
+
+<h2 class="w3-center w3-text-blue w3-margin-top">Room Clash Analyzer (FSKSM N28/N28A)</h2>
+
+<div class="w3-panel w3-border w3-light-grey w3-round-large w3-padding">
+    <strong>Session/Semester:</strong> <span id="sessionSem">Loading...</span>
+    <span class="w3-right">Total Records Tracked: <b id="recordCount" class="w3-tag w3-blue w3-round">0</b></span>
+</div>
+
+<div id="loadingMsg" class="w3-center w3-padding-32">
+    <p>🔄 Tracking records via multiple AJAX calls... <span id="progress"></span></p>
+</div>
+
+<div style="overflow-x: auto;">
+    <table class="w3-table-all w3-card-4" id="clashTable" style="display:none;">
+        <thead>
+            <tr>
+                <th class="bil-col">Bil.</th>
+                <th>Kod Ruang</th>
+                <th>Nama Ruang</th>
+                <th>Nama Singkatan</th>
+                <th>Kod Fakulti/Jabatan</th>
+                <th>Hari</th>
+                <th>Masa</th>
+                <th>Subjek</th>
+            </tr>
+        </thead>
+        <tbody id="clashBody"></tbody>
+    </table>
+</div>
+
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
+<script>
+$(document).ready(function() {
+    // 1. Set Session based on your screenshot
+    const currentSesi = "2024/2025";
+    const currentSemester = "1";
+    $("#sessionSem").text(`${currentSesi} - Semester ${currentSemester}`);
+
+    // 2. Mapping numeric API values to text labels
+    const dayMap = { "1": "AHAD", "2": "ISNIN", "3": "SELASA", "4": "RABU", "5": "KHAMIS", "6": "JUMAAT", "7": "SABTU" };
+    const timeMap = {
+        "1": "08:00 AM - 08:50 AM", "2": "09:00 AM - 09:50 AM", "3": "10:00 AM - 10:50 AM",
+        "4": "11:00 AM - 11:50 AM", "5": "12:00 PM - 12:50 PM", "6": "01:00 PM - 01:50 PM",
+        "7": "02:00 PM - 02:50 PM", "8": "03:00 PM - 03:50 PM", "9": "04:00 PM - 04:50 PM"
+    };
+
+    const API_URL = "http://web.fc.utm.my/ttms/web_man_webservice_json.cgi";
+
+    // Call 1: Fetch Room List
+    $.getJSON(`${API_URL}?entity=ruang&kod_fakulti=FSKSM`, function(rooms) {
+        // FILTER: Only standard classrooms to reach the 178 target records
+        const targetRooms = rooms.filter(r => 
+            r.kod_ruang.startsWith("N28") && 
+            !r.kod_ruang.includes("-01-01") && // Ignore Midterm virtual rooms
+            r.nama_ruang.toLowerCase().includes("bilik kuliah")
+        );
+        
+        loadSchedules(targetRooms);
+    });
+
+    async function loadSchedules(rooms) {
+        let globalBil = 0;
+        $("#clashBody").empty();
+
+        for (let i = 0; i < rooms.length; i++) {
+            const room = rooms[i];
+            $("#progress").text(`(${i+1}/${rooms.length})`);
+
+            try {
+                // Call 2+N: AJAX for each individual room's schedule
+                const schedule = await $.getJSON(`${API_URL}?entity=jadual_ruang&sesi=${currentSesi}&semester=${currentSemester}&kod_ruang=${room.kod_ruang}`);
+                
+                if (Array.isArray(schedule)) {
+                    schedule.forEach(item => {
+                        globalBil++;
+                        
+                        // Extracting and Formatting
+                        const dayText = dayMap[item.hari] || item.hari;
+                        const timeText = timeMap[item.masa] || item.masa;
+                        const subCode = item.subjek ? item.subjek.kod_subjek : '-';
+                        const section = item.subjek ? item.subjek.seksyen : '-';
+                        const lectName = (item.pensyarah && item.pensyarah.nama) ? item.pensyarah.nama.toLowerCase() : 'n/a';
+
+                        const row = `
+                            <tr class="room-row">
+                                <td class="bil-col">${globalBil}.</td>
+                                <td>${room.kod_ruang}</td>
+                                <td>${room.nama_ruang}</td>
+                                <td>${room.nama_ruang_singkatan || '-'}</td>
+                                <td>FSKSM / -</td>
+                                <td>${dayText}</td>
+                                <td>${timeText}</td>
+                                <td>${subCode} - ${section} - ${lectName}</td>
+                            </tr>`;
+                        $("#clashBody").append(row);
+                    });
+                    $("#recordCount").text(globalBil);
+                }
+            } catch (err) { console.warn("Error at " + room.kod_ruang); }
+        }
+        $("#loadingMsg").hide();
+        $("#clashTable").show();
+    }
+});
+</script>
+</body>
+</html>
