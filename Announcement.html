@@ -1,0 +1,35 @@
+<script src="../Authenticate.js"></script>
+<div class="w3-container w3-margin-top">
+    
+    <h3 class="w3-text-blue-dark">🎉 Welcome to the TTMS Visualization Support System</h3>
+    
+    <div class="w3-card w3-padding w3-margin-bottom w3-light-gray">
+        <p>
+            This Web-based Visualization Support System is designed for the Faculty of Computing, UTM, to enhance the current timetable system.
+        </p>
+        <p>
+            Its primary goal is to transform raw timetable data into visual and statistical analysis, helping users understand:
+            <ul>
+                <li><strong>Timetable Quality:</strong> Identifying clashes and scheduling conflicts.</li>
+                <li><strong>Resource Utilization:</strong> Analyzing room and time usage patterns.</li>
+                <li><strong>Workload Distribution:</strong> Reviewing course assignment workloads.</li>
+            </ul>
+        </p>
+        <!-- <p>
+            Please use the sidebar menu to navigate your personal timetable and access various analysis tools.
+        </p> -->
+    </div>
+
+    <hr>    
+</div>
+
+<script>
+    // These variables are globally accessible because they are set in the parent Main.html
+    const currentSesi = window.currentSesi;
+    const currentSemester = window.currentSemester;
+
+    $(document).ready(function() {
+        // Display the current session info in the status card
+        $('#current-sesi-info').text(`${currentSesi}-${currentSemester}` || 'N/A');
+    });
+</script>
