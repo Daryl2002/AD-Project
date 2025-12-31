@@ -239,6 +239,34 @@
             padding: 8px 5px;
             color: #666;
         }
+        /* Day filter styles */
+        .day-filter-container {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-bottom: 10px;
+        }
+        .day-filter-btn {
+            padding: 10px 20px;
+            border: 2px solid #ddd;
+            background: white;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            transition: all 0.3s;
+            min-width: 100px;
+            text-align: center;
+        }
+        .day-filter-btn:hover {
+            background: #f0f0f0;
+            transform: translateY(-2px);
+        }
+        .day-filter-btn.active {
+            background-color: #3f51b5;
+            color: white;
+            border-color: #3f51b5;
+        }
         @media (max-width: 768px) {
             .control-grid {
                 grid-template-columns: 1fr;
@@ -260,6 +288,14 @@
                 margin-right: 0;
                 margin-bottom: 10px;
             }
+            .day-filter-container {
+                justify-content: center;
+            }
+            .day-filter-btn {
+                min-width: 80px;
+                padding: 8px 12px;
+                font-size: 13px;
+            }
         }
     </style>
 </head>
@@ -267,7 +303,7 @@
 
 <div class="header">
     <h2 class="w3-text-blue">🏫 FSKSM Room Availability</h2>
-    <p class="w3-text-grey">Find available rooms by date, time, and category</p>
+    <p class="w3-text-grey">Find available rooms by day, time, and category</p>
 </div>
 
 <!-- Consolidated Master Control Panel -->
@@ -291,13 +327,15 @@
             </div>
         </div>
         
-        <!-- Date Selection Column -->
+        <!-- Day Selection Column -->
         <div class="control-group">
-            <label><i class="fas fa-calendar-alt"></i> SELECT DATE</label>
-            <div class="date-input-group">
-                <div class="date-field">
-                    <input type="date" id="datePicker" class="w3-input w3-border w3-round">
-                </div>
+            <label><i class="fas fa-calendar-day"></i> SELECT DAY</label>
+            <div class="day-filter-container">
+                <button class="day-filter-btn active" onclick="selectDay(2)">Monday</button>
+                <button class="day-filter-btn" onclick="selectDay(3)">Tuesday</button>
+                <button class="day-filter-btn" onclick="selectDay(4)">Wednesday</button>
+                <button class="day-filter-btn" onclick="selectDay(5)">Thursday</button>
+                <button class="day-filter-btn" onclick="selectDay(6)">Friday</button>
             </div>
         </div>
         
@@ -338,7 +376,7 @@
         </div>
     </div>
     
-    <!-- Filter Tags - UPDATED WITH YOUR REQUESTED BUTTONS -->
+    <!-- Room Category Filter Tags -->
     <div class="filter-tags-row">
         <span class="filter-tag w3-blue active" onclick="filterByCategory('all')">
             <i class="fas fa-layer-group"></i> All Rooms
@@ -386,11 +424,11 @@
             <thead>
                 <tr>
                     <th>Bil</th>
-                    <th>Name</th>
                     <th>Room Code</th>
+                    <th>Name</th>
                     <th>Shortforms</th>
                     <th>Category</th>
-                    <th>Date</th>
+                    <th>Day</th>
                     <th>Time</th>
                     <th>Status</th>
                 </tr>
@@ -431,7 +469,6 @@
 const BASE_API_URL = "http://web.fc.utm.my/ttms/web_man_webservice_json.cgi";
 const FACULTY_CODE = "fsksm";
 const CURRENT_SESSION = "2025/2026";
-// const CURRENT_SESSION = "2025/2026";
 const CURRENT_SEMESTER = "1";
 const ROOMS_PER_PAGE = 20; // Number of rooms to display per page
 
@@ -442,13 +479,10 @@ let currentSearch = '';
 let currentPage = 1;
 let filteredRooms = [];
 let totalPages = 1;
+let selectedDay = 2; // Monday (2 = Monday in UTM system)
 
-// Initialize date picker to today
+// Initialize the page
 $(document).ready(function() {
-    const today = new Date();
-    const formattedDate = today.toISOString().split('T')[0];
-    $("#datePicker").val(formattedDate);
-    
     // Set up search input event listener
     $("#searchInput").on("keyup", function() {
         currentSearch = $(this).val().toLowerCase();
@@ -458,6 +492,72 @@ $(document).ready(function() {
     console.log("Page loaded, fetching room data...");
     loadRoomData();
 });
+
+// Select day (Monday to Friday)
+function selectDay(day) {
+    selectedDay = day;
+    
+    // Update active state of day buttons
+    $(".day-filter-btn").removeClass("active");
+    $(event.target).addClass("active");
+    
+    // Re-apply filters if we already have availability data
+    if (roomSchedules && Object.keys(roomSchedules).length > 0) {
+        applyFilters();
+    }
+}
+
+// Get day name from number
+function getDayName(dayNumber) {
+    const days = {
+        2: "Monday",
+        3: "Tuesday", 
+        4: "Wednesday",
+        5: "Thursday",
+        6: "Friday"
+    };
+    return days[dayNumber] || "Day " + dayNumber;
+}
+
+// Improved function to extract room number for sorting
+function extractRoomNumber(roomCode) {
+    if (!roomCode) return 999999;
+    
+    // Normalize the room code
+    const normalizedCode = roomCode.toUpperCase().trim();
+    
+    // Create a sortable key
+    let sortKey = '';
+    
+    // First priority: Building (N28 comes before N28A)
+    if (normalizedCode.startsWith('N28A')) {
+        sortKey += 'B'; // 'B' for N28A (comes after 'A')
+    } else if (normalizedCode.startsWith('N28')) {
+        sortKey += 'A'; // 'A' for N28 (comes before 'B')
+    } else {
+        sortKey += 'Z'; // Other rooms come last
+    }
+    
+    // Second priority: Main room number (extract first set of digits)
+    const firstNumMatch = normalizedCode.match(/\d+/);
+    if (firstNumMatch) {
+        // Pad to 3 digits for proper sorting
+        sortKey += firstNumMatch[0].padStart(3, '0');
+    } else {
+        sortKey += '000';
+    }
+    
+    // Third priority: Sub-room number (extract second set of digits if exists)
+    const allNums = normalizedCode.match(/\d+/g);
+    if (allNums && allNums.length > 1) {
+        sortKey += allNums[1].padStart(3, '0');
+    } else {
+        sortKey += '000';
+    }
+    
+    // Convert to numeric value for sorting
+    return parseInt(sortKey, 10);
+}
 
 // Filter by category
 function filterByCategory(category) {
@@ -528,6 +628,13 @@ function filterRooms() {
         return categoryMatch && searchMatch;
     });
     
+    // Sort rooms: N28 first, then N28A, then others, all in ascending order
+    filteredRooms.sort((a, b) => {
+        const sortA = extractRoomNumber(a.kod_ruang);
+        const sortB = extractRoomNumber(b.kod_ruang);
+        return sortA - sortB;
+    });
+    
     // Calculate total pages
     totalPages = Math.ceil(filteredRooms.length / ROOMS_PER_PAGE);
     if (totalPages === 0) totalPages = 1;
@@ -563,32 +670,31 @@ function displayCurrentPage() {
     const endIndex = Math.min(startIndex + ROOMS_PER_PAGE, filteredRooms.length);
     const currentPageRooms = filteredRooms.slice(startIndex, endIndex);
     
-    // Check if we're displaying availability or just basic info
-    const selectedDate = $("#datePicker").val();
+    // Get time slot
     const startHour = parseInt($("#startTime").val());
     const endHour = parseInt($("#endTime").val());
     const hasAvailabilityData = roomSchedules && Object.keys(roomSchedules).length > 0;
+    const dayName = getDayName(selectedDay);
+    const timeDisplay = `${String(startHour).padStart(2, '0')}:00 - ${String(endHour).padStart(2, '0')}:00`;
     
     // Add rows for current page
     currentPageRooms.forEach((room, index) => {
         const globalIndex = startIndex + index + 1;
         const roomCode = room.kod_ruang;
         
-        if (hasAvailabilityData && selectedDate) {
+        if (hasAvailabilityData) {
             // Display with availability status
             const roomSchedule = roomSchedules[roomCode] || [];
-            const isAvailable = isRoomAvailable(roomSchedule, selectedDate, startHour, endHour);
-            const timeDisplay = `${String(startHour).padStart(2, '0')}:00 - ${String(endHour).padStart(2, '0')}:00`;
-            const formattedDate = formatDate(selectedDate);
+            const isAvailable = isRoomAvailable(roomSchedule, selectedDay, startHour, endHour);
             
             const row = `
                 <tr>
                     <td style="text-align: center;">${globalIndex}</td>
-                    <td>${room.nama_ruang || 'N/A'}</td>
                     <td><strong>${roomCode}</strong></td>
+                    <td>${room.nama_ruang || 'N/A'}</td>
                     <td>${room.nama_ruang_singkatan || 'N/A'}</td>
                     <td>${room.jenis || 'N/A'}</td>
-                    <td>${formattedDate}</td>
+                    <td>${dayName}</td>
                     <td>${timeDisplay}</td>
                     <td style="text-align: center;">
                         <span class="status-tag ${isAvailable ? 'w3-green' : 'w3-red'}">
@@ -603,12 +709,12 @@ function displayCurrentPage() {
             const row = `
                 <tr>
                     <td style="text-align: center;">${globalIndex}</td>
-                    <td>${room.nama_ruang || 'N/A'}</td>
                     <td><strong>${roomCode}</strong></td>
+                    <td>${room.nama_ruang || 'N/A'}</td>
                     <td>${room.nama_ruang_singkatan || 'N/A'}</td>
                     <td>${room.jenis || 'N/A'}</td>
                     <td colspan="3" style="text-align: center; color: #888; font-style: italic;">
-                        Select date/time and click "Check Availability"
+                        Select time and click "Check Availability"
                     </td>
                 </tr>
             `;
@@ -745,21 +851,15 @@ function loadRoomData() {
 
 // Function to check availability for all rooms
 function checkAvailability() {
-    const selectedDate = $("#datePicker").val();
     const startHour = parseInt($("#startTime").val());
     const endHour = parseInt($("#endTime").val());
-    
-    if (!selectedDate) {
-        alert("Please select a date first!");
-        return;
-    }
     
     if (startHour >= endHour) {
         alert("End time must be after start time!");
         return;
     }
     
-    console.log(`Checking availability for ${selectedDate}, ${startHour}:00-${endHour}:00`);
+    console.log(`Checking availability for ${getDayName(selectedDay)}, ${startHour}:00-${endHour}:00`);
     
     // Show loading while fetching schedules
     $("#loadingMsg").show();
@@ -810,43 +910,29 @@ function checkAvailability() {
         });
 }
 
-// Check if a room is available
-function isRoomAvailable(roomSchedule, selectedDate, startHour, endHour) {
+// Check if a room is available (modified for day instead of date)
+function isRoomAvailable(roomSchedule, day, startHour, endHour) {
     if (!roomSchedule || !Array.isArray(roomSchedule) || roomSchedule.length === 0) {
         return true; // No schedule means room is available
     }
     
-    // Convert selected date to day of week (0=Sunday)
-    const selectedDay = new Date(selectedDate).getDay();
-    const utmDay = selectedDay === 0 ? 7 : selectedDay; // Convert to UTM format (1=Monday, 7=Sunday)
-    
+    // We don't check date range anymore, just check if the room has a class
+    // on the selected day and time
     for (const booking of roomSchedule) {
-        // Check if booking is within the selected date range
-        if (selectedDate >= booking.tarikh_mula && selectedDate <= booking.tarikh_tamat) {
-            // Check if booking day matches
-            if (parseInt(booking.hari) === utmDay) {
-                // Convert booking masa to 24-hour format: UTM masa 1 = 8:00 AM
-                const bookingStartHour = booking.masa + 7;
-                const bookingEndHour = bookingStartHour + 1; // Assumes 1-hour slots
-                
-                // Check for time overlap
-                if (bookingStartHour < endHour && bookingEndHour > startHour) {
-                    return false; // Room is occupied
-                }
+        // Check if booking day matches
+        if (parseInt(booking.hari) === day) {
+            // Convert booking masa to 24-hour format: UTM masa 1 = 8:00 AM
+            const bookingStartHour = booking.masa + 7;
+            const bookingEndHour = bookingStartHour + 1; // Assumes 1-hour slots
+            
+            // Check for time overlap
+            if (bookingStartHour < endHour && bookingEndHour > startHour) {
+                return false; // Room is occupied
             }
         }
     }
     
     return true; // No conflicts found
-}
-
-// Helper function to format date as DD/MM/YYYY
-function formatDate(dateString) {
-    const date = new Date(dateString);
-    const day = String(date.getDate()).padStart(2, '0');
-    const month = String(date.getMonth() + 1).padStart(2, '0');
-    const year = date.getFullYear();
-    return `${day}/${month}/${year}`;
 }
 
 function showError(message) {
