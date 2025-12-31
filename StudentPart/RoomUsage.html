@@ -252,24 +252,26 @@ $(document).ready(function() {
 
     // --- USAGE ANALYSIS LOGIC ---
     function analyzeRoomUsage(rooms) {
-        const promises = rooms.map(room => {
-            return fetch(`http://web.fc.utm.my/ttms/web_man_webservice_json.cgi?entity=jadual_ruang&sesi=${currentSesi}&semester=${currentSemester}&kod_ruang=${room.kod_ruang}`) //so this where room schedule is fetched
-            .then(res => res.json())
-            .then(schedule => calculateUsage(room, Array.isArray(schedule) ? schedule : []))
-            .catch(() => ({ ...room, usageHours: 0, subjectCount: 0 }));
-        });
-        return Promise.all(promises);
-    }
+    return Promise.all(
+        rooms.map(room =>
+            fetch(`http://web.fc.utm.my/ttms/web_man_webservice_json.cgi?entity=jadual_ruang&sesi=${currentSesi}&semester=${currentSemester}&kod_ruang=${room.kod_ruang}`)
+                .then(res => res.json())
+                .then(schedule => calculateUsage(room, Array.isArray(schedule) ? schedule : []))
+                .catch(() => ({ ...room, usageHours: 0, subjectCount: 0 }))
+        )
+    );
+}
 
     function calculateUsage(room, schedule) {
         const uniqueSlots = new Set();
         const uniqueSubs = new Set();
         schedule.forEach(s => {
-            if (s.subjek) {
-                uniqueSubs.add(s.subjek.kod_subjek);
-                uniqueSlots.add(`${s.subjek.kod_subjek}-${s.subjek.seksyen}-${s.hari}-${s.masa}`);
-            }
-        });
+
+        if (s.subjek && s.hari && s.masa) {
+            uniqueSlots.add(`${s.hari}-${s.masa}`);
+            uniqueSubs.add(s.subjek.kod_subjek);
+        }
+    });
         return { ...room, usageHours: uniqueSlots.size, subjectCount: uniqueSubs.size };
     }
 
@@ -285,7 +287,7 @@ $(document).ready(function() {
         
         topData.forEach(r => {
             // Label combines type and code: e.g. "MAKMAL (N28-01)"
-            const label = `${r.jenis || 'ROOM'} (${r.kod_ruang})`;
+            const label = `${r.jenis || 'ROOM'} (${r.nama_ruang_singkatan})`;
             gData.addRow([label, r.usageHours]);
         });
 
