@@ -27,6 +27,7 @@
     <h5 class="w3-bar-item w3-text-gray w3-border-bottom"><b>TIMETABLE</b></h5>
     
     <a href="#" class="w3-bar-item w3-button w3-hover-light-grey" id="my-timetable">📅 My Timetable</a>
+    <a href="#" class="w3-bar-item w3-button w3-hover-light-grey" id="timetable-analyzer">🔍 Timetable Analyzer</a>
     <a href="#" class="w3-bar-item w3-button w3-hover-light-grey" id="course-list">📝 My CourseList</a>
     <a href="#" class="w3-bar-item w3-button w3-hover-light-grey" id="room-availability">🏫 Room Availability</a>
     <hr>
@@ -156,7 +157,8 @@
     $('#announcement-dashboard').click(() => handleMenuClick('announcement-dashboard', '../Announcement.html'));
 
     // TIMETABLE Category
-    $('#my-timetable').click(() => handleMenuClick('my-timetable', 'LecturerPart/MyTimetable.html'));
+    $('#my-timetable').click(() => handleMenuClick('my-timetable', 'LecturerPart/LectureTimetable.html'));
+    $('#timetable-analyzer').click(() => handleMenuClick('timetable-analyzer', 'LecturerPart/timetableClashLect.html'));
     $('#course-list').click(() => handleMenuClick('course-list', 'LecturerPart/LectureCourseList.html'));
     $('#room-availability').click(() => handleMenuClick('room-availability', 'LecturerPart/RoomAvailability.html'));
 
