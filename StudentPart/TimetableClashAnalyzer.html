@@ -1,0 +1,634 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Timetable Analyzer - Clash Detection</title>
+    <link rel="stylesheet" href="https://www.w3schools.com/w3css/4/w3.css">
+    <script src="../Authenticate.js"></script>
+    <style>
+        /* Heatmap color styles */
+        .slot-clash {
+            background-color: #ffcccc !important; /* Pale red for clashes */
+            border-left: 5px solid #ff4444 !important;
+            font-weight: bold;
+        }
+        
+        .slot-ok {
+            background-color: #ccffcc !important; /* Pale green for no clashes */
+            border-left: 5px solid #44cc44 !important;
+        }
+        
+        .slot-empty {
+            background-color: #ffffcc !important; /* Pale yellow for empty slots */
+            border-left: 5px solid #cccc00 !important;
+        }
+        
+        .slot {
+            padding: 5px;
+            margin: 2px 0;
+            border-radius: 4px;
+            font-size: 0.8em;
+            line-height: 1.2;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            min-height: 60px;
+            position: relative;
+        }
+        
+        .clash-count {
+            position: absolute;
+            top: 5px;
+            right: 5px;
+            background-color: #ff4444;
+            color: white;
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            text-align: center;
+            line-height: 20px;
+            font-size: 0.7em;
+            font-weight: bold;
+        }
+        
+        .legend {
+            display: flex;
+            justify-content: center;
+            margin: 20px 0;
+            flex-wrap: wrap;
+            gap: 20px;
+        }
+        
+        .legend-item {
+            display: flex;
+            align-items: center;
+            margin: 0 10px;
+        }
+        
+        .legend-color {
+            width: 20px;
+            height: 20px;
+            margin-right: 8px;
+            border-radius: 3px;
+            border: 1px solid #ddd;
+        }
+        
+        .w3-table-all th:not(:first-child) {
+            text-align: center;
+        }
+        
+        .info-box {
+            background-color: #e3f2fd;
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+            border-left: 5px solid #2196F3;
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 20px;
+            font-size: 1.2em;
+            color: #666;
+        }
+        
+        .empty-slot {
+            height: 100%;
+            min-height: 60px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0.6;
+        }
+        
+        /* Clash Results Section */
+        .clash-results-section {
+            margin-top: 40px;
+            padding: 25px;
+            background-color: #f8f9fa;
+            border-radius: 10px;
+            border: 1px solid #dee2e6;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        
+        .section-title {
+            color: #2c3e50;
+            border-bottom: 3px solid #e74c3c;
+            padding-bottom: 10px;
+            margin-bottom: 25px;
+            text-align: center;
+        }
+        
+        .clash-summary-box {
+            background-color: white;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 30px;
+            border-left: 5px solid #3498db;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        }
+        
+        .summary-item {
+            margin: 10px 0;
+            font-size: 1.1em;
+        }
+        
+        .clash-count-badge {
+            background-color: #e74c3c;
+            color: white;
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-weight: bold;
+            font-size: 1.2em;
+        }
+        
+        .clash-table {
+            margin-top: 20px;
+            width: 100%;
+            border-collapse: collapse;
+        }
+        
+        .clash-table th {
+            background-color: #e74c3c;
+            color: white;
+            padding: 12px;
+            text-align: left;
+        }
+        
+        .clash-table td {
+            padding: 12px;
+            border-bottom: 1px solid #eee;
+        }
+        
+        .clash-table tr:nth-child(even) {
+            background-color: #f9f9f9;
+        }
+        
+        .clash-table tr:hover {
+            background-color: #fff5f5;
+        }
+        
+        .day-time-cell {
+            font-weight: bold;
+            color: #2c3e50;
+            width: 25%;
+        }
+        
+        .clash-courses-cell {
+            color: #c0392b;
+            font-weight: bold;
+        }
+        
+        .no-clash-message {
+            text-align: center;
+            padding: 40px;
+            background-color: #d4edda;
+            border-radius: 8px;
+            border: 1px solid #c3e6cb;
+            color: #155724;
+            margin: 20px 0;
+        }
+        
+        .timetable-container {
+            margin-bottom: 40px;
+        }
+    </style>
+</head>
+
+<body class="w3-container">
+
+<h2 class="w3-center">📊 Timetable Analyzer - Clash Detection</h2>
+
+<div class="info-box">
+    <p><strong>Student:</strong> <span id="studentName">Loading...</span></p>
+    <p><strong>Matric No:</strong> <span id="matricNo">Loading...</span></p>
+    <p><strong>Session/Semester:</strong> <span id="sessionSem">Loading...</span></p>
+</div>
+
+<div class="loading" id="loadingMsg">
+    🔄 Analyzing timetable for clashes...
+</div>
+
+<!-- Color Indicators -->
+<div class="legend">
+    <div class="legend-item">
+        <div class="legend-color" style="background-color: #ccffcc;"></div>
+        <span>No Clash</span>
+    </div>
+    <div class="legend-item">
+        <div class="legend-color" style="background-color: #ffcccc;"></div>
+        <span>Clash Detected</span>
+    </div>
+    <div class="legend-item">
+        <div class="legend-color" style="background-color: #ffffcc;"></div>
+        <span>Empty Slot</span>
+    </div>
+</div>
+
+<hr>
+
+<!-- Timetable Table -->
+<div class="timetable-container">
+    <table class="w3-table-all w3-card-4" id="timetableTable" style="display:none;">
+        <thead>
+            <tr class="w3-light-blue">
+                <th>Time</th>
+                <th>Monday</th>
+                <th>Tuesday</th>
+                <th>Wednesday</th>
+                <th>Thursday</th>
+                <th>Friday</th>
+            </tr>
+        </thead>
+        <tbody id="timetableBody"></tbody>
+    </table>
+</div>
+
+<!-- Clash Results Section -->
+<div id="clashResultsSection" class="clash-results-section" style="display:none;">
+    <h3 class="section-title">Clash Analysis Results</h3>
+    
+    <!-- Task Details / Summary
+    <div class="clash-summary-box">
+        <h4>📊 Task Details</h4>
+        <div class="summary-item">
+            <strong>Total Clashes Found:</strong> 
+            <span class="clash-count-badge" id="totalClashes">0</span>
+        </div>
+        <div class="summary-item">
+            <strong>Clashed Time Slots:</strong> 
+            <span id="clashedSlots">0</span> out of 50 total slots
+        </div>
+        <div class="summary-item">
+            <strong>Most Clashes in a Single Slot:</strong> 
+            <span id="maxClashes">0</span> courses
+        </div>
+    </div> -->
+    
+    <!-- Detailed Clash Information Table -->
+    <div id="clashDetails" style="display:none;">       
+        <table class="clash-table w3-card-4">
+            <thead>
+                <tr>
+                    <th style="width: 25%;">Day</th>
+                    <th style="width: 25%;">Time</th>
+                    <th style="width: 75%;">Clashing Courses</th>
+                </tr>
+            </thead>
+            <tbody id="clashTableBody">
+                <!-- Clash rows will be inserted here -->
+            </tbody>
+        </table>
+    </div>
+    
+    <!-- No Clash Message -->
+    <div id="noClashMessage" class="no-clash-message" style="display:none;">
+        <h3>No Clashes Detected!</h3>
+        <p>Your timetable is perfectly scheduled with no overlapping courses.</p>
+    </div>
+</div>
+
+<br>
+
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
+<script>
+$(document).ready(function() {
+    // Data structures for tracking
+    let timetableData = {}; // Format: { "day-time": [{course1}, {course2}] }
+    let totalClashes = 0;
+    let clashedSlots = 0;
+    let maxClashesInSlot = 0;
+    
+    // Day code mapping
+    const DAYS_OF_WEEK = {
+        2: 'Monday',
+        3: 'Tuesday',
+        4: 'Wednesday',
+        5: 'Thursday',
+        6: 'Friday'
+    };
+    
+    // Day names for display
+    const DAY_NAMES = ['', '', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
+    
+    // Initialize timetable data structure
+    function initializeTimetableData() {
+        timetableData = {};
+        totalClashes = 0;
+        clashedSlots = 0;
+        maxClashesInSlot = 0;
+        
+        // Initialize all time slots
+        for (let day = 2; day <= 6; day++) {
+            for (let time = 1; time <= 10; time++) {
+                const key = `${day}-${time}`;
+                timetableData[key] = [];
+            }
+        }
+    }
+    
+    // ==========================================
+    // 1. AUTO-GET MATRIC FROM localStorage
+    // ==========================================
+    const userSession = JSON.parse(localStorage.getItem("TTMSFC_userSession"));
+    
+    if (!userSession) {
+        // For demo/testing purposes
+        const matric = 'A123456'; 
+        const fullName = 'Demo Student';
+        $("#studentName").text(fullName);
+        $("#matricNo").text(matric);
+    } else {
+        const matric = userSession.login_name;  
+        const fullName = userSession.full_name;
+        $("#studentName").text(fullName);
+        $("#matricNo").text(matric);
+    }
+    
+    const matric = $("#matricNo").text();
+    const fullName = $("#studentName").text();
+    
+    console.log("✅ Auto-detected Matric:", matric);
+    console.log("✅ Student Name:", fullName);
+    
+    // ==========================================
+    // 2. GET CURRENT SESSION/SEMESTER
+    // ==========================================
+    let currentSesi = window.parent?.currentSesi;
+    let currentSemester = window.parent?.currentSemester;
+    
+    if (!currentSesi || !currentSemester) {
+        fetchCurrentSession().then(() => {
+            loadTimetableForAnalysis(matric, currentSesi, currentSemester);
+        });
+    } else {
+        $("#sessionSem").text(`${currentSesi} - Semester ${currentSemester}`);
+        loadTimetableForAnalysis(matric, currentSesi, currentSemester);
+    }
+    
+    // ==========================================
+    // FUNCTIONS
+    // ==========================================
+    
+    function fetchCurrentSession() {
+        return fetch("http://web.fc.utm.my/ttms/web_man_webservice_json.cgi?entity=sesisemester")
+            .then(res => res.json())
+            .then(sessemList => {
+                const active = sessemList.find(s => s.sesi_semester_id) || sessemList[0];
+                currentSesi = active.sesi;
+                currentSemester = active.semester;
+                $("#sessionSem").text(`${currentSesi} - Semester ${currentSemester}`);
+                console.log("✅ Fetched session:", currentSesi, currentSemester);
+                return Promise.resolve();
+            })
+            .catch(err => {
+                console.error("❌ Error fetching session:", err);
+                $("#sessionSem").text("Error loading session");
+                return Promise.reject(err);
+            });
+    }
+    
+    function loadTimetableForAnalysis(matric, sesi, semester) {
+        initializeTimetableData();
+        buildEmptyTable();
+        fetchStudentSubjectsForAnalysis(matric, sesi, semester);
+    }
+    
+    // ==========================================
+    // 3. BUILD EMPTY TIMETABLE GRID
+    // ==========================================
+    function buildEmptyTable() {
+        let body = "";
+        for (let hour = 1; hour <= 9; hour++) {
+            body += "<tr>";
+            body += `<td><strong>${formatTime(hour)}</strong></td>`;
+            
+            for (let day = 2; day <= 6; day++) {
+                const key = `${day}-${hour}`;
+                body += `<td id="cell-${key}" data-day='${day}' data-time='${hour}'></td>`;
+            }
+            body += "</tr>";
+        }
+        $("#timetableBody").html(body);
+    }
+    
+    // ==========================================
+    // 4. FETCH STUDENT'S SUBJECTS FOR ANALYSIS
+    // ==========================================
+    function fetchStudentSubjectsForAnalysis(matric, sesi, semester) {
+        const url = `http://web.fc.utm.my/ttms/web_man_webservice_json.cgi?entity=pelajar_subjek&no_matrik=${matric}`;
+        
+        fetch(url)
+            .then(res => res.json())
+            .then(subjects => {
+                const currentSubjects = subjects.filter(s => 
+                    s.sesi === sesi && s.semester == semester
+                );
+                
+                if (currentSubjects.length === 0) {
+                    $("#loadingMsg").html("⚠️ No subjects found for current semester.");
+                    applyHeatmapColors(); // Apply colors even if no subjects
+                    return;
+                }
+                
+                let promises = currentSubjects.map(subj => fetchSubjectTimetableForAnalysis(subj));
+                
+                Promise.all(promises).then(() => {
+                    analyzeClashes();
+                    displayClashResults();
+                    applyHeatmapColors();
+                    
+                    $("#loadingMsg").hide();
+                    $("#timetableTable").show();
+                    $("#clashResultsSection").show();
+                    console.log("✅ Timetable analysis complete!");
+                });
+            })
+            .catch(err => {
+                console.error("❌ Error fetching subjects:", err);
+                $("#loadingMsg").html("❌ Error loading subjects. Please try again.");
+            });
+    }
+    
+    // ==========================================
+    // 5. FETCH TIMETABLE PER SUBJECT FOR ANALYSIS
+    // ==========================================
+    function fetchSubjectTimetableForAnalysis(subject) {
+        const url = `http://web.fc.utm.my/ttms/web_man_webservice_json.cgi?entity=jadual_subjek&sesi=${subject.sesi}&semester=${subject.semester}&kod_subjek=${subject.kod_subjek}&seksyen=${subject.seksyen}`;
+        
+        return fetch(url)
+            .then(res => res.json())
+            .then(times => {
+                if (Array.isArray(times)) {
+                    times.forEach(slot => {
+                        addCourseToTimetable(subject, slot);
+                    });
+                }
+            })
+            .catch(err => {
+                console.error(`❌ Error fetching timetable for ${subject.kod_subjek}:`, err);
+            });
+    }
+    
+    // ==========================================
+    // 6. ADD COURSE TO TIMETABLE DATA STRUCTURE
+    // ==========================================
+    function addCourseToTimetable(subject, slot) {
+        const day = slot.hari;
+        const time = slot.masa;
+        const key = `${day}-${time-1}`;
+        
+        // Add course to this time slot
+        const courseData = {
+            kod_subjek: subject.kod_subjek,
+            nama_subjek: subject.nama_subjek,
+            seksyen: subject.seksyen,
+            room: slot.ruang.nama_ruang_singkatan || slot.ruang.kod_ruang || 'N/A'
+        };
+        
+        timetableData[key].push(courseData);
+    }
+    
+    // ==========================================
+    // 7. ANALYZE CLASHES
+    // ==========================================
+    function analyzeClashes() {
+        // Analyze each time slot
+        for (const [slotKey, courses] of Object.entries(timetableData)) {
+            const courseCount = courses.length;
+            
+            if (courseCount > 1) {
+                // This slot has a clash
+                clashedSlots++;
+                totalClashes += (courseCount * (courseCount - 1)) / 2; // n choose 2 for pairwise clashes
+                
+                if (courseCount > maxClashesInSlot) {
+                    maxClashesInSlot = courseCount;
+                }
+            }
+        }
+        
+        console.log("🔍 Analysis Results:");
+        console.log("- Total clashed slots:", clashedSlots);
+        console.log("- Total pairwise clashes:", totalClashes);
+        console.log("- Max courses in one slot:", maxClashesInSlot);
+    }
+    
+    // ==========================================
+    // 8. APPLY HEATMAP COLORS TO TIMETABLE
+    // ==========================================
+    function applyHeatmapColors() {
+        // Clear any existing content
+        $("td[data-day]").empty();
+        
+        // Apply colors and populate courses
+        for (const [slotKey, courses] of Object.entries(timetableData)) {
+            const [day, time] = slotKey.split('-');
+            const cell = $(`#cell-${slotKey}`);
+            const courseCount = courses.length;
+            
+            // Remove all previous classes
+            cell.removeClass("slot-clash slot-ok slot-empty");
+            
+            // Apply appropriate class based on course count
+            if (courseCount === 0) {
+                cell.addClass("slot-empty");
+                // Empty slot - leave it empty (no "Empty" text)
+                cell.html('<div class="empty-slot"></div>');
+            } else if (courseCount === 1) {
+                cell.addClass("slot-ok");
+                const course = courses[0];
+                cell.html(`
+                    <div class="slot">
+                        <strong>${course.kod_subjek} (${course.seksyen})</strong><br>
+                        <small>${course.nama_subjek}</small><br>
+                        📍 ${course.room}
+                    </div>
+                `);
+            } else {
+                // Multiple courses = CLASH
+                cell.addClass("slot-clash");
+                
+                let slotHTML = `<div class="slot">`;
+                slotHTML += `<span class="clash-count">${courseCount}</span>`;
+                
+                courses.forEach(course => {
+                    slotHTML += `
+                        <div style="margin-bottom: 5px; padding-bottom: 5px; border-bottom: 1px dashed #ff8888;">
+                            <strong style="color: #d32f2f;">${course.kod_subjek} (${course.seksyen})</strong><br>
+                            <small>${course.nama_subjek}</small><br>
+                            📍 ${course.room}
+                        </div>
+                    `;
+                });
+                
+                slotHTML += `</div>`;
+                cell.html(slotHTML);
+            }
+        }
+    }
+    
+    // ==========================================
+    // 9. DISPLAY CLASH RESULTS
+    // ==========================================
+    function displayClashResults() {
+        // // Update summary statistics
+        // $("#totalClashes").text(totalClashes);
+        // $("#clashedSlots").text(clashedSlots);
+        // $("#maxClashes").text(maxClashesInSlot);
+        
+        // Show/hide appropriate sections
+        if (clashedSlots > 0) {
+            $("#clashDetails").show();
+            $("#noClashMessage").hide();
+            
+            let clashTableHTML = "";
+            
+            // Find all clashed slots and add to table
+            for (const [slotKey, courses] of Object.entries(timetableData)) {
+                if (courses.length > 1) {
+                    const [dayCode, time] = slotKey.split('-');
+                    const dayName = DAY_NAMES[dayCode];
+                    const timeRange = formatTime(parseInt(time));
+                    
+                    // Create course pairs for display
+                    const coursePairs = [];
+                    for (let i = 0; i < courses.length; i++) {
+                        for (let j = i + 1; j < courses.length; j++) {
+                            const course1 = courses[i];
+                            const course2 = courses[j];
+                            coursePairs.push(
+                                `${course1.kod_subjek} (Sec ${course1.seksyen}) – ${course2.kod_subjek} (Sec ${course2.seksyen})`
+                            );
+                        }
+                    }
+                    
+                    clashTableHTML += `
+                        <tr>
+                            <td class="day-cell">${dayName}</td>
+                            <td class="time-cell">${timeRange}</td>
+                            <td class="clash-courses-cell">
+                                ${coursePairs.join('<br>')}
+                            </td>
+                        </tr>
+                    `;
+                }
+            }
+            
+            $("#clashTableBody").html(clashTableHTML);
+        } else {
+            $("#clashDetails").hide();
+            $("#noClashMessage").show();
+        }
+    }
+    
+    // ==========================================
+    // 10. TIME FORMATTING
+    // ==========================================
+    function formatTime(masa) {
+        const start = 7 + masa;
+        const end = start + 1;
+        return `${start}:00 - ${end}:00`;
+    }
+});
+</script>
+</body>
+</html>

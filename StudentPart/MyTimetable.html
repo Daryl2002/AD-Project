@@ -4,7 +4,7 @@
     <title>My Timetable</title>
     <link rel="stylesheet" href="https://www.w3schools.com/w3css/4/w3.css">
     <link rel="stylesheet" href="Styles/MyTimetableStyle.css"> 
-    
+    <script src="../Authenticate.js"></script>
     <script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
     
     <style>
@@ -177,7 +177,7 @@ $(document).ready(function() {
     // ==========================================
     function buildEmptyTable() {
         let body = "";
-        for (let hour = 1; hour <= 10; hour++) {  
+        for (let hour = 1; hour <= 9; hour++) {  
             body += "<tr>";
             body += `<td><strong>${formatTime(hour)}</strong></td>`;
             // Day codes 2 (Mon) to 6 (Fri)
@@ -285,16 +285,16 @@ $(document).ready(function() {
     // 6. PLACE SUBJECT INTO TIMETABLE GRID
     // ==========================================
     function placeIntoTable(subject, slot) {
-        const day = slot.hari;      
-        const time = slot.masa;     
+        const day = slot.hari;           
+        const time = slot.masa -1;     
         
         // Track occupied slots using the day-time key
-        const slotKey = `${day}-${time}`;
+        const slotKey = `${day}-${time-1}`;
         occupiedSlots.add(slotKey);
 
         const room = slot.ruang.nama_ruang_singkatan || slot.ruang.kod_ruang || 'N/A';
 
-        const cell = $(`td[data-day='${day}'][data-time='${time}']`);
+        const cell = $(`td[data-day='${day}'][data-time='${time-1}']`);
 
         const slotHTML = `
             <div class="slot">
