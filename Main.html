@@ -79,7 +79,7 @@
                 }
 
                 // SUCCESS: Load the default page and highlight the menu
-                handleMenuClick('announcement-dashboard', 'StudentPart/Announcement.html');
+                handleMenuClick('announcement-dashboard', 'Announcement.html');
             })
             .catch(error => {
                 console.error("Initialization failed:", error);
@@ -118,7 +118,7 @@
     });
     
     // --- MENU EVENT LISTENERS ---
-    $('#announcement-dashboard').click(() => handleMenuClick('announcement-dashboard', 'StudentPart/Announcement.html'));
+    $('#announcement-dashboard').click(() => handleMenuClick('announcement-dashboard', 'Announcement.html'));
     $('#my-timetable').click(() => handleMenuClick('my-timetable', 'StudentPart/MyTimetable.html'));
     $('#room-availability').click(() => handleMenuClick('room-availability', 'StudentPart/RoomAvailability.html'));
     $('#clash-analyzer').click(() => handleMenuClick('clash-analyzer', 'StudentPart/TimetableClashAnalyzer.html')); 
