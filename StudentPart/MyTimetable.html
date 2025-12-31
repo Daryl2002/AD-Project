@@ -177,7 +177,7 @@ $(document).ready(function() {
     // ==========================================
     function buildEmptyTable() {
         let body = "";
-        for (let hour = 1; hour <= 9; hour++) {  
+        for (let hour = 0; hour <= 9; hour++) {  
             body += "<tr>";
             body += `<td><strong>${formatTime(hour)}</strong></td>`;
             // Day codes 2 (Mon) to 6 (Fri)
@@ -311,7 +311,7 @@ $(document).ready(function() {
     // 7. TIME FORMATTING
     // ==========================================
     function formatTime(masa) {
-        const start = 7 + masa; 
+        const start = 8 + masa; 
         const end = start + 1;
         return `${start}:00 - ${end}:00`;
     }
