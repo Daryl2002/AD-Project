@@ -292,7 +292,7 @@ $(document).ready(function() {
         
         topData.forEach(r => {
             // Label combines type and code: e.g. "MAKMAL (N28-01)"
-            const label = `${r.jenis || 'ROOM'} (${r.nama_ruang_singkatan})`;
+            const label = `${r.nama_ruang_singkatan}`;
             gData.addRow([label, r.usageHours]);
         });
 
