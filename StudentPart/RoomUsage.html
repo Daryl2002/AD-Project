@@ -119,7 +119,11 @@ $(document).ready(function() {
             return analyzeRoomUsage(targets);
         })
         .then(analyzed => {
-            allAnalyzedRooms = analyzed.sort((a,b) => b.usageHours - a.usageHours);
+            // Sort by room code in ascending order by default
+            allAnalyzedRooms = analyzed.sort((a,b) => {
+                // Compare room codes alphabetically
+                return a.kod_ruang.localeCompare(b.kod_ruang);
+            });
             filteredRooms = [...allAnalyzedRooms];
             updateDisplay();
             $("#loadingMsg").hide();
@@ -288,7 +292,7 @@ $(document).ready(function() {
         
         topData.forEach(r => {
             // Label combines type and code: e.g. "MAKMAL (N28-01)"
-            const label = `${r.jenis || 'ROOM'} (${r.nama_ruang_singkatan})`;
+            const label = `${r.nama_ruang_singkatan}`;
             gData.addRow([label, r.usageHours]);
         });
 
