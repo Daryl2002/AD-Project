@@ -3,35 +3,41 @@
 <head>
     <title>TTMS - Login</title>
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="Styles/loginStyle.css"> 
 </head>
 <body>
 
-    <div class="welcome-text">WELCOME!</div>
+    <div class="main-wrapper">
+        <header class="top-bar">
+            <div class="welcome-text">WELCOME!</div>
+            <div class="faculty-text">
+                Fakulti Komputeran
+            </div>
+        </header>
 
-    <div class="faculty-text">
-        Fakulti Komputeran<br>
-        Universiti Teknologi<br>
-        Malaysia
-    </div>
+        <main class="login-container">
+            <div class="logo-container">
+                <img id="utm-logo" src="Logo/UTM-LOGO.png" alt="UTM Logo">
+            </div>
 
-    <div class="logo-container">
-        <img id="utm-logo" src="Logo/UTM-LOGO.png" alt="UTM Logo">
-    </div>
-
-    <div class="login-box">
-        <div class="input-group">
-            <label for="login">UserID</label>
-            <input type="text" id="login" class="input-field" value="12085">
-        </div>
-        
-        <div class="input-group">
-            <label for="password">Password</label>
-            <input type="password" id="password" class="input-field" value="S808323">
-        </div>
-        
-        <button class="login-button" id="btnLogin">LOGIN</button>
+            <div class="login-box">
+                <h2>Sign in to TTMS</h2>
+                <p class="subtitle">Enter your credentials to access the system</p>
+                
+                <div class="input-group">
+                    <label for="login">UserID</label>
+                    <input type="text" id="login" class="input-field" value="12085" placeholder="Enter your ID">
+                </div>
+                
+                <div class="input-group">
+                    <label for="password">Password</label>
+                    <input type="password" id="password" class="input-field" value="S808323" placeholder="••••••••">
+                </div>
+                
+                <button class="login-button" id="btnLogin">LOGIN</button>
+            </div>
+        </main>
     </div>
 
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
