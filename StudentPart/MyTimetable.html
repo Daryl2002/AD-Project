@@ -1,385 +1,260 @@
-<!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>My Timetable</title>
-    <link rel="stylesheet" href="https://www.w3schools.com/w3css/4/w3.css">
-    <link rel="stylesheet" href="Styles/MyTimetableStyle.css"> 
-    <script src="../Authenticate.js"></script>
+    <title>TTMS - My Timetable</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
     <script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
-    
-    <style>
-        /* Custom style for slots in the timetable */
-        .slot {
-            padding: 5px;
-            margin: 2px 0;
-            border-radius: 4px;
-            background-color: #e0f7fa; /* Light cyan background */
-            border-left: 5px solid #00bcd4; /* Cyan bar */
-            font-size: 0.8em;
-            line-height: 1.2;
-            overflow: hidden;
-            text-overflow: ellipsis;
-        }
-        .w3-table-all th:not(:first-child) {
-             text-align: center;
-        }
-    </style>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
+    <link rel="stylesheet" href="Styles/MyTimetableStyle.css">
 </head>
+<body>
 
-<body class="w3-container">
+<div class="timetable-wrapper">
+    <div class="timetable-header">
+        <h2>My Timetable</h2>
+        <div class="info-grid">
+            <div class="info-stat-card">
+                <label>Student</label>
+                <span id="studentName">Loading...</span>
+            </div>
+            <div class="info-stat-card">
+                <label>ID No.</label>
+                <span id="matricNo">Loading...</span>
+            </div>
+            <div class="info-stat-card">
+                <label>Current Term</label>
+                <span id="sessionSem">Loading...</span>
+            </div>
+        </div>
+    </div>
 
-<h2 class="w3-center">My Timetable</h2>
+    <div class="comparison-bar">
+        <div class="search-box">
+            <input type="text" id="friendMatric" placeholder="Enter friend's matric (e.g. A21CS0000)">
+            <button id="compareBtn">Compare & Find Meeting</button>
+        </div>
+    </div>
 
-<div class="info-box">
-    <p><strong>Student:</strong> <span id="studentName">Loading...</span></p>
-    <p><strong>Matric No:</strong> <span id="matricNo">Loading...</span></p>
-    <p><strong>Session/Semester:</strong> <span id="sessionSem">Loading...</span></p>
+    <div class="chart-container">
+        <div id="freeTimeChartDiv"></div>
+    </div>
+
+    <div class="loading" id="loadingMsg">
+        <i class="fa fa-spinner fa-spin"></i> Synchronizing with TTMS...
+    </div>
+
+    <div class="table-container" id="timetableContainer" style="display:none;">
+        <table class="proto-table">
+            <thead>
+                <tr>
+                    <th class="time-header">Time</th>
+                    <th>MON</th>
+                    <th>TUE</th>
+                    <th>WED</th>
+                    <th>THU</th>
+                    <th>FRI</th>
+                </tr>
+            </thead>
+            <tbody id="timetableBody"></tbody>
+        </table>
+    </div>
+
+    <div class="course-section" id="courseListSection" style="display:none;">
+        <h3>Registered Courses</h3>
+        <div class="table-container">
+            <table class="course-table">
+                <thead>
+                    <tr>
+                        <th>Code</th>
+                        <th>Course Name</th>
+                        <th class="center">Section</th>
+                        <th class="center">Status</th>
+                    </tr>
+                </thead>
+                <tbody id="courseListBody"></tbody>
+            </table>
+        </div>
+    </div>
 </div>
 
-<div class="loading" id="loadingMsg">
-    🔄 Loading your timetable from TTMS...
+<div id="compareModal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3>🤝 Mutual Meeting Matrix</h3>
+            <span class="close-modal">&times;</span>
+        </div>
+        <div class="modal-body">
+            <p>Meeting availability with: <strong id="friendNameDisp">...</strong></p>
+            <div class="table-container">
+                <table class="proto-table modal-matrix">
+                    <thead>
+                        <tr><th>Time</th><th>MON</th><th>TUE</th><th>WED</th><th>THU</th><th>FRI</th></tr>
+                    </thead>
+                    <tbody id="mutualTableBody"></tbody>
+                </table>
+            </div>
+            <div class="legend">
+                <div class="legend-item"><span class="box free"></span> Both Free</div>
+                <div class="legend-item"><span class="box busy"></span> Someone Busy</div>
+            </div>
+        </div>
+    </div>
 </div>
 
-<div id="freeTimeChartDiv" style="width: 100%; height: 400px;"></div>
-<hr>
-
-<table class="w3-table-all" id="timetableTable" style="display:none;">
-    <thead>
-        <tr>
-            <th>Time</th>
-            <th>Monday</th>
-            <th>Tuesday</th>
-            <th>Wednesday</th>
-            <th>Thursday</th>
-            <th>Friday</th>
-        </tr>
-    </thead>
-    <tbody id="timetableBody"></tbody>
-</table>
-
-<br>
-
-<div id="courseListSection" style="display:none;">
-    <h3 class="w3-center w3-text-blue">📚 My Courses This Semester</h3>
-    
-    <table class="w3-table-all w3-hoverable w3-card-4">
-        <thead>
-            <tr class="w3-light-grey">
-                <th>No.</th>
-                <th>Course Code</th>
-                <th>Course Name</th>
-                <th>Section</th>
-                <th>Status</th>
-            </tr>
-        </thead>
-        <tbody id="courseListBody"></tbody>
-    </table>
-</div>
-
-<br>
-
-<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
 <script>
 $(document).ready(function() {
-
-    // --- GLOBAL TRACKING FOR FREE TIME ---
-    // Total possible slots per day: 10 hours (8:00 to 18:00)
     const HOURS_PER_DAY = 10;
-    // Set stores unique occupied slots using key: 'Day-Time' (e.g., '2-4' for Mon, 10am)
     let occupiedSlots = new Set();
-    
-    // Day code mapping (API uses 2 for Monday, 6 for Friday)
-    const DAYS_OF_WEEK = {
-        2: 'Monday',
-        3: 'Tuesday',
-        4: 'Wednesday',
-        5: 'Thursday',
-        6: 'Friday'
-    };
+    let friendOccupiedSlots = new Set(); // ADDED for friend
+    const DAYS_OF_WEEK = { 2: 'Monday', 3: 'Tuesday', 4: 'Wednesday', 5: 'Thursday', 6: 'Friday' };
 
-    // ==========================================
-    // 1. AUTO-GET MATRIC FROM localStorage
-    // ==========================================
-    const userSession = JSON.parse(localStorage.getItem("TTMSFC_userSession"));
-    
-    if (!userSession) {
-        // Fallback for testing when localStorage is not available
-        const matric = ''; 
-        const fullName = '';
-        $("#studentName").text(fullName);
-        $("#matricNo").text(matric);
-        
-    } else {
-        const matric = userSession.login_name;  
-        const fullName = userSession.full_name;
-        $("#studentName").text(fullName);
-        $("#matricNo").text(matric);
+    // Get Session Data
+    const userSession = window.parent.userSession || JSON.parse(localStorage.getItem("TTMSFC_userSession"));
+    const currentSesi = window.parent.currentSesi;
+    const currentSemester = window.parent.currentSemester;
+
+    if (userSession) {
+        $("#studentName").text(userSession.full_name);
+        $("#matricNo").text(userSession.login_name);
     }
-    
-    const matric = $("#matricNo").text();
-    const fullName = $("#studentName").text();
 
-    console.log("✅ Auto-detected Matric:", matric);
-    console.log("✅ Student Name:", fullName);
-
-
-    // ==========================================
-    // 2. GET CURRENT SESSION/SEMESTER & START EXECUTION
-    // ==========================================
-    let currentSesi = window.parent.currentSesi;
-    let currentSemester = window.parent.currentSemester;
-    
-    // FIX: Load the chart package and wrap the entire execution inside the callback.
-    // This resolves the "Must call google.charts.load" error.
     google.charts.load('current', {'packages':['corechart']});
     google.charts.setOnLoadCallback(startExecution);
-    
+
     function startExecution() {
-        if (!currentSesi || !currentSemester) {
-            console.warn("⚠️ Session/Semester not available from parent, fetching...");
-            fetchCurrentSession().then(() => {
-                loadTimetable(matric, currentSesi, currentSemester);
-            });
-        } else {
-            $("#sessionSem").text(`${currentSesi} - Semester ${currentSemester}`);
-            console.log("✅ Using session:", currentSesi, "Semester:", currentSemester);
-            loadTimetable(matric, currentSesi, currentSemester);
+        if (currentSesi && currentSemester) {
+            $("#sessionSem").text(`Sesi ${currentSesi} (Sem ${currentSemester})`);
+            buildEmptyTable();
+            fetchStudentSubjects(userSession.login_name, currentSesi, currentSemester);
         }
     }
 
-    // ==========================================
-    // FUNCTIONS
-    // ==========================================
-
-    function fetchCurrentSession() {
-        return fetch("http://web.fc.utm.my/ttms/web_man_webservice_json.cgi?entity=sesisemester")
-            .then(res => res.json())
-            .then(sessemList => {
-                const active = sessemList.find(s => s.sesi_semester_id) || sessemList[0];
-                currentSesi = active.sesi;
-                currentSemester = active.semester;
-                $("#sessionSem").text(`${currentSesi} - Semester ${currentSemester}`);
-                console.log("✅ Fetched session:", currentSesi, currentSemester);
-            })
-            .catch(err => {
-                console.error("❌ Error fetching session:", err);
-                $("#sessionSem").text("Error loading session");
-            });
-    }
-
-    function loadTimetable(matric, sesi, semester) {
-        buildEmptyTable();
-        fetchStudentSubjects(matric, sesi, semester);
-    }
-
-    // ==========================================
-    // 3. BUILD EMPTY TIMETABLE GRID
-    // ==========================================
     function buildEmptyTable() {
         let body = "";
         for (let hour = 0; hour <= 9; hour++) {  
-            body += "<tr>";
-            body += `<td><strong>${formatTime(hour)}</strong></td>`;
-            // Day codes 2 (Mon) to 6 (Fri)
+            body += `<tr><td class="time-cell">${formatTime(hour)}</td>`;
             for (let day = 2; day <= 6; day++) {
                 body += `<td data-day='${day}' data-time='${hour}'></td>`;
             }
             body += "</tr>";
         }
         $("#timetableBody").html(body);
-        
-        // Clear previous tracking for fresh calculation
-        occupiedSlots.clear();
     }
 
-    // ==========================================
-    // 4. FETCH STUDENT'S SUBJECTS
-    // ==========================================
     function fetchStudentSubjects(matric, sesi, semester) {
         const url = `http://web.fc.utm.my/ttms/web_man_webservice_json.cgi?entity=pelajar_subjek&no_matrik=${matric}`;
-
-        fetch(url)
-            .then(res => res.json())
-            .then(subjects => {
-                const currentSubjects = subjects.filter(s => 
-                    s.sesi === sesi && s.semester == semester
-                );
-
-                if (currentSubjects.length === 0) {
-                    $("#loadingMsg").html("⚠️ No subjects found for current semester.");
-                    // Draw empty chart if no subjects
-                    drawFreeTimeChart(); 
-                    return;
-                }
-
-                displayCourseList(currentSubjects);
-                let promises = currentSubjects.map(subj => fetchSubjectTimetable(subj));
-
-                Promise.all(promises).then(() => {
-                    $("#loadingMsg").hide();
-                    $("#timetableTable").show();
-                    console.log("✅ Timetable loaded successfully!");
-                    
-                    // Draw the free time chart after everything is placed
-                    drawFreeTimeChart(); 
-                });
-            })
-            .catch(err => {
-                console.error("❌ Error fetching subjects:", err);
-                $("#loadingMsg").html("❌ Error loading subjects. Please try again.");
+        fetch(url).then(res => res.json()).then(subjects => {
+            const current = subjects.filter(s => s.sesi === sesi && s.semester == semester);
+            displayCourseList(current);
+            let promises = current.map(subj => fetchSubjectTimetable(subj));
+            Promise.all(promises).then(() => {
+                $("#loadingMsg").hide();
+                $("#timetableContainer").show();
+                drawFreeTimeChart();
             });
+        });
     }
 
-    // ==========================================
-    // 4.5 DISPLAY COURSE LIST
-    // ==========================================
+    function fetchSubjectTimetable(subject) {
+        const url = `http://web.fc.utm.my/ttms/web_man_webservice_json.cgi?entity=jadual_subjek&sesi=${subject.sesi}&semester=${subject.semester}&kod_subjek=${subject.kod_subjek}&seksyen=${subject.seksyen}`;
+        return fetch(url).then(res => res.json()).then(times => {
+            if (Array.isArray(times)) {
+                times.forEach(slot => {
+                    const day = slot.hari;
+                    const timeIdx = slot.masa - 1;
+                    occupiedSlots.add(`${day}-${timeIdx}`);
+                    const room = slot.ruang.nama_ruang_singkatan || 'N/A';
+                    $(`td[data-day='${day}'][data-time='${timeIdx}']`).append(`
+                        <div class="slot">
+                            <strong>${subject.kod_subjek}</strong>
+                            <span>Sec ${subject.seksyen}</span>
+                            <div class="room-tag"><i class="fa fa-map-marker"></i> ${room}</div>
+                        </div>
+                    `);
+                });
+            }
+        });
+    }
+
     function displayCourseList(courses) {
         $("#courseListBody").empty();
-        
-        courses.forEach((course, index) => {
-            let statusBadge = '';
-            if (course.status === 'UM') {
-                statusBadge = '<span class="w3-tag w3-green">UM</span>';
-            } else if (course.status === '-') {
-                statusBadge = '<span class="w3-tag w3-blue">Active</span>';
-            } else {
-                statusBadge = `<span class="w3-tag w3-grey">${course.status}</span>`;
-            }
-
-            const row = `
+        courses.forEach(c => {
+            $("#courseListBody").append(`
                 <tr>
-                    <td>${index + 1}</td>
-                    <td><strong>${course.kod_subjek}</strong></td>
-                    <td>${course.nama_subjek}</td>
-                    <td class="w3-center">${course.seksyen}</td>
-                    <td class="w3-center">${statusBadge}</td>
+                    <td class="course-code">${c.kod_subjek}</td>
+                    <td class="course-name">${c.nama_subjek}</td>
+                    <td class="center"><strong>${c.seksyen}</strong></td>
+                    <td class="center"><span class="badge-active">ACTIVE</span></td>
                 </tr>
-            `;
-            $("#courseListBody").append(row);
+            `);
         });
-
         $("#courseListSection").show();
     }
 
-    // ==========================================
-    // 5. FETCH TIMETABLE PER SUBJECT
-    // ==========================================
-    function fetchSubjectTimetable(subject) {
-        const url = `http://web.fc.utm.my/ttms/web_man_webservice_json.cgi?entity=jadual_subjek&sesi=${subject.sesi}&semester=${subject.semester}&kod_subjek=${subject.kod_subjek}&seksyen=${subject.seksyen}`;
+    function formatTime(m) { return `${8+m}:00 - ${9+m}:00`; }
 
-        return fetch(url)
-            .then(res => res.json())
-            .then(times => {
-                if (Array.isArray(times)) {
-                    times.forEach(slot => {
-                        placeIntoTable(subject, slot);
-                    });
-                } 
-            })
-            .catch(err => {
-                console.error(`❌ Error fetching timetable for ${subject.kod_subjek}:`, err);
-            });
-    }
-
-    // ==========================================
-    // 6. PLACE SUBJECT INTO TIMETABLE GRID
-    // ==========================================
-    function placeIntoTable(subject, slot) {
-        const day = slot.hari;           
-        const time = slot.masa -1;     
-        
-        // Track occupied slots using the day-time key
-        const slotKey = `${day}-${time-1}`;
-        occupiedSlots.add(slotKey);
-
-        const room = slot.ruang.nama_ruang_singkatan || slot.ruang.kod_ruang || 'N/A';
-
-        const cell = $(`td[data-day='${day}'][data-time='${time-1}']`);
-
-        const slotHTML = `
-            <div class="slot">
-                <strong>${subject.kod_subjek} (${subject.seksyen})</strong><br>
-                <small>${subject.nama_subjek}</small><br>
-                📍 ${room}
-            </div>
-        `;
-
-        cell.append(slotHTML);
-    }
-
-    // ==========================================
-    // 7. TIME FORMATTING
-    // ==========================================
-    function formatTime(masa) {
-        const start = 8 + masa; 
-        const end = start + 1;
-        return `${start}:00 - ${end}:00`;
-    }
-
-    // ==========================================
-    // 8. CHARTING LOGIC (STACKED COLUMN CHART BY DAY)
-    // ==========================================
     function drawFreeTimeChart() {
-        // 1. Initialize data structure for 5 days
-        const dailyDataMap = {};
-        for (let dayCode = 2; dayCode <= 6; dayCode++) {
-            dailyDataMap[dayCode] = {
-                dayName: DAYS_OF_WEEK[dayCode],
-                occupied: 0,
-                free: HOURS_PER_DAY
-            };
+        const dataArray = [['Day', 'Occupied', 'Free']];
+        for (let d = 2; d <= 6; d++) {
+            let occ = 0;
+            occupiedSlots.forEach(k => { if(k.startsWith(d+'-')) occ++; });
+            dataArray.push([DAYS_OF_WEEK[d], occ, HOURS_PER_DAY - occ]);
         }
-
-        // 2. Count occupied hours per day
-        occupiedSlots.forEach(slotKey => {
-            // slotKey is 'DayCode-Time' (e.g., '2-4')
-            const dayCode = slotKey.split('-')[0];
-            
-            if (dailyDataMap[dayCode]) {
-                dailyDataMap[dayCode].occupied++;
-                dailyDataMap[dayCode].free--;
-            }
-        });
-        
-        // 3. Prepare Google Chart DataTable
-        const dataArray = [
-          ['Day', 'Occupied Time (Hrs)', 'Free Time (Hrs)']
-        ];
-
-        // Convert the map data into the array format required by Google Charts
-        for (let dayCode = 2; dayCode <= 6; dayCode++) {
-            const dayEntry = dailyDataMap[dayCode];
-            dataArray.push([
-                dayEntry.dayName,
-                dayEntry.occupied,
-                dayEntry.free
-            ]);
-        }
-
         const data = google.visualization.arrayToDataTable(dataArray);
-
-        // 4. Define Chart Options
-        const options = {
-          title: 'Daily Time Allocation (8:00 - 18:00)',
-          isStacked: true, // Crucial for Stacked Column Chart
-          legend: { position: 'top', maxLines: 3 },
-          vAxis: {
-            title: 'Hours',
-            minValue: 0,
-            maxValue: HOURS_PER_DAY,
-            ticks: [0, 2, 4, 6, 8, 10]
-          },
-          hAxis: {
-            title: 'Day of Week'
-          },
-          colors: ['#00bcd4', '#bdbdbd'], // Cyan for occupied, Grey for free
-          height: 400
-        };
-
-        // 5. Draw the Chart
-        const chart = new google.visualization.ColumnChart(document.getElementById('freeTimeChartDiv'));
-        chart.draw(data, options);
+        new google.visualization.ColumnChart(document.getElementById('freeTimeChartDiv')).draw(data, {
+            isStacked: true,
+            colors: ['#10b981', '#f1f5f9'],
+            legend: { position: 'top' },
+            chartArea: { width: '90%', height: '70%' },
+            animation: { startup: true, duration: 800, easing: 'out' }
+        });
     }
+
+    // ADDED: Logic for Feature 5 (Comparison)
+    $('#compareBtn').click(function() {
+        const friendMatric = $('#friendMatric').val().trim().toUpperCase();
+        if (!friendMatric) return alert("Please enter a friend's Matric Number");
+        
+        $(this).text("Comparing...");
+        friendOccupiedSlots.clear();
+        
+        const url = `http://web.fc.utm.my/ttms/web_man_webservice_json.cgi?entity=pelajar_subjek&no_matrik=${friendMatric}`;
+        
+        fetch(url).then(res => res.json()).then(subs => {
+            const current = subs.filter(s => s.sesi === currentSesi && s.semester == currentSemester);
+            if(current.length === 0) {
+                alert("No subjects found for this friend.");
+                $(this).text("Compare & Find Meeting");
+                return;
+            }
+            
+            let promises = current.map(subj => {
+                const ttUrl = `http://web.fc.utm.my/ttms/web_man_webservice_json.cgi?entity=jadual_subjek&sesi=${subj.sesi}&semester=${subj.semester}&kod_subjek=${subj.kod_subjek}&seksyen=${subj.seksyen}`;
+                return fetch(ttUrl).then(res => res.json()).then(times => {
+                    if (Array.isArray(times)) {
+                        times.forEach(slot => friendOccupiedSlots.add(`${slot.hari}-${slot.masa - 1}`));
+                    }
+                });
+            });
+
+            Promise.all(promises).then(() => {
+                let body = "";
+                for (let h = 0; h <= 9; h++) {
+                    body += `<tr><td class="time-cell">${formatTime(h)}</td>`;
+                    for (let d = 2; d <= 6; d++) {
+                        const busy = occupiedSlots.has(`${d}-${h}`) || friendOccupiedSlots.has(`${d}-${h}`);
+                        body += busy ? `<td class="someone-busy">BUSY</td>` : `<td class="both-free">FREE</td>`;
+                    }
+                    body += "</tr>";
+                }
+                $('#mutualTableBody').html(body);
+                $('#friendNameDisp').text(friendMatric);
+                $('#compareModal').fadeIn(200);
+                $('#compareBtn').text("Compare & Find Meeting");
+            });
+        });
+    });
+
+    $('.close-modal').click(() => $('#compareModal').fadeOut(200));
 });
 </script>
 </body>
