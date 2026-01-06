@@ -101,8 +101,8 @@ $(document).ready(function() {
     const itemsPerPage = 20;
     
     // Get Session Info
-    let currentSesi = window.parent.currentSesi || "2024/2025";
-    let currentSemester = window.parent.currentSemester || "1";
+    let currentSesi = window.parent.currentSesi;
+    let currentSemester = window.parent.currentSemester;
     $("#sessionSem").text(`${currentSesi} - Semester ${currentSemester}`);
 
     // Load Charts
@@ -119,11 +119,7 @@ $(document).ready(function() {
             return analyzeRoomUsage(targets);
         })
         .then(analyzed => {
-            // Sort by room code in ascending order by default
-            allAnalyzedRooms = analyzed.sort((a,b) => {
-                // Compare room codes alphabetically
-                return a.kod_ruang.localeCompare(b.kod_ruang);
-            });
+            allAnalyzedRooms = analyzed.sort((a,b) => b.usageHours - a.usageHours);
             filteredRooms = [...allAnalyzedRooms];
             updateDisplay();
             $("#loadingMsg").hide();
@@ -292,7 +288,7 @@ $(document).ready(function() {
         
         topData.forEach(r => {
             // Label combines type and code: e.g. "MAKMAL (N28-01)"
-            const label = `${r.nama_ruang_singkatan}`;
+            const label = `${r.jenis || 'ROOM'} (${r.nama_ruang_singkatan})`;
             gData.addRow([label, r.usageHours]);
         });
 
