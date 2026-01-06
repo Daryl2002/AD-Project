@@ -27,6 +27,13 @@
         </div>
     </div>
 
+    <div class="comparison-bar">
+        <div class="search-box">
+            <input type="text" id="friendMatric" placeholder="Enter friend's matric (e.g. A21CS0000)">
+            <button id="compareBtn">Compare & Find Meeting</button>
+        </div>
+    </div>
+
     <div class="chart-container">
         <div id="freeTimeChartDiv"></div>
     </div>
@@ -69,10 +76,35 @@
     </div>
 </div>
 
+<div id="compareModal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3>🤝 Mutual Meeting Matrix</h3>
+            <span class="close-modal">&times;</span>
+        </div>
+        <div class="modal-body">
+            <p>Meeting availability with: <strong id="friendNameDisp">...</strong></p>
+            <div class="table-container">
+                <table class="proto-table modal-matrix">
+                    <thead>
+                        <tr><th>Time</th><th>MON</th><th>TUE</th><th>WED</th><th>THU</th><th>FRI</th></tr>
+                    </thead>
+                    <tbody id="mutualTableBody"></tbody>
+                </table>
+            </div>
+            <div class="legend">
+                <div class="legend-item"><span class="box free"></span> Both Free</div>
+                <div class="legend-item"><span class="box busy"></span> Someone Busy</div>
+            </div>
+        </div>
+    </div>
+</div>
+
 <script>
 $(document).ready(function() {
     const HOURS_PER_DAY = 10;
     let occupiedSlots = new Set();
+    let friendOccupiedSlots = new Set(); // ADDED for friend
     const DAYS_OF_WEEK = { 2: 'Monday', 3: 'Tuesday', 4: 'Wednesday', 5: 'Thursday', 6: 'Friday' };
 
     // Get Session Data
@@ -176,6 +208,53 @@ $(document).ready(function() {
             animation: { startup: true, duration: 800, easing: 'out' }
         });
     }
+
+    // ADDED: Logic for Feature 5 (Comparison)
+    $('#compareBtn').click(function() {
+        const friendMatric = $('#friendMatric').val().trim().toUpperCase();
+        if (!friendMatric) return alert("Please enter a friend's Matric Number");
+        
+        $(this).text("Comparing...");
+        friendOccupiedSlots.clear();
+        
+        const url = `http://web.fc.utm.my/ttms/web_man_webservice_json.cgi?entity=pelajar_subjek&no_matrik=${friendMatric}`;
+        
+        fetch(url).then(res => res.json()).then(subs => {
+            const current = subs.filter(s => s.sesi === currentSesi && s.semester == currentSemester);
+            if(current.length === 0) {
+                alert("No subjects found for this friend.");
+                $(this).text("Compare & Find Meeting");
+                return;
+            }
+            
+            let promises = current.map(subj => {
+                const ttUrl = `http://web.fc.utm.my/ttms/web_man_webservice_json.cgi?entity=jadual_subjek&sesi=${subj.sesi}&semester=${subj.semester}&kod_subjek=${subj.kod_subjek}&seksyen=${subj.seksyen}`;
+                return fetch(ttUrl).then(res => res.json()).then(times => {
+                    if (Array.isArray(times)) {
+                        times.forEach(slot => friendOccupiedSlots.add(`${slot.hari}-${slot.masa - 1}`));
+                    }
+                });
+            });
+
+            Promise.all(promises).then(() => {
+                let body = "";
+                for (let h = 0; h <= 9; h++) {
+                    body += `<tr><td class="time-cell">${formatTime(h)}</td>`;
+                    for (let d = 2; d <= 6; d++) {
+                        const busy = occupiedSlots.has(`${d}-${h}`) || friendOccupiedSlots.has(`${d}-${h}`);
+                        body += busy ? `<td class="someone-busy">BUSY</td>` : `<td class="both-free">FREE</td>`;
+                    }
+                    body += "</tr>";
+                }
+                $('#mutualTableBody').html(body);
+                $('#friendNameDisp').text(friendMatric);
+                $('#compareModal').fadeIn(200);
+                $('#compareBtn').text("Compare & Find Meeting");
+            });
+        });
+    });
+
+    $('.close-modal').click(() => $('#compareModal').fadeOut(200));
 });
 </script>
 </body>
