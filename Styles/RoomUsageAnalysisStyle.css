@@ -1,0 +1,224 @@
+/* ===============================
+   Room Usage Analysis – Unified Style
+   Matches RoomAvailabilityStyle.css
+   =============================== */
+
+:root {
+    --primary-gold: #aa841d;
+    --primary-gold-hover: #8e6d18;
+    --slate-dark: #1e293b;
+    --slate-light: #334155;
+    --bg-light: #f8fafc;
+    --border-color: #e2e8f0;
+    --white: #ffffff;
+    --text-main: #1e293b;
+    --text-muted: #64748b;
+}
+
+/* ---------- Base ---------- */
+body.w3-container {
+    background: var(--bg-light);
+    font-family: 'Inter', system-ui, sans-serif;
+    color: var(--text-main);
+    padding: 24px;
+}
+
+/* ---------- Page Title ---------- */
+h2 {
+    font-weight: 900;
+    color: var(--primary-gold);
+    margin-bottom: 10px;
+}
+
+/* ---------- Filter Panel ---------- */
+.w3-white.w3-padding-16 {
+    background: var(--white) !important;
+    border-radius: 16px;
+    border: 1px solid var(--border-color);
+    box-shadow: 0 4px 6px -1px rgba(0,0,0,0.08);
+    margin-bottom: 20px;
+}
+
+/* ---------- Filter Chips ---------- */
+.filter-chip {
+    padding: 10px 18px;
+    border-radius: 999px;
+    background: #f1f5f9;
+    border: 1px solid var(--border-color);
+    font-weight: 700;
+    font-size: 0.85rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.filter-chip i {
+    margin-right: 6px;
+}
+
+.filter-chip:hover {
+    background: #e2e8f0;
+}
+
+.active-filter {
+    background: var(--primary-gold) !important;
+    color: white !important;
+    border-color: var(--primary-gold);
+}
+
+/* ---------- Search Box ---------- */
+#w3-display-container,
+.w3-display-container {
+    position: relative;
+}
+
+#searchInput {
+    padding: 12px 18px;
+    border-radius: 999px;
+    border: 1px solid var(--border-color);
+    font-size: 0.9rem;
+}
+
+#searchInput:focus {
+    outline: none;
+    border-color: var(--primary-gold);
+    box-shadow: 0 0 0 3px rgba(170,132,29,0.15);
+}
+
+/* ---------- Session Info ---------- */
+.w3-panel {
+    background: var(--white);
+    border-radius: 12px;
+    border: 1px solid var(--border-color);
+    font-weight: 600;
+}
+
+/* ---------- Loading ---------- */
+.loading-spinner {
+    font-weight: 800;
+    color: var(--slate-dark);
+}
+
+/* ---------- Chart ---------- */
+#chart_div {
+    background: var(--white);
+    border-radius: 16px;
+    padding: 16px;
+    border: 1px solid var(--border-color);
+    box-shadow: 0 6px 10px rgba(0,0,0,0.08);
+}
+
+/* ---------- Table Container ---------- */
+.w3-table-all {
+    border-collapse: collapse;
+    background: var(--white);
+    border-radius: 16px;
+    overflow: hidden;
+    border: 1px solid var(--border-color);
+}
+
+/* Table Head */
+#roomListTable th {
+    background: var(--slate-dark);
+    color: white;
+    font-size: 0.75rem;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    position: sticky;
+    top: 0;
+    z-index: 5;
+}
+
+/* Table Body */
+#roomListTable td {
+    font-size: 0.9rem;
+    border-bottom: 1px solid var(--border-color);
+}
+
+#roomListTable tr:hover {
+    background: #f8fafc;
+}
+
+/* ---------- Tags ---------- */
+.w3-tag.w3-teal {
+    background: #dcfce7 !important;
+    color: #166534 !important;
+    font-weight: 800;
+}
+
+.w3-tag.w3-indigo {
+    background: #e0e7ff !important;
+    color: #3730a3 !important;
+    font-weight: 800;
+}
+
+/* ---------- Pagination ---------- */
+.pagination-container {
+    background: var(--white);
+    border-radius: 12px;
+    padding: 16px 20px;
+    margin: 20px 0;
+    border: 1px solid var(--border-color);
+    box-shadow: 0 4px 6px rgba(0,0,0,0.08);
+}
+
+/* Pagination Buttons */
+.w3-bar .w3-button {
+    border-radius: 8px;
+    font-weight: 700;
+}
+
+.w3-bar .w3-button.w3-blue {
+    background: var(--primary-gold) !important;
+}
+/* ===============================
+   Loading Spinner Overlay
+   =============================== */
+
+#loadingMsg {
+    position: fixed;
+    inset: 0;
+    background: rgba(248, 250, 252, 0.92);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    z-index: 9999;
+    font-size: 0; /* Hide emoji text */
+}
+
+/* Spinner circle */
+#loadingMsg::before {
+    content: "";
+    width: 52px;
+    height: 52px;
+    border: 5px solid var(--border-color);
+    border-top-color: var(--primary-gold);
+    border-radius: 50%;
+    animation: spin 0.9s linear infinite;
+    margin-bottom: 16px;
+}
+
+/* Spinner text */
+#loadingMsg::after {
+    content: "Analyzing room usage...";
+    font-size: 0.95rem;
+    font-weight: 800;
+    color: var(--slate-dark);
+}
+
+/* Spin animation */
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+/* ---------- Responsive ---------- */
+@media (max-width: 768px) {
+    .filter-chip {
+        font-size: 0.75rem;
+        padding: 8px 14px;
+    }
+
+    h2 {
+        font-size: 1.3rem;
+    }
+}
