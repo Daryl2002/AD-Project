@@ -1,9 +1,10 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 
 <head>
     <title>TTMS - Login</title>
     <meta name="viewport" content="width=device-width, initial-scale=1">
+
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="Styles/loginStyle.css">
 </head>
@@ -11,14 +12,14 @@
 <body>
 
     <div class="main-wrapper">
+
         <header class="top-bar">
             <div class="welcome-text">WELCOME!</div>
-            <div class="faculty-text">
-                Fakulti Komputeran
-            </div>
+            <div class="faculty-text">Fakulti Komputeran</div>
         </header>
 
         <main class="login-container">
+
             <div class="logo-container">
                 <img id="utm-logo" src="Logo/UTM-LOGO.png" alt="UTM Logo">
             </div>
@@ -28,123 +29,180 @@
                 <p class="subtitle">Enter your credentials to access the system</p>
 
                 <div class="input-group">
-                    <label for="login">UserID</label>
-                    <input type="text" id="login" class="input-field" value="A24CS0064" placeholder="Enter your ID">
+                    <label for="login">User ID</label>
+                    <input type="text" id="login" class="input-field" placeholder="Student / Staff ID">
                 </div>
 
                 <div class="input-group">
                     <label for="password">Password</label>
-                    <input type="password" id="password" class="input-field" value="020620120897"
-                        placeholder="••••••••">
+                    <input type="password" id="password" class="input-field" placeholder="••••••••">
                 </div>
 
-                <button class="login-button" id="btnLogin">LOGIN</button>
+                <!-- 🔁 MODE SWITCH -->
+                <div class="admin-switch">
+                    <span class="switch-label">Mode</span>
+
+                    <label class="switch">
+                        <input type="checkbox" id="loginAsAdmin">
+                        <span class="slider"></span>
+                    </label>
+
+                    <span class="mode-text" id="modeText">
+                        Staff / Lecturer
+                    </span>
+                </div>
+
+                <button class="login-button" id="btnLogin">
+                    LOGIN
+                </button>
             </div>
+
         </main>
     </div>
 
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
-    <script>
-        // TTMS Web Service Base URL
-        const BASE_URL = "http://web.fc.utm.my/ttms/web_man_webservice_json.cgi";
 
+    <script>
+        const BASE_URL =
+            "http://web.fc.utm.my/ttms/web_man_webservice_json.cgi";
+
+        // ===============================
+        // MODE SWITCH TEXT UPDATE
+        // ===============================
+        $("#loginAsAdmin").change(function () {
+            $("#modeText").text(
+                this.checked ? "Admin Mode" : "Lecturer / Staff"
+            );
+        });
+
+        // ===============================
+        // LOGIN HANDLER
+        // ===============================
         $("#btnLogin").click(function () {
 
-            const loginId = $("#login").val();
-            const password = $("#password").val();
+            const loginId = $("#login").val().trim();
+            const password = $("#password").val().trim();
+            const loginAsAdmin = $("#loginAsAdmin").is(":checked");
 
             if (!loginId || !password) {
-                alert("Please enter both UserID and Password.");
+                alert("Please enter both User ID and Password.");
                 return;
             }
 
-            const authUrl = `${BASE_URL}?entity=authentication&login=${loginId}&password=${password}`;
+            const authUrl =
+                `${BASE_URL}?entity=authentication&login=${loginId}&password=${password}`;
 
-            // 1. Perform Authentication
+            // 1️⃣ Authenticate
             fetch(authUrl)
                 .then(res => res.json())
-                .then(jsonInst => {
+                .then(data => {
 
-                    if (!Array.isArray(jsonInst) || jsonInst.length === 0 || !jsonInst[0].session_id) {
-                        throw new Error("Invalid credential or authentication API error.");
+                    if (!Array.isArray(data) || !data[0]?.session_id) {
+                        throw new Error("Invalid credentials");
                     }
 
-                    alert("Successfully logged in to the system!");
-                    const userData = jsonInst[0];
+                    const userSession = data[0];
 
-                    // Save user session data to localStorage
-                    localStorage.setItem("TTMSFC_userSession", JSON.stringify(userData));
+                    // Save normal user session
+                    localStorage.setItem(
+                        "TTMSFC_userSession",
+                        JSON.stringify(userSession)
+                    );
 
-                    // 2. Determine Role via secondary API check
-                    determineUserRole(userData);
+                    // 2️⃣ Admin mode requested?
+                    if (loginAsAdmin) {
+                        // Check if user is a student first
+                        const checkStudentUrl = `${BASE_URL}?entity=pelajar_subjek&no_matrik=${userSession.login_name}`;
+
+                        fetch(checkStudentUrl)
+                            .then(r => r.json())
+                            .then(sData => {
+                                if (Array.isArray(sData) && sData.length > 0) {
+                                    // It IS a student
+                                    alert("Access denied. Students cannot access Admin mode.");
+                                } else {
+                                    // Not a student (Lecturer/Staff), try admin login
+                                    attemptAdminLogin(userSession);
+                                }
+                            })
+                            .catch(e => {
+                                console.error("Error checking student role:", e);
+                                alert("System error verifying role.");
+                            });
+                    } else {
+                        detectStudentOrLecturer(userSession);
+                    }
                 })
                 .catch(err => {
-                    alert("Invalid credential or connection error!");
-                    console.error("Login Error:", err);
+                    if (detectStudentOrLecturer(userSession)) {
+                        alert("Login successfully");
+                    }
+                    else {
+                        alert("Login failed. Invalid credentials or connection error.");
+                        console.error(err);
+                    }
                 });
         });
 
-        // ===============================================
-        // FUNCTION: Determine Role and Redirect
-        // ===============================================
-        function determineUserRole(userData) {
+        // ===============================
+        // ADMIN ESCALATION
+        // ===============================
+        function attemptAdminLogin(userSession) {
 
-            const userSessionId = userData.session_id;
-            const adminAuthUrl = `http://web.fc.utm.my/ttms/auth-admin.php?session_id=${userSessionId}`;
+            const adminUrl =
+                `http://web.fc.utm.my/ttms/auth-admin.php?session_id=${userSession.session_id}`;
 
-            // 1️⃣ Try to escalate to Admin
-            fetch(adminAuthUrl)
+            fetch(adminUrl)
                 .then(res => res.json())
                 .then(adminData => {
 
-                    if (Array.isArray(adminData) && adminData.length > 0 && adminData[0].session_id) {
+                    if (Array.isArray(adminData) && adminData[0]?.session_id) {
 
-                        // ✅ ADMIN CONFIRMED
-                        console.log("Admin access granted.");
-
-                        // Save admin session separately
+                        // ✅ Admin granted
                         localStorage.setItem(
                             "TTMSFC_adminSession",
                             JSON.stringify(adminData[0])
                         );
 
                         window.location.replace("AdminMain.html");
-                        return;
+                    } else {
+                        alert("Admin access denied. Staff only.");
+                        detectStudentOrLecturer(userSession);
                     }
-
-                    // ❌ Not admin → check student
-                    checkStudentOrLecturer(userData);
                 })
-                .catch(err => {
-                    console.warn("Admin check failed, fallback to user role.", err);
-                    checkStudentOrLecturer(userData);
+                .catch(() => {
+                    alert("Admin authorization failed.");
+                    detectStudentOrLecturer(userSession);
                 });
         }
-        function checkStudentOrLecturer(userData) {
 
-            const loginName = userData.login_name;
-            const studentCheckUrl =
+        // ===============================
+        // STUDENT / LECTURER DETECTION
+        // ===============================
+        function detectStudentOrLecturer(userSession) {
+
+            const loginName = userSession.login_name;
+            const studentUrl =
                 `${BASE_URL}?entity=pelajar_subjek&no_matrik=${loginName}`;
 
-            fetch(studentCheckUrl)
+            fetch(studentUrl)
                 .then(res => res.json())
-                .then(subjects => {
+                .then(data => {
 
-                    if (Array.isArray(subjects) && subjects.length > 0) {
-                        console.log("Role: STUDENT");
+                    if (Array.isArray(data) && data.length > 0) {
+                        // 🎓 Student
                         window.location.replace("Main.html");
                     } else {
-                        console.log("Role: LECTURER");
+                        // 👨‍🏫 Lecturer
                         window.location.replace("MainLecturer.html");
                     }
                 })
-                .catch(err => {
-                    console.error("Role detection failed, defaulting to student.", err);
+                .catch(() => {
                     window.location.replace("Main.html");
                 });
         }
-
     </script>
+
 </body>
 
 </html>

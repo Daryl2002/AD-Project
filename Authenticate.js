@@ -1,4 +1,4 @@
-(function() {
+(function () {
     // 1. Retrieve the session from localStorage
     const userSession = localStorage.getItem("TTMSFC_userSession");
 
@@ -14,9 +14,9 @@
 
         // Stop the page from showing even for a millisecond
         document.documentElement.style.display = 'none';
-        
+
         alert("Unauthorized access! Please login to continue.");
-        
+
         // Redirect and replace history so 'Back' doesn't work
         window.location.replace(loginRedirect);
     } else {
