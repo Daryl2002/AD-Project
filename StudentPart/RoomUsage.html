@@ -68,6 +68,7 @@
                     <th>Type</th>
                     <th>Capacity</th>
                     <th colspan="2" class="w3-center">Usage</th>
+                    <th rowspan="2" class="w3-center">Trend</th>
                 </tr>
                 <tr class="w3-light-grey w3-small">
                     <th></th>
@@ -98,7 +99,8 @@
             let isChartLibLoaded = false;
 
             // Get Session Info
-            let currentSesi = window.parent.currentSesi || "2024/2025";
+            // Defaulting to 2025/2026 as per user requirements/current timetable
+            let currentSesi = window.parent.currentSesi || "2025/2026";
             let currentSemester = window.parent.currentSemester || "1";
             $("#sessionSem").text(`${currentSesi} - Semester ${currentSemester}`);
 
@@ -107,7 +109,7 @@
             function initGoogleCharts() {
                 try {
                     if (typeof google !== 'undefined' && google.charts) {
-                        google.charts.load('current', { 'packages': ['bar'] });
+                        google.charts.load('current', { 'packages': ['bar', 'corechart', 'line'] });
                         google.charts.setOnLoadCallback(function () {
                             isChartLibLoaded = true;
                             if (filteredRooms.length > 0) drawRoomUsageChart(filteredRooms);
@@ -260,6 +262,11 @@
                     <td class="w3-center">${room.kapasiti}</td>
                     <td class="w3-center"><span class="w3-tag w3-teal w3-round">${room.usageHours}</span></td>
                     <td class="w3-center"><span class="w3-tag w3-indigo w3-round">${room.subjectCount}</span></td>
+                    <td class="w3-center">
+                        <button class="w3-button w3-small w3-round w3-border w3-border-blue w3-text-blue w3-hover-blue" onclick="openRoomGraph('${room.kod_ruang}')">
+                            <i class="fa fa-line-chart"></i> View
+                        </button>
+                    </td>
                 </tr>
             `);
                 });
@@ -316,15 +323,83 @@
             function calculateUsage(room, schedule) {
                 const uniqueSlots = new Set();
                 const uniqueSubs = new Set();
-                schedule.forEach(s => {
 
+                // Initialize daily usage: 1=Mon, 2=Tue, 3=Wed, 4=Thu, 5=Fri
+                // Note: UTM default is Sunday-Thursday (1=Sun), but user requested Monday-Friday mapping.
+                // If data seems inaccurate, it might be because '1' in DB is actually Sunday. 
+                // However, we will display '1' as Monday as requested.
+                // Initialize daily usage: 1=Sun, 2=Mon, 3=Tue, 4=Wed, 5=Thu, 6=Fri, 7=Sat
+                // We want to display Mon-Fri (Indices 2 to 6)
+                const dailyStats = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0, 7: 0 };
+
+                schedule.forEach(s => {
                     if (s.subjek && s.hari && s.masa) {
-                        uniqueSlots.add(`${s.hari}-${s.masa}`);
+                        const slotId = `${s.hari}-${s.masa}`;
+                        if (!uniqueSlots.has(slotId)) {
+                            uniqueSlots.add(slotId);
+                            // Increment daily count if it's a valid day key
+                            if (dailyStats[s.hari] !== undefined) {
+                                dailyStats[s.hari]++;
+                            }
+                        }
                         uniqueSubs.add(s.subjek.kod_subjek);
                     }
                 });
-                return { ...room, usageHours: uniqueSlots.size, subjectCount: uniqueSubs.size };
+                return {
+                    ...room,
+                    usageHours: uniqueSlots.size,
+                    subjectCount: uniqueSubs.size,
+                    dailyStats: dailyStats
+                };
             }
+
+            // --- DAILY USAGE GRAPH POPUP LOGIC ---
+            window.openRoomGraph = function (roomCode) {
+                const room = allAnalyzedRooms.find(r => r.kod_ruang === roomCode);
+                if (!room) return;
+
+                // Show Modal
+                $("#graphModal").show();
+                $("#modalRoomTitle").text(`${room.kod_ruang} - ${room.nama_ruang || ''}`);
+
+                drawDailyChart(room);
+            };
+
+            function drawDailyChart(room) {
+                if (!isChartLibLoaded) return;
+
+                const data = new google.visualization.DataTable();
+                data.addColumn('string', 'Day');
+                data.addColumn('number', 'Hours');
+
+                // Convert day numbers: 2=Mon, 3=Tue, 4=Wed, 5=Thu, 6=Fri
+                const dayNames = { 2: "Monday", 3: "Tuesday", 4: "Wednesday", 5: "Thursday", 6: "Friday" };
+
+                const rows = [];
+                for (let i = 2; i <= 6; i++) {
+                    rows.push([dayNames[i], room.dailyStats[i] || 0]);
+                }
+                data.addRows(rows);
+
+                const options = {
+                    title: 'Daily Room Usage (Hours per Day)',
+                    // curveType: 'function', // Removed to make lines straight
+                    legend: { position: 'bottom' },
+                    height: 400,
+                    pointSize: 5,
+                    hAxis: { title: 'Day of Week' },
+                    vAxis: { title: 'Hours Used', minValue: 0, format: '0' },
+                    colors: ['#e65100']
+                };
+
+                const chart = new google.visualization.LineChart(document.getElementById('daily_chart_div'));
+                chart.draw(data, options);
+            }
+
+            // Close Modal Logic
+            window.closeGraphModal = function () {
+                $("#graphModal").hide();
+            };
 
             // --- CHART LOGIC: LABEL BY TYPE ---
             function drawRoomUsageChart(data) {
@@ -356,5 +431,24 @@
         });
     </script>
 </body>
+
+<!-- Modal for Graph -->
+<div id="graphModal" class="w3-modal" style="z-index: 9999; display: none;">
+    <div class="w3-modal-content w3-animate-zoom w3-card-4 w3-round-large">
+        <header class="w3-container w3-blue-grey w3-round-large"
+            style="border-bottom-left-radius: 0; border-bottom-right-radius: 0;">
+            <span onclick="closeGraphModal()"
+                class="w3-button w3-display-topright w3-large w3-hover-red w3-round-tr-large">&times;</span>
+            <h3 id="modalRoomTitle" style="margin:10px 0;">Room Graph</h3>
+        </header>
+        <div class="w3-container w3-padding">
+            <div id="daily_chart_div" style="width: 100%; height: 400px;"></div>
+        </div>
+        <footer class="w3-container w3-light-grey w3-padding w3-right-align w3-round-large"
+            style="border-top-left-radius: 0; border-top-right-radius: 0;">
+            <button class="w3-button w3-white w3-border w3-round" onclick="closeGraphModal()">Close</button>
+        </footer>
+    </div>
+</div>
 
 </html>
