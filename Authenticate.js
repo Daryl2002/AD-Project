@@ -1,27 +1,27 @@
 (function () {
-    // 1. Retrieve the session from localStorage
-    const userSession = localStorage.getItem("TTMSFC_userSession");
+    // Context Detection
+    const path = window.location.pathname;
+    const isInsideAdmin = path.includes("AdminPart");
+    const isInsideStudent = path.includes("StudentPart");
+    const isInsideLecturer = path.includes("LecturerPart");
+    const isSubfolder = isInsideAdmin || isInsideStudent || isInsideLecturer;
 
-    // 2. If no session, block access immediately
-    if (!userSession) {
-        // Detect if the user is currently inside the 'StudentPart' folder
+    // Determine Required Session
+    const sessionKey = isInsideAdmin ? "TTMSFC_adminSession" : "TTMSFC_userSession";
+    const session = localStorage.getItem(sessionKey);
 
-        const isInsideSubfolder = window.location.pathname.includes("StudentPart/");
-        //detect if the user is currently inside the 'LecturerPart' folder
-        const isInsideLecturerSubfolder = window.location.pathname.includes("LecturerPart/");
-
-        const loginRedirect = isInsideSubfolder || isInsideLecturerSubfolder ? "../login.html" : "login.html";
-
-        // Stop the page from showing even for a millisecond
+    // Validate
+    if (!session) {
+        // block access immediately
         document.documentElement.style.display = 'none';
+        alert("Unauthorized access! Please login.");
 
-        alert("Unauthorized access! Please login to continue.");
-
-        // Redirect and replace history so 'Back' doesn't work
-        window.location.replace("Login.html");
+        // Redirect based on location
+        const loginPage = isSubfolder ? "../Login.html" : "Login.html";
+        window.location.replace(loginPage);
     } else {
-        // Ensure page is visible if session is valid
+        // Valid
         document.documentElement.style.display = 'block';
-        console.log("Global Security: Session Verified.");
+        // console.log("Global Security: Session Verified (" + sessionKey + ")");
     }
 })();

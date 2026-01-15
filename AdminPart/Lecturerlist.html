@@ -1,0 +1,293 @@
+<html>
+<script src="../Authenticate.js"></script>
+<link rel="stylesheet" href="Styles/lecturerList.css">
+
+<div class="page-container">
+    <div class="page-header">
+        <h1 class="page-title">Lecturer List</h1>
+        <div class="search-bar">
+            <i class="fa fa-search search-icon"></i>
+            <input type="text" id="lecturerSearch" class="search-input" placeholder="Search by name...">
+        </div>
+    </div>
+
+    <!-- Table Card -->
+    <div class="table-card">
+        <div class="table-responsive">
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th width="50">NO.</th>
+                        <th>NAME</th>
+                        <th width="150">NO. OF SUBJECTS</th>
+                        <th width="150">NO. OF SECTIONS</th>
+                        <th width="150">NO. OF STUDENTS</th>
+                    </tr>
+                </thead>
+                <tbody id="lecturerTableBody">
+                    <!-- Dynamic Content -->
+                    <tr>
+                        <td colspan="5" style="text-align: center; padding: 40px; color: #6b7280;">
+                            <i class="fa fa-spinner fa-spin" style="font-size: 24px; margin-bottom: 10px;"></i>
+                            <p>Loading lecturer database...</p>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <div class="pagination-footer">
+            <div class="page-info" id="pageInfo">Showing 0 to 0 of 0 entries</div>
+            <div class="pagination-numbers" id="paginationNumbers"></div>
+        </div>
+    </div>
+</div>
+
+<script>
+    (function () {
+        const adminSession = JSON.parse(localStorage.getItem("TTMSFC_adminSession"));
+        let allLecturers = [];
+        let filteredLecturers = [];
+        let currentPage = 1;
+        const itemsPerPage = 20;
+        // --- Initialization ---
+        async function init() {
+            try {
+                // 1. Fetch Current Session/Semester
+                const sesiResponse = await fetch("http://web.fc.utm.my/ttms/web_man_webservice_json.cgi?entity=sesisemester");
+                const sesiData = await sesiResponse.json();
+                if (!sesiData || !sesiData[0]) throw new Error("Failed to fetch session info");
+
+                const currentSesi = sesiData[0].sesi;
+                const currentSem = sesiData[0].semester;
+
+                // 2. Fetch Data Strategy: History Scan + Schedule Overlay
+                // The API requires 'sesi'/'semester' and caps the list at 98 per session.
+                // To find "inactive" lecturers (0 subjects), we assume they were active in prior sessions.
+                // We scan the last 10 semesters.
+
+                $('#lecturerTableBody').html(`
+                    <tr>
+                        <td colspan="5" style="text-align: center; padding: 40px; color: #6b7280;">
+                            <i class="fa fa-spinner fa-spin" style="font-size: 24px; margin-bottom: 10px;"></i>
+                            <p id="loadingText">Loading lecturer database... (Scanning history & schedule)</p>
+                        </td>
+                    </tr>
+                `);
+
+                // A. Fetch Current Schedule (The Truth for stats)
+                const pSchedule = fetch(`http://web.fc.utm.my/ttms/web_man_webservice_json.cgi?entity=subjek_seksyen&sesi=${currentSesi}&semester=${currentSem}`);
+
+                // B. Fetch History of Lecturers
+                const recentSessions = sesiData.slice(0, 10);
+                const historyPromises = recentSessions.map(s =>
+                    fetch(`http://web.fc.utm.my/ttms/web_man_webservice_json.cgi?entity=pensyarah&session_id=${adminSession.session_id}&sesi=${s.sesi}&semester=${s.semester}`)
+                        .then(res => res.ok ? res.json() : [])
+                        .catch(e => [])
+                );
+
+                // Execute
+                const [resSchedule, ...historyData] = await Promise.all([pSchedule, ...historyPromises]);
+                const scheduleData = await resSchedule.json();
+
+                if (!Array.isArray(scheduleData)) throw new Error("Invalid schedule data");
+
+                // --- 3. Process Schedule Data (Current Stats) ---
+                const statsMap = new Map(); // Name -> Stats
+
+                scheduleData.forEach(sub => {
+                    const kodSubjek = sub.kod_subjek;
+                    if (sub.seksyen_list && Array.isArray(sub.seksyen_list)) {
+                        sub.seksyen_list.forEach(sec => {
+                            if (sec.pensyarah) {
+                                const rawName = sec.pensyarah.trim();
+                                const nameKey = rawName.toUpperCase();
+
+                                if (!statsMap.has(nameKey)) {
+                                    statsMap.set(nameKey, {
+                                        originalName: rawName,
+                                        subjects: new Set(),
+                                        sections: 0,
+                                        students: 0
+                                    });
+                                }
+                                const entry = statsMap.get(nameKey);
+                                entry.subjects.add(kodSubjek);
+                                entry.sections++;
+                                entry.students += (parseInt(sec.bil_pelajar) || 0);
+                            }
+                        });
+                    }
+                });
+
+                // --- 4. Merge Historical Data ---
+                allLecturers = [];
+                const mergedMap = new Map(); // no_pekerja -> Object
+
+                // Iterate through all fetched history lists
+                historyData.forEach(list => {
+                    if (Array.isArray(list)) {
+                        list.forEach(l => {
+                            if (l.no_pekerja && !mergedMap.has(l.no_pekerja)) {
+                                mergedMap.set(l.no_pekerja, l);
+                            }
+                        });
+                    }
+                });
+
+                // Convert to distinct array
+                const distinctLecturers = Array.from(mergedMap.values());
+                const processedNames = new Set();
+
+                // Apply Current Stats to Distinct List
+                distinctLecturers.forEach(l => {
+                    if (l.nama) {
+                        const nameKey = l.nama.trim().toUpperCase();
+                        processedNames.add(nameKey);
+
+                        const stats = statsMap.get(nameKey);
+                        if (stats) {
+                            l.bil_subjek = stats.subjects.size;
+                            l.bil_seksyen = stats.sections;
+                            l.bil_pelajar = stats.students;
+                        } else {
+                            // Inactive in current semester
+                            l.bil_subjek = 0;
+                            l.bil_seksyen = 0;
+                            l.bil_pelajar = 0;
+                        }
+                        allLecturers.push(l);
+                    }
+                });
+
+                // Add any lecturers found in Schedule but NOT in History (New staff?)
+                statsMap.forEach((stats, nameKey) => {
+                    if (!processedNames.has(nameKey)) {
+                        allLecturers.push({
+                            nama: stats.originalName,
+                            no_pekerja: null,
+                            bil_subjek: stats.subjects.size,
+                            bil_seksyen: stats.sections,
+                            bil_pelajar: stats.students
+                        });
+                    }
+                });
+
+                // 5. Final Sort
+                allLecturers.sort((a, b) => a.nama.localeCompare(b.nama));
+
+                filteredLecturers = allLecturers;
+                renderCurrentPage();
+
+            } catch (err) {
+                console.error("Error fetching lecturers:", err);
+                $('#lecturerTableBody').html(`<tr><td colspan="5" style="text-align:center; color:red;">Error fetching data. Please try again.</td></tr>`);
+            }
+        }
+
+        // --- Rendering ---
+        function renderCurrentPage() {
+            const start = (currentPage - 1) * itemsPerPage;
+            const end = start + itemsPerPage;
+            const pageSlice = filteredLecturers.slice(start, end);
+
+            renderTable(pageSlice, start);
+            updatePagination();
+        }
+
+        function renderTable(data, startIndex) {
+            const tbody = $('#lecturerTableBody');
+            tbody.empty();
+
+            if (data.length === 0) {
+                tbody.html('<tr><td colspan="5" style="text-align:center; padding:20px;">No lecturers found.</td></tr>');
+                return;
+            }
+
+            data.forEach((lecturer, index) => {
+                const globalIndex = startIndex + index + 1;
+                const tr = `
+                    <tr>
+                        <td style="font-weight:600; color:#9ca3af;">${globalIndex}</td>
+                        <td style="font-weight:600; color:#111827;">${lecturer.nama || '-'}</td>
+                        <td>
+                             <span class="badge badge-gray">${lecturer.bil_subjek || 0}</span>
+                        </td>
+                        <td>
+                            <span class="badge badge-gray">${lecturer.bil_seksyen || 0}</span>
+                        </td>
+                         <td>
+                            <span class="badge badge-primary">${lecturer.bil_pelajar || 0} Students</span>
+                        </td>
+                    </tr>
+                `;
+                tbody.append(tr);
+            });
+
+            // Update Info Text
+            const total = filteredLecturers.length;
+            const startDisplay = total === 0 ? 0 : startIndex + 1;
+            const endDisplay = Math.min(startIndex + itemsPerPage, total);
+            $('#pageInfo').text(`Showing ${startDisplay} to ${endDisplay} of ${total} entries`);
+        }
+
+        function updatePagination() {
+            const container = $('#paginationNumbers');
+            container.empty();
+            const totalPages = Math.ceil(filteredLecturers.length / itemsPerPage);
+
+            if (totalPages <= 1) return;
+
+            // Simple Pagination: Prev, Next, and range around current
+            // Helper for button creation
+            const createBtn = (text, page, isActive = false, isDisabled = false) => {
+                const btn = $(`<button class="page-num ${isActive ? 'active' : ''}">${text}</button>`);
+                if (isDisabled) btn.prop('disabled', true);
+                else btn.click(() => { currentPage = page; renderCurrentPage(); });
+                return btn;
+            };
+
+            // Prev
+            container.append(createBtn('<', currentPage - 1, false, currentPage === 1));
+
+            // Logic for showing limited page numbers
+            let startPage = Math.max(1, currentPage - 2);
+            let endPage = Math.min(totalPages, currentPage + 2);
+
+            if (startPage > 1) {
+                container.append(createBtn('1', 1, currentPage === 1));
+                if (startPage > 2) container.append($('<span style="padding:0 4px;">...</span>'));
+            }
+
+            for (let i = startPage; i <= endPage; i++) {
+                container.append(createBtn(i, i, i === currentPage));
+            }
+
+            if (endPage < totalPages) {
+                if (endPage < totalPages - 1) container.append($('<span style="padding:0 4px;">...</span>'));
+                container.append(createBtn(totalPages, totalPages, currentPage === totalPages));
+            }
+
+            // Next
+            container.append(createBtn('>', currentPage + 1, false, currentPage === totalPages));
+        }
+
+        // --- Filtering ---
+        $('#lecturerSearch').on('input', function () {
+            const term = $(this).val().toLowerCase().trim();
+
+            filteredLecturers = allLecturers.filter(l =>
+                (l.nama && l.nama.toLowerCase().includes(term))
+            );
+
+            currentPage = 1;
+            renderCurrentPage();
+        });
+
+        // Start
+        init();
+
+    })();
+</script>
+
+</html>
