@@ -183,7 +183,8 @@
                         .done(slots => {
                             if (Array.isArray(slots)) {
                                 slots.forEach(slot => {
-                                    const key = `${slot.hari}-${slot.masa}`;
+                                    // Shift masa by -1 to align with table (masa 4 -> hour 3 -> 10am)
+                                    const key = `${slot.hari}-${slot.masa - 1}`;
                                     if (timetableData[key]) {
                                         timetableData[key].push({
                                             code: cls.kod_subjek,
