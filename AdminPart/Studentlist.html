@@ -49,6 +49,7 @@
         const adminSession = JSON.parse(localStorage.getItem("TTMSFC_adminSession"));
         let currentSesi = null;
         let currentSem = null;
+        let currentSearchQuery = "";
 
         let offset = 0;
         const limit = 20;
@@ -76,18 +77,34 @@
             }
         }
 
+        // Global cache for search results
+        let allSearchResults = [];
+
         async function loadStudents() {
             $('#studentTableBody').html(`
                 <tr>
                     <td colspan="5" style="text-align: center; padding: 40px; color: #6b7280;">
                         <i class="fa fa-spinner fa-spin" style="font-size: 24px; margin-bottom: 10px;"></i>
-                        <p>Fetching students...</p>
+                        <p>${currentSearchQuery ? "Searching entire database..." : "Fetching students..."}</p>
                     </td>
                 </tr>
             `);
 
             try {
-                const url = `http://web.fc.utm.my/ttms/web_man_webservice_json.cgi?entity=pelajar&session_id=${adminSession.session_id}&sesi=${currentSesi}&semester=${currentSem}&limit=${limit}&offset=${offset}`;
+                // DATA FETCHING STRATEGY:
+                // If Searching: Fetch ALL (high limit) and filter Client-Side.
+                // If Browsing: Use Server-Side Pagination.
+
+                let fetchLimit = limit;
+                let fetchOffset = offset;
+
+                if (currentSearchQuery) {
+                    // Fetch "all" (limit 5000 should cover most courses/faculties)
+                    fetchLimit = 5000;
+                    fetchOffset = 0;
+                }
+
+                let url = `http://web.fc.utm.my/ttms/web_man_webservice_json.cgi?entity=pelajar&session_id=${adminSession.session_id}&sesi=${currentSesi}&semester=${currentSem}&limit=${fetchLimit}&offset=${fetchOffset}`;
 
                 const response = await fetch(url);
                 const students = await response.json();
@@ -96,27 +113,57 @@
                     throw new Error("Invalid response format");
                 }
 
-                renderTable(students);
-                updatePagination(students.length);
+                if (currentSearchQuery) {
+                    // Client-Side Filtering
+                    const term = currentSearchQuery.toLowerCase();
+                    allSearchResults = students.filter(s =>
+                        (s.nama && s.nama.toLowerCase().includes(term)) ||
+                        (s.no_matrik && s.no_matrik.toLowerCase().includes(term))
+                    );
+
+                    // Reset to page 1 of results
+                    // calculate offset for local pagination based on 'currentPage'
+                    // Actually, if we just typed, currentPage is 1. If we paginate search results, we need logic.
+                    renderSearchResults();
+                    updatePagination(allSearchResults.length, true); // Pass true for isSearch
+                } else {
+                    // Normal Browsing
+                    renderTable(students);
+                    updatePagination(students.length, false); // Pass false for isSearch
+                }
+
             } catch (err) {
                 console.error(err);
-                $('#studentTableBody').html(`<tr><td colspan="5" style="text-align:center; color:red;">Error loading students.</td></tr>`);
+                $('#studentTableBody').html(`<tr><td colspan="5" style="text-align:center; color:red;">${currentSearchQuery ? "Search failed (Network/API Error)." : "Error loading students."}</td></tr>`);
             }
         }
 
-        function renderTable(students) {
+        function renderSearchResults() {
+            // Slice the global 'allSearchResults' based on currentPage
+            const start = (currentPage - 1) * limit;
+            const end = start + limit;
+            const pageSlice = allSearchResults.slice(start, end);
+
+            // Render this slice
+            // We need to pass the 'start' index to renderTable so the row numbers are correct (global index)
+            renderTable(pageSlice, start);
+        }
+
+        function renderTable(students, startIndex = offset) {
             const tbody = $('#studentTableBody');
             tbody.empty();
 
             if (students.length === 0) {
-                tbody.html(`<tr><td colspan="5" style="text-align:center;">No students found.</td></tr>`);
+                tbody.html(`<tr><td colspan="5" style="text-align:center; padding:20px; color:var(--text-muted);">
+                    ${currentSearchQuery ? "No matches found." : "No students found."}
+                </td></tr>`);
                 return;
             }
 
             students.forEach((s, index) => {
                 const row = `
                     <tr>
-                        <td style="color:var(--text-muted); font-size:0.85rem;">${index + 1}</td>
+                        <td style="color:var(--text-muted); font-size:0.85rem;">${startIndex + index + 1}</td>
                         <td>
                             <div style="font-weight:600; color:var(--text-main);">${s.nama}</div>
                         </td>
@@ -138,28 +185,61 @@
 
         let currentPage = 1;
 
-        function updatePagination(count) {
-            $('#startIdx').text(offset + 1);
-            $('#endIdx').text(offset + count);
-
+        function updatePagination(count, isSearch = false) {
             const container = $('#paginationContainer');
             container.empty();
 
-            // Prev Button
+            let totalPages = 1;
+            let start = 0;
+            let end = 0;
+
+            if (isSearch) {
+                // Client-side pagination based on total results
+                totalPages = Math.ceil(count / limit);
+                if (totalPages === 0) totalPages = 1;
+
+                start = (currentPage - 1) * limit + 1;
+                end = Math.min(start + limit - 1, count);
+                if (count === 0) { start = 0; end = 0; }
+
+                $('#startIdx').text(start);
+                $('#endIdx').text(end);
+            } else {
+                // Server-side browsing (Unknown total)
+                // count here is the number of items fetched (e.g., 20)
+                start = offset + 1;
+                end = offset + count;
+                $('#startIdx').text(start);
+                $('#endIdx').text(end);
+            }
+
+            // Button Rendering Logic
+            // If search, we know total pages. If browse, we use sliding window.
+
             const prevBtn = $('<button class="page-num"><i class="fa fa-angle-left"></i></button>');
             if (currentPage === 1) prevBtn.prop('disabled', true);
             prevBtn.click(() => goToPage(currentPage - 1));
             container.append(prevBtn);
 
+            let startPage, endPage;
 
-            // Page Numbers
-            let startPage = Math.max(1, currentPage - 2);
-            let endPage = currentPage + 2;
+            if (isSearch) {
+                // Classic pagination with ellipsis if needed (simplified: show window)
+                startPage = Math.max(1, currentPage - 2);
+                endPage = Math.min(totalPages, currentPage + 2);
 
-            // If we received fewer items than limit, we know this is the last page (or past it)
-            const isLastPage = count < limit;
-
-            if (isLastPage) endPage = currentPage;
+                // Adjust if near ends
+                if (endPage - startPage < 4) {
+                    if (startPage === 1) endPage = Math.min(totalPages, 5);
+                    else if (endPage === totalPages) startPage = Math.max(1, totalPages - 4);
+                }
+            } else {
+                // Browse Mode
+                startPage = Math.max(1, currentPage - 2);
+                endPage = currentPage + 2;
+                // Detection if last page
+                if (count < limit) endPage = currentPage;
+            }
 
             for (let i = startPage; i <= endPage; i++) {
                 const btn = $(`<button class="page-num">${i}</button>`);
@@ -168,9 +248,13 @@
                 container.append(btn);
             }
 
-            // Next Button
             const nextBtn = $('<button class="page-num"><i class="fa fa-angle-right"></i></button>');
-            if (isLastPage) nextBtn.prop('disabled', true);
+            if (isSearch) {
+                if (currentPage >= totalPages) nextBtn.prop('disabled', true);
+            } else {
+                if (count < limit) nextBtn.prop('disabled', true);
+            }
+
             nextBtn.click(() => goToPage(currentPage + 1));
             container.append(nextBtn);
         }
@@ -178,36 +262,45 @@
         function goToPage(pageNum) {
             if (pageNum < 1) return;
             currentPage = pageNum;
-            offset = (pageNum - 1) * limit;
-            loadStudents();
+
+            if (currentSearchQuery) {
+                // Client-side navigation (No fetch)
+                renderSearchResults();
+                // We need to re-render pagination to update active button
+                // But updatePagination needs 'count'. 
+                updatePagination(allSearchResults.length, true);
+            } else {
+                // Server-side navigation
+                offset = (pageNum - 1) * limit;
+                loadStudents();
+            }
         }
 
-        // Search - Client Side Filter
-        $('#studentSearch').on('keyup', function () {
-            const value = $(this).val().toLowerCase();
-            const rows = $("#studentTableBody tr");
-            let visibleCount = 0;
+        // Search Handler (Debounced or Enter)
+        let searchTimeout;
 
-            rows.each(function () {
-                // Column 2 contains Name & Matric (index 1 in 0-based eq check? No, td indices)
-                const nameMetricText = $(this).find('td:nth-child(2)').text().toLowerCase();
-                const shouldShow = nameMetricText.indexOf(value) > -1;
+        $('#studentSearch').on('keyup', function (e) {
+            const value = $(this).val().trim();
 
-                $(this).toggle(shouldShow);
-                if (shouldShow) visibleCount++;
-            });
-
-            // Handle "No results" message
-            $('#no-results-row').remove();
-            if (visibleCount === 0 && value.length > 0) {
-                $('#studentTableBody').append(`
-                    <tr id="no-results-row">
-                        <td colspan="5" style="text-align:center; color:var(--text-muted); padding:20px;">
-                            No matches found on this page.
-                        </td>
-                    </tr>
-                `);
+            // If Enter key or empty (clear)
+            if (e.key === 'Enter' || value.length === 0) {
+                clearTimeout(searchTimeout);
+                // Reset to page 1 for search
+                offset = 0;
+                currentPage = 1;
+                currentSearchQuery = value;
+                loadStudents();
+                return;
             }
+
+            // Debounce for typing
+            clearTimeout(searchTimeout);
+            searchTimeout = setTimeout(() => {
+                offset = 0;
+                currentPage = 1;
+                currentSearchQuery = value;
+                loadStudents();
+            }, 800); // Wait 800ms after typing stops
         });
 
         // Start
