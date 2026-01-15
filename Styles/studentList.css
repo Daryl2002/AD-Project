@@ -1,0 +1,211 @@
+/* Student List Specific Styles */
+.page-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 24px;
+    flex-wrap: wrap;
+    /* Allow wrapping on small screens */
+    gap: 15px;
+    /* Gap when wrapped */
+    padding-right: 2px;
+    /* Prevent slight overflow cut-off */
+}
+
+.page-title {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--text-main);
+    margin: 0;
+}
+
+.search-bar {
+    position: relative;
+    width: 250px;
+    max-width: 100%;
+}
+
+.search-input {
+    width: 100%;
+    padding: 10px 16px 10px 40px;
+    /* Space for icon */
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    font-family: 'Inter', sans-serif;
+    font-size: 0.95rem;
+    transition: border-color 0.2s, box-shadow 0.2s;
+    box-sizing: border-box;
+    /* Critical for padding to be included in width */
+    background: white;
+    /* Ensure it covers anything behind */
+}
+
+.search-input:focus {
+    outline: none;
+    border-color: var(--primary-mint);
+    box-shadow: 0 0 0 3px rgba(170, 132, 29, 0.1);
+}
+
+.search-icon {
+    position: absolute;
+    left: 14px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--text-muted);
+    z-index: 10;
+    pointer-events: none;
+    /* Let clicks pass through */
+}
+
+/* Table Card */
+.table-card {
+    background: white;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    /* Slightly sharper corners */
+    box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+    overflow: hidden;
+    margin-top: 10px;
+    /* Separation from header */
+}
+
+/* Responsive Table Wrapper */
+.table-responsive {
+    width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    /* Smooth scrolling on iOS */
+}
+
+.data-table {
+    width: 100%;
+    border-collapse: collapse;
+    white-space: nowrap;
+    /* Prevent awkward text wrapping */
+}
+
+.data-table th,
+.data-table td {
+    padding: 16px 20px;
+    text-align: left;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.data-table th {
+    background: #f3f4f6;
+    /* Distinct header background */
+    font-size: 0.8rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    color: #4b5563;
+    /* Darker text for contrast */
+    letter-spacing: 0.05em;
+    border-bottom: 2px solid #e5e7eb;
+    /* Stronger separation */
+}
+
+.data-table td {
+    font-size: 0.95rem;
+    color: #374151;
+}
+
+.data-table tr:last-child td {
+    border-bottom: none;
+}
+
+.data-table tbody tr:hover {
+    background-color: #f9fafb;
+}
+
+/* Badges */
+.badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 4px 10px;
+    border-radius: 9999px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: capitalize;
+}
+
+.badge-gray {
+    background-color: #f3f4f6;
+    color: #374151;
+}
+
+.badge-primary {
+    background-color: #fffbeb;
+    color: #b45309;
+}
+
+/* Pagination */
+.pagination-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 16px 20px;
+    background: white;
+    border-top: 1px solid var(--border-color);
+    flex-wrap: wrap;
+    /* responsive wrap */
+    gap: 10px;
+}
+
+.page-info {
+    font-size: 0.9rem;
+    color: var(--text-muted);
+    white-space: pre-wrap;
+}
+
+.pagination-numbers {
+    display: flex;
+    gap: 6px;
+}
+
+.page-num {
+    min-width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid var(--border-color);
+    background: white;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 0.85rem;
+    font-weight: 500;
+    color: #374151;
+    transition: all 0.2s;
+}
+
+.page-num:hover:not(:disabled):not(.active) {
+    background-color: #f9fafb;
+    border-color: #d1d5db;
+}
+
+.page-num.active {
+    background-color: rgba(170, 132, 29, 0.1);
+    /* Primary Mint Tint */
+    color: var(--primary-mint);
+    border-color: var(--primary-mint);
+    font-weight: 700;
+}
+
+.page-num:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    background-color: #f3f4f6;
+}
+
+/* Mobile Responsive Adjustment for Search Bar */
+@media (max-width: 600px) {
+    .search-bar {
+        width: 100%;
+        /* Full width on mobile */
+    }
+
+    .page-header {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+}
