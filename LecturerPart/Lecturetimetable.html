@@ -110,22 +110,25 @@
             // ==========================================
             const userSession = window.parent.userSession || JSON.parse(localStorage.getItem("TTMSFC_userSession"));
 
-            let staffNo, fullName;
+            let staffNo, fullName, apiStaffNo;
 
             if (!userSession) {
                 // Fallback for testing - GUNA INI UNTUK TEST
-                staffNo = '12085'; // Test account
+                staffNo = '12085'; // Test account login
+                apiStaffNo = '23970'; // Test account internal ID (from documentation)
                 fullName = 'Test Lecturer';
                 $("#lecturerName").text(fullName);
                 $("#staffNo").text(staffNo);
             } else {
-                staffNo = userSession.login_name;
+                staffNo = userSession.login_name; // Display ID (e.g. 12085)
+                apiStaffNo = userSession.no_pekerja || userSession.login_name; // Internal ID for API
                 fullName = userSession.full_name;
                 $("#lecturerName").text(fullName);
                 $("#staffNo").text(staffNo);
             }
 
-            console.log("✅ Auto-detected Staff No:", staffNo);
+            console.log("✅ Auto-detected Display Staff No:", staffNo);
+            console.log("✅ API Internal Staff No:", apiStaffNo);
             console.log("✅ Lecturer Name:", fullName);
 
             // ==========================================
@@ -141,12 +144,12 @@
                 if (!currentSesi || !currentSemester) {
                     console.warn("⚠️ Session/Semester not available from parent, fetching...");
                     fetchCurrentSession().then(() => {
-                        loadTimetable(staffNo, currentSesi, currentSemester);
+                        loadTimetable(apiStaffNo, currentSesi, currentSemester);
                     });
                 } else {
                     $("#sessionSem").text(`${currentSesi} - Semester ${currentSemester}`);
                     console.log("✅ Using session:", currentSesi, "Semester:", currentSemester);
-                    loadTimetable(staffNo, currentSesi, currentSemester);
+                    loadTimetable(apiStaffNo, currentSesi, currentSemester);
                 }
             }
 
@@ -170,9 +173,9 @@
                     });
             }
 
-            function loadTimetable(staffNo, sesi, semester) {
+            function loadTimetable(apiStaffNo, sesi, semester) {
                 buildEmptyTable();
-                fetchLecturerSubjects(staffNo, sesi, semester);
+                fetchLecturerSubjects(apiStaffNo, sesi, semester);
             }
 
             // ==========================================
@@ -196,9 +199,10 @@
             // ==========================================
             // 4. FETCH LECTURER'S SUBJECTS
             // ==========================================
-            function fetchLecturerSubjects(staffNo, sesi, semester) {
+            function fetchLecturerSubjects(apiStaffNo, sesi, semester) {
                 // API endpoint untuk pensyarah subjek
-                const url = `http://web.fc.utm.my/ttms/web_man_webservice_json.cgi?entity=pensyarah_subjek&no_pekerja=${staffNo}`;
+                // Note: param is no_pekerja (internal ID), not login name
+                const url = `http://web.fc.utm.my/ttms/web_man_webservice_json.cgi?entity=pensyarah_subjek&no_pekerja=${apiStaffNo}`;
 
                 console.log("📡 Fetching lecturer subjects from:", url);
 
