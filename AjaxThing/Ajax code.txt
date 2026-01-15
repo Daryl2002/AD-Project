@@ -28,3 +28,394 @@ jadual_ruang  -> entity=jadual_ruang&sesi=yyyy/yyyy&semester=[1|2]&kod_ruang=???
 
 jadual_subjek -> entity=jadual_subjek&sesi=yyyy/yyyy&semester=[1|2]&kod_subjek=???&seksyen=???
 
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+admin, pensyarah, pelajar, subjek_pelajar - all need session id
+1. authentication
+a) pelajar
+http://web.fc.utm.my/ttms/web_man_webservice_json.cgi?entity=authentication&login=A16CS4016&password=201608M10112
+[
+   {
+      "session_id":"439253790921796",
+      "email":"msmd2@live.utm.my",
+      "full_name":"MD MIRZA SHIHAB",
+      "description":"Pelajar FSKSM",
+      "login_name":"A16CS4016"
+   }
+]
+
+b) pensyarah
+http://web.fc.utm.my/ttms/web_man_webservice_json.cgi?entity=authentication&login=12085&password=S808323
+[
+   {
+      "no_pekerja":23970,
+      "email":"tonianwar@utm.my",
+      "login_name":"12085",
+      "session_id":"414289554267455",
+      "description":"Pensyarah",
+      "full_name":"TONI ANWAR"
+   }
+]
+
+c) admin need to have session id
+http://web.fc.utm.my/ttms/auth-admin.php?session_id=414289554267455
+[
+   {
+      "session_id":"790910808800984",
+      "email":"",
+      "full_name":"APP DEV SCSX3104. 2020/2021",
+      "description":"Web Service Client",
+      "login_name":"ad2021"
+   }
+]
+
+2. sesisemester (all semester and year)
+http://web.fc.utm.my/ttms/web_man_webservice_json.cgi?entity=sesisemester
+[
+   {
+      "tarikh_tamat":"2026-01-17",
+      "semester":1,
+      "sesi_semester_id":"202520261",
+      "sesi":"2025/2026",
+      "tarikh_mula":"2025-10-05"
+   }
+]
+
+3. subjek (will show all subjects)
+http://web.fc.utm.my/ttms/web_man_webservice_json.cgi?entity=subjek&sesi=2025/2026&semester=1
+[
+   {
+      "bil_pelajar":97,
+      "bil_pensyarah":0,
+      "kod_subjek":"UHLB2122",
+      "domain":null,
+      "bil_seksyen":3,
+      "nama_subjek":"ACADEMIC COMMUNICATION SKILLS"
+   }
+]
+
+4. pensyarah_subjek(only show current&past pensyarah subjek, what she have taught)
+http://web.fc.utm.my/ttms/web_man_webservice_json.cgi?entity=pensyarah_subjek&no_pekerja=30744
+
+[
+   {
+      "domain":null,
+      "kod_subjek":"SCSE2133",
+      "sesi":"2025/2026",
+      "seksyen":"1",
+      "no_pekerja":30744,
+      "kod_fakulti":"FSKSM",
+      "nama_subjek":"Software Process and Project Management",
+      "semester":1,
+      "bil_pelajar":37
+   },
+
+   {
+      "no_pekerja":30744,
+      "seksyen":"3",
+      "kod_fakulti":"FSKSM",
+      "domain":null,
+      "kod_subjek":"SECJ3343",
+      "sesi":"2024/2025",
+      "semester":2,
+      "bil_pelajar":27,
+      "nama_subjek":"Software Quality Assurance"
+   }
+]
+
+5. pelajar_subjek (will show all subjects, current and past)
+http://web.fc.utm.my/ttms/web_man_webservice_json.cgi?entity=pelajar_subjek&no_matrik=A23CS0076
+[
+   {
+      "sesi":"2025/2026",
+      "nama_subjek":"Professional Communication Skills",
+      "status":"-",
+      "kod_kursus":"SECVH",
+      "seksyen":"57",
+      "tahun_kursus":3,
+      "semester":1,
+      "kod_subjek":"UHLB3132"
+   },
+
+   {
+      "sesi":"2024/2025",
+      "nama_subjek":"Philosophy & Current Issues",
+      "status":"-",
+      "kod_kursus":"SECVH",
+      "seksyen":"7",
+      "semester":2,
+      "tahun_kursus":2,
+      "kod_subjek":"ULRS1022"
+   }
+]
+
+6. subjek_seksyen (will have all subjects and the subject show how many sections)
+http://web.fc.utm.my/ttms/web_man_webservice_json.cgi?entity=subjek_seksyen&sesi=2025/2026&semester=1
+[
+   {
+      "kod_subjek":"MCST1013",
+      "seksyen_list":
+      [
+         {
+            "pensyarah":"NOR ERNE NAZIRA BINTI BAZIN",
+            "bil_pelajar":0,
+            "seksyen":"1"
+         }
+      ],
+      "bil_pensyarah":1,
+      "bil_pelajar":0,
+      "bil_seksyen":1,
+      "nama_subjek":"Business Intelligence and Analytics"
+   },
+   
+   {
+      "kod_subjek":"SECV3104",
+      "seksyen_list":[
+         {
+            "pensyarah":"MUHAMAD RAZIB BIN OTHMAN",
+            "bil_pelajar":20,
+            "seksyen":"1"
+         },
+         {
+            "seksyen":"2",
+            "bil_pelajar":35,
+            "pensyarah":"MOHD RAZAK BIN SAMINGAN"
+         }
+      ],
+      "bil_pensyarah":2,
+      "bil_pelajar":55,
+      "bil_seksyen":2,
+      "nama_subjek":"Application Development"
+   }
+]
+
+7. subjek_pelajar (will show all the students in that subject) need to have sesion id
+http://web.fc.utm.my/ttms/web_man_webservice_json.cgi?entity=subjek_pelajar&session_id=880682564958263&sesi=2025/2026&semester=1&kod_subjek=SECV3104&seksyen=2
+[
+   {
+      "nama":"DARYL SOH KAH HOW",
+      "kod_kursus":"SECVH",
+      "no_matrik":"A24CS0064",
+      "tahun_kursus":2,
+      "kod_fakulti":"FC",
+      "status":"-"
+   },
+
+   {
+      "status":"-",
+      "kod_fakulti":"FSKSM",
+      "no_matrik":"A23CS0075",
+      "tahun_kursus":3,
+      "kod_kursus":"SECVH",
+      "nama":"ENNIS LAM SI HOONG"
+   }
+]
+
+8. subjek_pensyarah (will show the lecturer on the particular section)
+http://web.fc.utm.my/ttms/web_man_webservice_json.cgi?entity=subjek_pensyarah&kod_subjek=SECV3104&sesi=2025/2026&semester=1&seksyen=2
+[
+   {
+      "seksyen":"2",
+      "semester":1,
+      "sesi":"2025/2026",
+      "nama":"MOHD RAZAK BIN SAMINGAN"
+   }
+]
+
+9. kurikulum (will show kurikulum from all year)
+http://web.fc.utm.my/ttms/web_man_webservice_json.cgi?entity=kurikulum
+[
+   {
+      "sesi_masuk":"2020/2021"
+   },
+
+   {
+      "sesi_masuk":"2017/2018"
+   },
+
+   {
+      "sesi_masuk":"2016/2017"
+   },
+
+   {
+      "sesi_masuk":"2015/2016"
+   }
+]
+
+10. kurikulum (will show the only sesi select by 'cohort')
+http://web.fc.utm.my/ttms/web_man_webservice_json.cgi?entity=kurikulum&cohort=2020/2021
+[
+   {
+      "tahun_masuk":1,
+      "sesi_masuk":"2020/2021",
+      "kod_kurikulum":"SECJ",
+      "nama_kurikulum":"Bachelor of Computer Science (Software Engineering)",
+      "id_kurikulum":37,
+      "semester_masuk":1
+   }
+]
+11.kurikulum_subjek
+http://web.fc.utm.my/ttms/web_man_webservice_json.cgi?entity=kurikulum_subjek&id_kurikulum=37
+[
+   {
+      "mod_elektif":null,
+      "nama_subjek":"Teknik Pengaturcaraan I",
+      "kredit":3,
+      "id_kurikulum_subjek":1319,
+      "semester_ambil":1,
+      "tahun_ambil":1,
+      "kod_subjek":"SECJ1013",
+      "nama_elektif":null
+   },
+
+   {
+      "mod_elektif":1,
+      "nama_subjek":"Elektif UHAX1xx2",
+      "kredit":2,
+      "semester_ambil":1,
+      "id_kurikulum_subjek":1320,
+      "pilihan_elektif":"2",
+      "tahun_ambil":1,
+      "kod_subjek":"UHAX1xx2",
+      "nama_elektif":"Elektif UHAX1xx2"
+   }
+]
+
+12.kurikulum_subjek_elektif
+http://web.fc.utm.my/ttms/web_man_webservice_json.cgi?entity=kurikulum_subjek_elektif&id_kurikulum_subjek=1320
+[
+   {
+      "se.kod_subjek":"UHAK1022",
+      "s.nama_subjek":"Malaysian Studies 3 (International Students)",
+      "s.kredit":2
+   },
+   {
+      "s.nama_subjek":"Dinamika Malaysia",
+      "s.kredit":2,
+      "se.kod_subjek":"UHAS1172"
+   }
+]
+
+13. ruang (will show all ruang in utm, all faculty)
+http://web.fc.utm.my/ttms/web_man_webservice_json.cgi?entity=ruang
+[
+   {
+      "kod_fakulti":"FSKSM",
+      "kod_jabatan":"-",
+      "jenis":"Bilik Kuliah",
+      "kod_ruang":"N28-116-02",
+      "nama_ruang":"Bilik Kuliah 2",
+      "nama_ruang_singkatan":"BK2",
+      "kapasiti":120
+   },
+
+   {
+      "kod_jabatan":"-",
+      "kod_fakulti":"FSKSM",
+      "kod_ruang":"N28-201",
+      "jenis":"-",
+      "nama_ruang":"Student Lounge FC",
+      "nama_ruang_singkatan":"SLFC",
+      "kapasiti":80
+   }
+]
+
+14. ruang
+http://web.fc.utm.my/ttms/web_man_webservice_json.cgi?entity=ruang&kod_fakulti=FSKSM&kod_ruang_like=N28-116-02
+[
+   {
+      "kod_ruang":"N28-116-02",
+      "nama_ruang":"Bilik Kuliah 2",
+      "kapasiti":120,
+      "nama_ruang_singkatan":"BK2",
+      "kod_jabatan":"-",
+      "jenis":"Bilik Kuliah",
+      "kod_fakulti":"FSKSM"
+   }
+]
+
+14. jadual_ruang
+http://web.fc.utm.my/ttms/web_man_webservice_json.cgi?entity=jadual_ruang&sesi=2025/2026&semester=1&kod_ruang=N28-116-02
+[
+   {
+      "tarikh_tamat":"2026-01-17",
+      "subjek":{
+         "seksyen":"8",
+         "kod_subjek":"SECR1213"
+      },
+      "tarikh_mula":"2025-10-05",
+      "masa":2,
+      "id_jws":"63900",
+      "catatan":null,
+      "kod_perkara":null,
+      "hari":2
+   },
+
+   {
+      "tarikh_mula":"2025-10-05",
+      "subjek":{
+         "kod_subjek":"SECR1213",
+         "seksyen":"8"
+      },
+      "masa":3,
+      "tarikh_tamat":"2026-01-17",
+      "catatan":null,
+      "kod_perkara":null,
+      "id_jws":"63901",
+      "hari":2
+   }
+]
+
+15. jadual_subjek (only show timetable for that particular subjek)
+http://web.fc.utm.my/ttms/web_man_webservice_json.cgi?entity=jadual_subjek&sesi=2025/2026&semester=1&kod_subjek=SECV3104&seksyen=2
+[
+   {
+      "id_jws":"64124",
+      "ruang":{
+         "nama_ruang":"Makmal Pengajaran 2",
+         "kod_ruang":"N28A-02-34",
+         "nama_ruang_singkatan":"MP2-N28A"
+      },
+      "seksyen":"2",
+      "masa":8,
+      "kod_subjek":"SECV3104",
+      "hari":5
+   },
+   {
+      "id_jws":"64125",
+      "ruang":{
+         "nama_ruang":"Makmal Pengajaran 2",
+         "kod_ruang":"N28A-02-34",
+         "nama_ruang_singkatan":"MP2-N28A"
+      },
+      "seksyen":"2",
+      "masa":9,
+      "kod_subjek":"SECV3104",
+      "hari":5 
+   }
+]
+16. pensyarah (will show all pensyarah) need to have session id
+http://web.fc.utm.my/ttms/web_man_webservice_json.cgi?entity=pensyarah&session_id=631575882121254&sesi=2025/2026&semester=1
+[
+   {
+      "no_pekerja":30744,
+      "nama":"ADILA FIRDAUS BINTI ARBAIN",
+      "bil_subjek":2,
+      "bil_pelajar":93,
+      "bil_seksyen":3
+   }
+]
+
+17. student (will show all student) need to have session id
+http://web.fc.utm.my/ttms/web_man_webservice_json.cgi?entity=pelajar&session_id=631575882121254&sesi=2025/2026&semester=1
+[
+   {
+      "kod_kursus":"SECJH",
+      "no_matrik":"B23CS0001",
+      "no_kp":"-",
+      "bil_subjek":2,
+      "kod_fakulti":"FSKSM",
+      "tahun_kursus":4,
+      "nama":"'AISYAH BINTI MOHAMAD SHIRAJUDDIN"
+   }
+]

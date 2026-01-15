@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <title>TTMS - Admin Dashboard</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
+    <link rel="stylesheet" href="Styles/mainStyle.css">
+</head>
+
+<body>
+
+    <header class="app-header">
+        <div class="header-left">
+            <button id="mobile-menu-btn" class="menu-toggle">
+                <i class="fa fa-bars"></i>
+            </button>
+            <img src="Logo/UTM-LOGO.png" class="nav-logo" alt="UTM Logo">
+            <span class="brand-text">
+                TTMS <span class="brand-sub">Admin</span>
+            </span>
+        </div>
+
+        <div class="header-right">
+            <div class="user-pill">
+                <span class="welcome-msg">
+                    Hi, <strong id="user">Admin</strong>
+                </span>
+                <div class="divider"></div>
+                <button id="logout" class="btn-logout">Logout</button>
+            </div>
+        </div>
+    </header>
+
+    <div class="dashboard-container">
+
+        <!-- Sidebar -->
+        <aside class="sidebar" id="sidebarMenu">
+            <nav class="nav-container">
+
+                <!-- Dashboard -->
+                <div class="nav-group">
+                    <a href="#" class="nav-link active" id="admin-dashboard">
+                        <i class="fa fa-dashboard"></i> Admin Dashboard
+                    </a>
+                </div>
+
+                <!-- Faculty Data -->
+                <div class="nav-group">
+                    <div class="nav-label">Faculty of Computing</div>
+
+                    <a href="#" class="nav-link" id="admin-students">
+                        <i class="fa fa-users"></i> Students
+                    </a>
+
+                    <a href="#" class="nav-link" id="admin-lecturers">
+                        <i class="fa fa-user"></i> Lecturers
+                    </a>
+                </div>
+
+                <!-- Analysis -->
+                <div class="nav-group">
+                    <div class="nav-label">Clash Analysis</div>
+
+                    <a href="#" class="nav-link" id="clash-student">
+                        <i class="fa fa-exclamation-triangle"></i> Student Clashes
+                    </a>
+
+                    <a href="#" class="nav-link" id="clash-lecturer">
+                        <i class="fa fa-warning"></i> Lecturer Clashes
+                    </a>
+
+                    <a href="#" class="nav-link" id="clash-room">
+                        <i class="fa fa-building"></i> Room Clashes
+                    </a>
+                </div>
+
+            </nav>
+        </aside>
+
+        <div id="sidebar-overlay" class="overlay"></div>
+
+        <!-- Main Content -->
+        <main id="mainContent" class="content-area">
+            <div class="loader-container">
+                <i class="fa fa-spinner fa-spin"></i>
+                <h2>Loading Admin Module...</h2>
+            </div>
+        </main>
+
+    </div>
+
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
+
+    <script>
+        const BASE_URL = "http://web.fc.utm.my/ttms/web_man_webservice_json.cgi?entity=";
+        const AUTH_URL = "http://web.fc.utm.my/ttms/auth-admin.php?session_id=";
+
+        window.userSession = JSON.parse(localStorage.getItem("TTMSFC_userSession"));
+        if (!window.userSession) window.location.replace("Login.html");
+
+        function handleMenuClick(id, url) {
+            $('.nav-link').removeClass('active');
+            $('#' + id).addClass('active');
+
+            $('#mainContent').load(url, () => {
+                if ($(window).width() <= 992) {
+                    $('#sidebarMenu').removeClass('open');
+                    $('#sidebar-overlay').fadeOut();
+                }
+            });
+        }
+
+        $(document).ready(function () {
+
+            $('#user').text(window.userSession.full_name.split(' ')[0]);
+
+            // Default page
+            handleMenuClick('admin-dashboard', 'AdminPart/Dashboard.html');
+
+            // Mobile menu
+            $('#mobile-menu-btn').click(() => {
+                $('#sidebarMenu').toggleClass('open');
+                $('#sidebar-overlay').fadeToggle();
+            });
+
+            $('#logout').click(() => {
+                localStorage.removeItem("TTMSFC_userSession");
+                window.location.replace("Login.html");
+            });
+
+            // Navigation bindings
+            $('#admin-dashboard').click(() =>
+                handleMenuClick('admin-dashboard', 'AdminPart/Dashboard.html'));
+
+            $('#admin-students').click(() =>
+                handleMenuClick('admin-students', 'AdminPart/StudentList.html'));
+
+            $('#admin-lecturers').click(() =>
+                handleMenuClick('admin-lecturers', 'AdminPart/LecturerList.html'));
+
+            $('#clash-student').click(() =>
+                handleMenuClick('clash-student', 'AdminPart/StudentClashAnalyzer.html'));
+
+            $('#clash-lecturer').click(() =>
+                handleMenuClick('clash-lecturer', 'AdminPart/LecturerClashAnalyzer.html'));
+
+            $('#clash-room').click(() =>
+                handleMenuClick('clash-room', 'AdminPart/RoomClashAnalyzer.html'));
+        });
+    </script>
+
+</body>
+
+</html>
