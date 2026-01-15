@@ -171,6 +171,7 @@ body {
 
 .switch-label {
     font-weight: 600;
+    font-size: 0.85rem;
 }
 
 .mode-text {
@@ -181,7 +182,7 @@ body {
 /* Switch Styling */
 .switch {
     position: relative;
-    display: inline-block;
+    display: inline-flex;
     width: 46px;
     height: 24px;
 }

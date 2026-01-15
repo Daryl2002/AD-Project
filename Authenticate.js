@@ -18,7 +18,7 @@
         alert("Unauthorized access! Please login to continue.");
 
         // Redirect and replace history so 'Back' doesn't work
-        window.location.replace(loginRedirect);
+        window.location.replace("Login.html");
     } else {
         // Ensure page is visible if session is valid
         document.documentElement.style.display = 'block';

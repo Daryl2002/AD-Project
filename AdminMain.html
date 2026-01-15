@@ -10,6 +10,44 @@
 
     <!-- Reuse existing main style -->
     <link rel="stylesheet" href="Styles/mainStyle.css">
+    <script>
+        (function () {
+            // Instant locking of the screen
+            document.documentElement.style.display = 'none';
+
+            // Validate against server
+            const verifyAdmin = async () => {
+                try {
+                    const userSessionStr = localStorage.getItem("TTMSFC_userSession");
+                    if (!userSessionStr) throw new Error("No user session");
+
+                    const userSession = JSON.parse(userSessionStr);
+                    if (!userSession.session_id) throw new Error("No session ID");
+
+                    // Use the endpoint from AjaxThing line 61
+                    const response = await fetch(`http://web.fc.utm.my/ttms/auth-admin.php?session_id=${userSession.session_id}`);
+                    const data = await response.json();
+
+                    if (Array.isArray(data) && data[0] && data[0].session_id) {
+                        // Valid Admin
+                        localStorage.setItem("TTMSFC_adminSession", JSON.stringify(data[0]));
+                        document.documentElement.style.display = 'block';
+                        // Optional: Adjust styles if needed
+                    } else {
+                        throw new Error("Server rejected admin session");
+                    }
+                } catch (e) {
+                    console.error("Auth Failed:", e);
+                    alert("Unauthorized Access. Please Login.");
+                    window.location.replace("Login.html");
+                }
+            };
+
+            // Run verification
+            verifyAdmin();
+        })();
+    </script>
+
 </head>
 
 <body>
@@ -91,18 +129,13 @@
 
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
 
+
     <script>
         const BASE_URL =
             "http://web.fc.utm.my/ttms/web_man_webservice_json.cgi?entity=";
 
-        // 🔐 Admin session validation
-        const adminSession =
-            JSON.parse(localStorage.getItem("TTMSFC_adminSession"));
-
-        if (!adminSession || !adminSession.session_id) {
-            alert("Unauthorized admin access.");
-            window.location.replace("Login.html");
-        }
+        // 🔐 Admin session validation (Handled by Authenticate.js)
+        const adminSession = JSON.parse(localStorage.getItem("TTMSFC_adminSession"));
 
         // Display admin name
         $("#adminName").text(adminSession.full_name);
@@ -135,25 +168,25 @@
 
         // Menu bindings
         $("#admin-dashboard").click(() =>
-            loadAdminPage("admin-dashboard", "Admin/Dashboard.html"));
+            loadAdminPage("admin-dashboard", "AdminPart/Dashboard.html"));
 
         $("#admin-students").click(() =>
-            loadAdminPage("admin-students", "Admin/StudentList.html"));
+            loadAdminPage("admin-students", "AdminPart/Studentlist.html"));
 
         $("#admin-lecturers").click(() =>
-            loadAdminPage("admin-lecturers", "Admin/LecturerList.html"));
+            loadAdminPage("admin-lecturers", "AdminPart/LecturerList.html"));
 
         $("#clash-student").click(() =>
-            loadAdminPage("clash-student", "Admin/ClashStudent.html"));
+            loadAdminPage("clash-student", "AdminPart/ClashStudent.html"));
 
         $("#clash-lecturer").click(() =>
-            loadAdminPage("clash-lecturer", "Admin/ClashLecturer.html"));
+            loadAdminPage("clash-lecturer", "AdminPart/ClashLecturer.html"));
 
         $("#clash-room").click(() =>
-            loadAdminPage("clash-room", "Admin/ClashRoom.html"));
+            loadAdminPage("clash-room", "AdminPart/ClashRoom.html"));
 
         // Default page
-        loadAdminPage("admin-dashboard", "Admin/Dashboard.html");
+        loadAdminPage("admin-dashboard", "AdminPart/Dashboard.html");
     </script>
 
 </body>
