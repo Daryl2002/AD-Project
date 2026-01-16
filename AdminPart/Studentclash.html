@@ -137,56 +137,104 @@
                     console.log(`Found ${allSections.length} total sections.`);
                     updateStatus(`Analyzing timetables for ${allSections.length} sections...`, 15);
 
-                    // 3. Fetch Timetables
+                    // 3. Fetch Timetables (Optimized: Try Bulk First)
                     const timetableMap = new Map();
                     const sectionTimeMap = new Map();
 
-                    const chunkSize = 50;
-                    let processed = 0;
+                    updateStatus(`Fetching global timetable data...`, 15);
 
-                    for (let i = 0; i < allSections.length; i += chunkSize) {
-                        const chunk = allSections.slice(i, i + chunkSize);
-                        const promises = chunk.map(sec =>
-                            fetch(`${API_BASE}?entity=jadual_subjek&sesi=${currentSesi}&semester=${currentSem}&kod_subjek=${sec.kod_subjek}&seksyen=${sec.seksyen}`)
-                                .then(r => r.json())
-                                .then(data => ({ sec, data }))
-                                .catch(e => ({ sec, data: [] }))
-                        );
+                    // Attempt Bulk Fetch
+                    let bulkTimetables = [];
+                    try {
+                        const r = await fetch(`${API_BASE}?entity=jadual_subjek&sesi=${currentSesi}&semester=${currentSem}`);
+                        const d = await r.json();
+                        if (Array.isArray(d) && d.length > 0) {
+                            bulkTimetables = d;
+                            console.log("Bulk timetable fetch successful: " + d.length + " slots.");
+                        }
+                    } catch (e) {
+                        console.warn("Bulk timetable fetch failed, falling back to iterative.", e);
+                    }
 
-                        const resultChunk = await Promise.all(promises);
+                    if (bulkTimetables.length > 0) {
+                        // Process Bulk Data
+                        bulkTimetables.forEach(slot => {
+                            if (!slot.hari || !slot.masa || !slot.kod_subjek || !slot.seksyen) return;
 
-                        resultChunk.forEach(({ sec, data }) => {
-                            if (Array.isArray(data)) {
-                                const times = [];
-                                data.forEach(slot => {
-                                    // Validations
-                                    if (!slot.hari || !slot.masa) return;
+                            // Find matching section in allSections (optional verification, but helps consistency)
+                            // Or just build map directly.
+                            const secKey = `${slot.kod_subjek}-${slot.seksyen}`;
+                            if (!sectionTimeMap.has(secKey)) sectionTimeMap.set(secKey, []);
 
-                                    const timeKey = `${slot.hari}-${slot.masa}`;
-                                    if (!timetableMap.has(timeKey)) timetableMap.set(timeKey, []);
-                                    timetableMap.get(timeKey).push(sec);
-                                    times.push({
-                                        day: slot.hari,
-                                        time: slot.masa,
-                                        key: timeKey,
-                                        prettyTime: `${dayMap[slot.hari] || 'Day' + slot.hari} ${formatTime(slot.masa)}`
-                                    });
-                                });
-                                if (times.length > 0) sectionTimeMap.set(sec.key, times);
-                            }
+                            const timeKey = `${slot.hari}-${slot.masa}`;
+                            if (!timetableMap.has(timeKey)) timetableMap.set(timeKey, []);
+
+                            // We need the full section object. Since bulk data might not have nama_subjek, 
+                            // we lookup from our master list or reconstruct minimally.
+                            // Optimization: Create a lightweight ref.
+                            const secObj = {
+                                kod_subjek: slot.kod_subjek,
+                                seksyen: slot.seksyen,
+                                key: secKey
+                            };
+
+                            timetableMap.get(timeKey).push(secObj);
+
+                            const timeObj = {
+                                day: slot.hari,
+                                time: slot.masa,
+                                key: timeKey,
+                                prettyTime: `${dayMap[slot.hari] || 'Day' + slot.hari} ${formatTime(slot.masa)}`
+                            };
+                            sectionTimeMap.get(secKey).push(timeObj);
                         });
+                        updateStatus(`Processed ${bulkTimetables.length} timetable slots.`, 30);
+                    } else {
+                        // Fallback: Individual Fetches
+                        const chunkSize = 100; // Increased from 50
+                        let processed = 0;
 
-                        processed += chunk.length;
-                        const pct = 15 + Math.round((processed / allSections.length) * 35);
-                        updateStatus(`Fetching timetables... (${processed}/${allSections.length})`, pct);
+                        for (let i = 0; i < allSections.length; i += chunkSize) {
+                            const chunk = allSections.slice(i, i + chunkSize);
+                            const promises = chunk.map(sec =>
+                                fetch(`${API_BASE}?entity=jadual_subjek&sesi=${currentSesi}&semester=${currentSem}&kod_subjek=${sec.kod_subjek}&seksyen=${sec.seksyen}`)
+                                    .then(r => r.json())
+                                    .then(data => ({ sec, data }))
+                                    .catch(e => ({ sec, data: [] }))
+                            );
+
+                            const resultChunk = await Promise.all(promises);
+
+                            resultChunk.forEach(({ sec, data }) => {
+                                if (Array.isArray(data)) {
+                                    const times = [];
+                                    data.forEach(slot => {
+                                        if (!slot.hari || !slot.masa) return;
+                                        const timeKey = `${slot.hari}-${slot.masa}`;
+                                        if (!timetableMap.has(timeKey)) timetableMap.set(timeKey, []);
+                                        timetableMap.get(timeKey).push(sec);
+                                        times.push({
+                                            day: slot.hari,
+                                            time: slot.masa,
+                                            key: timeKey,
+                                            prettyTime: `${dayMap[slot.hari] || 'Day' + slot.hari} ${formatTime(slot.masa)}`
+                                        });
+                                    });
+                                    if (times.length > 0) sectionTimeMap.set(sec.key, times);
+                                }
+                            });
+
+                            processed += chunk.length;
+                            const pct = 15 + Math.round((processed / allSections.length) * 25);
+                            updateStatus(`Fetching timetables... (${processed}/${allSections.length})`, pct);
+                        }
                     }
 
                     // 4. Identify Potential Clashes
                     const candidateSections = new Set();
-
                     timetableMap.forEach((sectionList, timeKey) => {
                         if (sectionList.length > 1) {
-                            sectionList.forEach(s => candidateSections.add(s));
+                            sectionList.forEach(s => candidateSections.add(JSON.stringify(s))); // Use string for Set uniqueness of objects
                         }
                     });
 
@@ -195,17 +243,27 @@
                         return;
                     }
 
-                    updateStatus(`Checking student lists for ${candidateSections.size} potential clashes...`, 50);
+                    // Parse back to objects
+                    const candidatesArray = Array.from(candidateSections).map(s => JSON.parse(s));
 
-                    // 5. Fetch Students
+                    updateStatus(`Checking student lists for ${candidatesArray.length} potential clashes...`, 50);
+
+                    // 5. Fetch Students (Safe Mode: small chunks, no bulk)
                     const studentMap = new Map();
                     const studentSchedules = new Map();
 
-                    const candidatesArray = Array.from(candidateSections);
-                    processed = 0;
+                    // Fallback: Individual Fetches
+                    const chunkSize = 10; // reduced from 100 to 10 to prevent hanging
+                    let processed = 0;
+
+                    const sleep = ms => new Promise(r => setTimeout(r, ms));
 
                     for (let i = 0; i < candidatesArray.length; i += chunkSize) {
                         const chunk = candidatesArray.slice(i, i + chunkSize);
+
+                        // Add small delay to prevent server choke
+                        if (i > 0) await sleep(100);
+
                         const promises = chunk.map(sec =>
                             fetch(`${API_BASE}?entity=subjek_pelajar&session_id=${localAdminSession.session_id}&sesi=${currentSesi}&semester=${currentSem}&kod_subjek=${sec.kod_subjek}&seksyen=${sec.seksyen}`)
                                 .then(r => r.json())
@@ -309,37 +367,27 @@
                 }
             }
 
-            // --- Suggestion Algorithm ---
+            // --- Suggestion Algorithm (Refined: Swap One Strategy) ---
             function generateSuggestions(currentSections, clashingSubjectCodes, subjectSectionsMap, sectionTimeMap) {
-                // Logic: 
-                // 1. Identify which subjects are 'Problematic' (involved in clash).
-                // 2. Identify 'Safe' subjects (not involved, keep them fixed).
-                // 3. Try to swap problem subjects with their other sections.
-                // 4. Return valid combinations.
+                const solutions = [];
+                const solutionsKeys = new Set(); // To avoid dupes
 
-                // For simplicity, we only try to swap ONE subject at a time if possible, or combinations.
-                // Full recursive solving might be too heavy? Let's try simple iteration first.
-                // Actually, we want to find a combination of sections for ALL subjects that has NO overlaps.
+                // Identify Problem and Safe subjects
+                // But actually, we just want to look at the subjects involved in the clash (clashingSubjectCodes)
+                // and try to move them ONE BY ONE to a safe spot.
 
-                // Optimization: Only iterate variations for Clashing Subjects. Keep others fixed.
-                const fixedSections = currentSections.filter(s => !clashingSubjectCodes.has(s.kod_subjek));
                 const problemSubjects = Array.from(clashingSubjectCodes);
 
-                // If too many problem subjects (> 3), complexity explodes. Limit??
-                // Let's assume usually 2 subjects clash.
-
-                const solutions = [];
-
-                // Helper to check if a set of sections has clashes
+                // Helper to check for clash
                 function hasClash(testSections) {
                     for (let a = 0; a < testSections.length; a++) {
                         for (let b = a + 1; b < testSections.length; b++) {
                             const sA = testSections[a];
                             const sB = testSections[b];
-                            // Get times
+                            if (sA.key === sB.key) continue; // Same section OK
+
                             const tA = sectionTimeMap.get(sA.key) || [];
                             const tB = sectionTimeMap.get(sB.key) || [];
-                            // Check overlap
                             for (const timeA of tA) {
                                 for (const timeB of tB) {
                                     if (timeA.key === timeB.key) return true;
@@ -350,60 +398,72 @@
                     return false;
                 }
 
-                // Recursive solver
-                function solve(index, currentBuild) {
-                    if (index >= problemSubjects.length) {
-                        // Base case: All problem subjects assigned.
-                        // Combine with fixed sections
-                        const fullSet = [...fixedSections, ...currentBuild];
-                        if (!hasClash(fullSet)) {
-                            solutions.push(fullSet);
+                // Try to swap EACH clashing subject
+                problemSubjects.forEach(pCode => {
+                    // Find the section object for this code currently enrolled
+                    const currentSecIndex = currentSections.findIndex(s => s.kod_subjek === pCode);
+                    if (currentSecIndex === -1) return; // Should not happen
+
+                    const originalSec = currentSections[currentSecIndex];
+
+                    // Get alternatives
+                    const alternatives = subjectSectionsMap.get(pCode) || [];
+
+                    alternatives.forEach(altSec => {
+                        // Skip if it's the same section
+                        if (altSec.seksyen === originalSec.seksyen) return;
+
+                        // Construct trial schedule
+                        const trialSchedule = [...currentSections];
+                        trialSchedule[currentSecIndex] = altSec; // Swap
+
+                        // Check validity
+                        if (!hasClash(trialSchedule)) {
+                            // Valid Suggestion!
+                            const solKey = trialSchedule.map(s => s.key).sort().join("|");
+                            if (!solutionsKeys.has(solKey)) {
+                                solutionsKeys.add(solKey);
+                                solutions.push({
+                                    schedule: trialSchedule,
+                                    changedSubj: pCode, // Mark which one changed
+                                    newSection: altSec
+                                });
+                            }
                         }
-                        return;
-                    }
-
-                    const subjCode = problemSubjects[index];
-                    const availableSections = subjectSectionsMap.get(subjCode) || [];
-
-                    // Try each available section for this subject
-                    availableSections.forEach(sec => {
-                        solve(index + 1, [...currentBuild, sec]);
                     });
-                }
+                });
 
-                solve(0, []);
-
-                // Format solutions for display
-                // Filter out the solution that is identical to current (if current had no clash? Impossible we in clash block)
-                // But we know current has clash.
-
-                return solutions.slice(0, 10); // Limit to top 10
+                return solutions;
             }
 
             function renderTable(report) {
                 const tbody = $('#clashTableBody');
                 tbody.empty();
+
                 if (report.length === 0) {
                     tbody.html('<tr class="empty-state"><td colspan="8">No clashes detected! Everyone is safe.</td></tr>');
                     return;
                 }
+
+                // Sort by Name
                 report.sort((a, b) => a.student.nama.localeCompare(b.student.nama));
 
                 report.forEach((item, idx) => {
                     const s = item.student;
-                    // Build Clash Details
+
+                    // Build Clash Details HTML
                     const detailsHtml = item.clashes.map(c => `
                     <div class="clash-detail">
                         <strong>${c.subject1}</strong> : <strong>${c.subject2}</strong> 
-                        <span style="color:#7f1d1d;">(${c.time})</span>
+                        <span style="color:#b91c1c;">(${c.time})</span>
                     </div>
                 `).join("");
 
                     // Build Suggestion Cell
                     const suggCount = item.suggestions.length;
                     const suggHtml = suggCount > 0
-                        ? `<a href="javascript:void(0)" class="suggestion-link" data-idx="${idx}">${suggCount}</a>`
-                        : `<span style="color:#999; font-size:0.9rem;">0</span>`;
+                        ? `<a class="suggestion-link" data-idx="${idx}">${suggCount}</a>`
+                        : `<span class="suggestion-link zero">0</span>`;
 
                     const row = `
                     <tr>
@@ -423,7 +483,7 @@
                 });
 
                 // Bind Clicks
-                $('.suggestion-link').click(function () {
+                $('.suggestion-link:not(.zero)').click(function () {
                     const idx = $(this).data('idx');
                     showSuggestions(report[idx]);
                 });
@@ -432,7 +492,7 @@
             }
 
             function showSuggestions(item) {
-                $('#modalStudentName').text(`Suggestions for ${item.student.nama}`);
+                $('#modalStudentName').text(`Suggested Plans for ${item.student.nama}`);
                 const list = $('#modalSuggestionsList');
                 list.empty();
 
@@ -440,21 +500,20 @@
                     list.html('<p>No valid schedule combinations found.</p>');
                 } else {
                     item.suggestions.forEach((sol, i) => {
-                        // sol is array of sections
+                        // sol.schedule is array of sections
                         // Sort by code so it looks neat
-                        sol.sort((a, b) => a.kod_subjek.localeCompare(b.kod_subjek));
+                        const sortedSched = [...sol.schedule].sort((a, b) => a.kod_subjek.localeCompare(b.kod_subjek));
 
-                        const str = sol.map(sec => {
-                            // Highlight if this section is different from original enrolled?
-                            // Complex to track. Just show list.
-                            // Or highlight red if it matches the "Problem Subject"?
-                            return `<span class="sugg-sec">${sec.kod_subjek}-${sec.seksyen}</span>`;
+                        const str = sortedSched.map(sec => {
+                            // Highlight if this is the changed one
+                            const isChanged = sec.kod_subjek === sol.changedSubj && sec.key === sol.newSection.key;
+                            return `<span class="${isChanged ? 'sugg-change' : ''}">${sec.kod_subjek}-${sec.seksyen}</span>`;
                         }).join(" ");
 
                         list.append(`<div class="suggestion-item"><strong>Option ${i + 1}:</strong> ${str}</div>`);
                     });
                 }
-                $('#suggestionModal').show();
+                $('#suggestionModal').css('display', 'flex'); // Use flex to center with new CSS
             }
 
             function renderEmpty(msg) {
