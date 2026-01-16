@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html>
+
 <head>
     <title>Detailed Room Usage Analysis - FSKSM N28/N28A</title>
     <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -7,201 +8,251 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
     <script src="../Authenticate.js"></script>
     <script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
-
-    <style>
-        /* Filter Chip Styles */
-        .filter-chip { cursor: pointer; transition: 0.3s; margin-bottom: 8px; display: inline-block; user-select: none; }
-        .filter-chip:hover { opacity: 0.8; }
-        .active-filter { background-color: #2196F3 !important; color: white !important; }
-        
-        /* Table Styles */
-        #roomListTable th { background-color: #3f51b5; color: white; position: sticky; top: 0; z-index: 10; }
-        .w3-table-all { table-layout: fixed; width: 100%; }
-        #roomListTable th:nth-child(1) { width: 5%; } 
-        #roomListTable th:nth-child(2) { width: 12%; } 
-        #roomListTable th:nth-child(3) { width: 22%; } 
-        #roomListTable th:nth-child(8) { width: 12%; } 
-        #roomListTable th:nth-child(9) { width: 12%; }
-
-        .pagination-container { display: flex; align-items: center; justify-content: space-between; padding: 16px 0; }
-        .loading-spinner { font-size: 20px; padding: 20px; }
-    </style>
+    <!-- CSS Path Adjusted: pointing to ../Styles as the folder is in the root -->
+    <link rel="stylesheet" href="../Styles/RoomUsageAnalysisStyle.css">
 </head>
 
 <body class="w3-container">
 
-<h2 class="w3-center w3-text-blue w3-margin-top">Detailed Room Usage Analysis (FSKSM N28/N28A)</h2>
+    <h2 style="color: #aa841d; font-weight: 600; margin: 0;">Detailed Room Usage Analysis (FSKSM N28/N28A)</h2>
 
-<div class="w3-white w3-padding-16">
-    <div class="w3-row-padding">
-        <div class="w3-col m8">
-            <div id="filterContainer">
-                <span class="w3-tag w3-round-xxlarge w3-light-grey w3-padding filter-chip active-filter" data-filter="all"><i class="fa fa-th-large"></i> All Rooms</span>
-                <span class="w3-tag w3-round-xxlarge w3-light-grey w3-padding filter-chip" data-filter="N28"><i class="fa fa-building"></i> N28</span>
-                <span class="w3-tag w3-round-xxlarge w3-light-grey w3-padding filter-chip" data-filter="N28A"><i class="fa fa-building-o"></i> N28A</span>
-                <span class="w3-tag w3-round-xxlarge w3-light-grey w3-padding filter-chip" data-type="BILIK KULIAH"><i class="fa fa-users"></i> Bilik Kuliah</span>
-                <span class="w3-tag w3-round-xxlarge w3-light-grey w3-padding filter-chip" data-type="DEWAN"><i class="fa fa-bank"></i> Dewan</span>
-                <span class="w3-tag w3-round-xxlarge w3-light-grey w3-padding filter-chip" data-type="MAKMAL"><i class="fa fa-flask"></i> Makmal</span>
+    <div class="w3-white w3-padding-16">
+        <div class="w3-row-padding">
+            <div class="w3-col m8">
+                <div id="filterContainer">
+                    <span class="w3-tag w3-round-xxlarge w3-light-grey w3-padding filter-chip active-filter"
+                        data-filter="all"><i class="fa fa-th-large"></i> All Rooms</span>
+                    <span class="w3-tag w3-round-xxlarge w3-light-grey w3-padding filter-chip" data-filter="N28"><i
+                            class="fa fa-building"></i> N28</span>
+                    <span class="w3-tag w3-round-xxlarge w3-light-grey w3-padding filter-chip" data-filter="N28A"><i
+                            class="fa fa-building-o"></i> N28A</span>
+                    <span class="w3-tag w3-round-xxlarge w3-light-grey w3-padding filter-chip"
+                        data-type="BILIK KULIAH"><i class="fa fa-users"></i> Bilik Kuliah</span>
+                    <span class="w3-tag w3-round-xxlarge w3-light-grey w3-padding filter-chip" data-type="DEWAN"><i
+                            class="fa fa-bank"></i> Dewan</span>
+                    <span class="w3-tag w3-round-xxlarge w3-light-grey w3-padding filter-chip" data-type="MAKMAL"><i
+                            class="fa fa-flask"></i> Makmal</span>
+                </div>
             </div>
-        </div>
-        <div class="w3-col m4">
-            <div class="w3-display-container">
-                <input class="w3-input w3-border w3-round-xxlarge" type="text" id="searchInput" placeholder="Search room code or name...">
-                <i class="fa fa-search w3-display-right w3-margin-right w3-text-grey"></i>
+            <div class="w3-col m4">
+                <div class="w3-display-container">
+                    <input class="w3-input w3-border w3-round-xxlarge" type="text" id="searchInput"
+                        placeholder="Search room code or name...">
+                    <i class="fa fa-search w3-display-right w3-margin-right w3-text-grey"></i>
+                </div>
             </div>
         </div>
     </div>
-</div>
 
-<div class="w3-panel w3-border w3-light-grey w3-round-large w3-padding">
-    <p><strong>Session/Semester:</strong> <span id="sessionSem">Loading...</span></p>
-</div>
+    <div class="w3-panel w3-border w3-light-grey w3-round-large w3-padding">
+        <p><strong>Session/Semester:</strong> <span id="sessionSem">Loading...</span></p>
+    </div>
 
-<div class="w3-center loading-spinner" id="loadingMsg">
-    🔄 Fetching Room Data & Analyzing Usage...
-</div>
+    <div class="w3-center loading-spinner" id="loadingMsg">
+        🔄 Fetching Room Data & Analyzing Usage...
+    </div>
 
-<div id="chart_div" style="width: 100%; height: 400px; display:none;"></div>
-<hr>
+    <div id="chart_div" style="width: 100%; height: 400px; display:none;"></div>
+    <hr>
 
-<div class="pagination-container" id="paginationTop"></div>
+    <div class="pagination-container" id="paginationTop"></div>
 
-<div style="overflow-x: auto;">
-    <table class="w3-table-all w3-hoverable w3-card-4" id="roomListTable" style="display:none;">
-        <thead>
-            <tr class="w3-blue-grey">
-                <th>No.</th>
-                <th>Room Code</th>
-                <th>Room Name</th>
-                <th>Abbreviated Name</th>
-                <th>Faculty</th>
-                <th>Type</th>
-                <th>Capacity</th>
-                <th colspan="2" class="w3-center">Usage</th>
-            </tr>
-            <tr class="w3-light-grey w3-small">
-                <th></th><th></th><th></th><th></th><th></th><th></th><th></th>
-                <th class="w3-center">Time/Week (Hrs)</th>
-                <th class="w3-center">Subjects</th>
-            </tr>
-        </thead>
-        <tbody id="roomListBody"></tbody>
-    </table>
-</div>
+    <div style="overflow-x: auto;">
+        <table class="w3-table-all w3-hoverable w3-card-4" id="roomListTable" style="display:none;">
+            <thead>
+                <tr class="w3-blue-grey">
+                    <th>No.</th>
+                    <th>Room Code</th>
+                    <th>Room Name</th>
+                    <th>Abbreviated Name</th>
+                    <th>Faculty</th>
+                    <th>Type</th>
+                    <th>Capacity</th>
+                    <th colspan="2" class="w3-center">Usage</th>
+                    <th rowspan="2" class="w3-center">Trend</th>
+                </tr>
+                <tr class="w3-light-grey w3-small">
+                    <th></th>
+                    <th></th>
+                    <th></th>
+                    <th></th>
+                    <th></th>
+                    <th></th>
+                    <th></th>
+                    <th class="w3-center">Time/Week (Hrs)</th>
+                    <th class="w3-center">Subjects</th>
+                </tr>
+            </thead>
+            <tbody id="roomListBody"></tbody>
+        </table>
+    </div>
 
-<div class="pagination-container" id="paginationBottom"></div>
+    <div class="pagination-container" id="paginationBottom"></div>
 
-<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
 
-<script>
-$(document).ready(function() {
-    let allAnalyzedRooms = []; 
-    let filteredRooms = [];    
-    let currentPage = 1;
-    const itemsPerPage = 20;
-    
-    // Get Session Info
-    let currentSesi = window.parent.currentSesi;
-    let currentSemester = window.parent.currentSemester;
-    $("#sessionSem").text(`${currentSesi} - Semester ${currentSemester}`);
+    <script>
+        $(document).ready(function () {
+            let allAnalyzedRooms = [];
+            let filteredRooms = [];
+            let currentPage = 1;
+            const itemsPerPage = 20;
+            let isChartLibLoaded = false;
 
-    // Load Charts
-    google.charts.load('current', {'packages':['bar']});
-    google.charts.setOnLoadCallback(fetchAndAnalyzeRooms);
+            // Get Session Info
+            // Defaulting to 2025/2026 as per user requirements/current timetable
+            let currentSesi = window.parent.currentSesi || "2025/2026";
+            let currentSemester = window.parent.currentSemester || "1";
+            $("#sessionSem").text(`${currentSesi} - Semester ${currentSemester}`);
 
-    function fetchAndAnalyzeRooms() {
-        const url = "http://web.fc.utm.my/ttms/web_man_webservice_json.cgi?entity=ruang&kod_fakulti=fsksm";
-        fetch(url)
-        .then(res => res.json())
-        .then(rooms => {
-            // Initial filter for N28/N28A
-            const targets = rooms.filter(r => r.kod_ruang && (r.kod_ruang.startsWith('N28') || r.kod_ruang.startsWith('N28A')));
-            return analyzeRoomUsage(targets);
-        })
-        .then(analyzed => {
-            allAnalyzedRooms = analyzed.sort((a,b) => b.usageHours - a.usageHours);
-            filteredRooms = [...allAnalyzedRooms];
-            updateDisplay();
-            $("#loadingMsg").hide();
-            $("#roomListTable, #chart_div").show();
-        })
-        .catch(err => {
-            $("#loadingMsg").html("❌ Error loading room data. Check connection.");
-            console.error(err);
-        });
-    }
-
-    // --- MULTI-FILTER CHIP LOGIC ---
-    $(".filter-chip").click(function() {
-        if ($(this).data("filter") === "all") {
-            $(".filter-chip").removeClass("active-filter");
-            $(this).addClass("active-filter");
-        } else {
-            $(".filter-chip[data-filter='all']").removeClass("active-filter");
-            $(this).toggleClass("active-filter");
-        }
-
-        applyAllFilters();
-    });
-
-    // --- SEARCH LOGIC ---
-    $("#searchInput").on("keyup", function() {
-        applyAllFilters();
-    });
-
-    function applyAllFilters() {
-        const searchVal = $("#searchInput").val().toLowerCase();
-        const activeBuildings = [];
-        const activeTypes = [];
-        
-        $(".filter-chip.active-filter").each(function() {
-            const f = $(this).data("filter");
-            const t = $(this).data("type");
-            if (f && f !== "all") activeBuildings.push(f);
-            if (t) activeTypes.push(t);
-        });
-
-        filteredRooms = allAnalyzedRooms.filter(room => {
-            // If "All Rooms" is selected, just check search
-            if ($(".filter-chip[data-filter='all']").hasClass("active-filter")) {
-                return room.kod_ruang.toLowerCase().includes(searchVal) || 
-                       (room.nama_ruang && room.nama_ruang.toLowerCase().includes(searchVal));
+            // 1. Convert Google Charts load to a non-blocking safe init with RETRY
+            let chartRetryCount = 0;
+            function initGoogleCharts() {
+                try {
+                    if (typeof google !== 'undefined' && google.charts) {
+                        google.charts.load('current', { 'packages': ['bar', 'corechart', 'line'] });
+                        google.charts.setOnLoadCallback(function () {
+                            isChartLibLoaded = true;
+                            if (filteredRooms.length > 0) drawRoomUsageChart(filteredRooms);
+                        });
+                    } else {
+                        chartRetryCount++;
+                        if (chartRetryCount < 20) { // Try for 10 seconds
+                            setTimeout(initGoogleCharts, 500);
+                        } else {
+                            console.warn("Google Charts gave up loading.");
+                            $("#chart_div").html('<div class="w3-padding w3-text-grey">Chart could not be loaded (Network issue).</div>').show();
+                        }
+                    }
+                } catch (e) {
+                    console.warn("Google Charts init error, retrying...", e);
+                    setTimeout(initGoogleCharts, 500);
+                }
             }
-            
-            const matchesBuilding = activeBuildings.length === 0 || activeBuildings.some(b => room.kod_ruang.startsWith(b));
-            const matchesType = activeTypes.length === 0 || activeTypes.some(t => room.jenis && room.jenis.toUpperCase().includes(t));
-            const matchesSearch = room.kod_ruang.toLowerCase().includes(searchVal) || 
-                                 (room.nama_ruang && room.nama_ruang.toLowerCase().includes(searchVal));
-            
-            return matchesBuilding && matchesType && matchesSearch;
-        });
-        
-        currentPage = 1;
-        updateDisplay();
-    }
+            initGoogleCharts();
 
-    function updateDisplay() {
-        renderTable();
-        renderPagination();
-        drawRoomUsageChart(filteredRooms);
-    }
+            // 2. Start Data Fetching IMMEDIATELY (Do not wait for charts)
+            fetchAndAnalyzeRooms();
 
-    function renderTable() {
-        const body = $("#roomListBody");
-        body.empty();
-        
-        const start = (currentPage - 1) * itemsPerPage;
-        const end = start + itemsPerPage;
-        const pageData = filteredRooms.slice(start, end);
+            function fetchAndAnalyzeRooms() {
+                // Use a robust fetch with error handling
+                const url = "http://web.fc.utm.my/ttms/web_man_webservice_json.cgi?entity=ruang&kod_fakulti=fsksm";
 
-        if (pageData.length === 0) {
-            body.append('<tr><td colspan="9" class="w3-center w3-padding-32">No rooms match your selection</td></tr>');
-            return;
-        }
+                console.log("Fetching room data from: " + url);
 
-        pageData.forEach((room, index) => {
-            const realIndex = start + index + 1;
-            body.append(`
+                fetch(url)
+                    .then(res => {
+                        if (!res.ok) throw new Error("Server returned " + res.status);
+                        return res.text(); // Get text first to debug invalid JSON
+                    })
+                    .then(text => {
+                        try {
+                            return JSON.parse(text);
+                        } catch (e) {
+                            console.error("API Response was not JSON:", text.substring(0, 100));
+                            throw new Error("Invalid API Response");
+                        }
+                    })
+                    .then(rooms => {
+                        // Initial filter for N28/N28A
+                        const targets = rooms.filter(r => r.kod_ruang && (r.kod_ruang.startsWith('N28') || r.kod_ruang.startsWith('N28A')));
+                        return analyzeRoomUsage(targets);
+                    })
+                    .then(analyzed => {
+                        // Sort by room code in ascending order by default
+                        allAnalyzedRooms = analyzed.sort((a, b) => {
+                            return a.kod_ruang.localeCompare(b.kod_ruang);
+                        });
+                        filteredRooms = [...allAnalyzedRooms];
+
+                        updateDisplay();
+
+                        // Hide loading spinner
+                        $("#loadingMsg").hide();
+                        $("#roomListTable").show();
+
+                        // Only show chart container if we have data
+                        if (filteredRooms.length > 0) $("#chart_div").show();
+                    })
+                    .catch(err => {
+                        $("#loadingMsg").html(`<div style="color:red; font-weight:bold;">❌ Error: ${err.message}</div>`);
+                        console.error("Fetch Error:", err);
+                    });
+            }
+
+            // --- MULTI-FILTER CHIP LOGIC ---
+            $(".filter-chip").click(function () {
+                if ($(this).data("filter") === "all") {
+                    $(".filter-chip").removeClass("active-filter");
+                    $(this).addClass("active-filter");
+                } else {
+                    $(".filter-chip[data-filter='all']").removeClass("active-filter");
+                    $(this).toggleClass("active-filter");
+                }
+
+                applyAllFilters();
+            });
+
+            // --- SEARCH LOGIC ---
+            $("#searchInput").on("keyup", function () {
+                applyAllFilters();
+            });
+
+            function applyAllFilters() {
+                const searchVal = $("#searchInput").val().toLowerCase();
+                const activeBuildings = [];
+                const activeTypes = [];
+
+                $(".filter-chip.active-filter").each(function () {
+                    const f = $(this).data("filter");
+                    const t = $(this).data("type");
+                    if (f && f !== "all") activeBuildings.push(f);
+                    if (t) activeTypes.push(t);
+                });
+
+                filteredRooms = allAnalyzedRooms.filter(room => {
+                    // If "All Rooms" is selected, just check search
+                    if ($(".filter-chip[data-filter='all']").hasClass("active-filter")) {
+                        return room.kod_ruang.toLowerCase().includes(searchVal) ||
+                            (room.nama_ruang && room.nama_ruang.toLowerCase().includes(searchVal));
+                    }
+
+                    const matchesBuilding = activeBuildings.length === 0 || activeBuildings.some(b => room.kod_ruang.startsWith(b));
+                    const matchesType = activeTypes.length === 0 || activeTypes.some(t => room.jenis && room.jenis.toUpperCase().includes(t));
+                    const matchesSearch = room.kod_ruang.toLowerCase().includes(searchVal) ||
+                        (room.nama_ruang && room.nama_ruang.toLowerCase().includes(searchVal));
+
+                    return matchesBuilding && matchesType && matchesSearch;
+                });
+
+                currentPage = 1;
+                updateDisplay();
+            }
+
+            function updateDisplay() {
+                renderTable();
+                renderPagination();
+                if (isChartLibLoaded) {
+                    drawRoomUsageChart(filteredRooms);
+                }
+            }
+
+            function renderTable() {
+                const body = $("#roomListBody");
+                body.empty();
+
+                const start = (currentPage - 1) * itemsPerPage;
+                const end = start + itemsPerPage;
+                const pageData = filteredRooms.slice(start, end);
+
+                if (pageData.length === 0) {
+                    body.append('<tr><td colspan="9" class="w3-center w3-padding-32">No rooms match your selection</td></tr>');
+                    return;
+                }
+
+                pageData.forEach((room, index) => {
+                    const realIndex = start + index + 1;
+                    body.append(`
                 <tr>
                     <td>${realIndex}</td>
                     <td><strong>${room.kod_ruang}</strong></td>
@@ -212,96 +263,193 @@ $(document).ready(function() {
                     <td class="w3-center">${room.kapasiti}</td>
                     <td class="w3-center"><span class="w3-tag w3-teal w3-round">${room.usageHours}</span></td>
                     <td class="w3-center"><span class="w3-tag w3-indigo w3-round">${room.subjectCount}</span></td>
+                    <td class="w3-center">
+                        <button class="w3-button w3-small w3-round w3-border w3-border-blue w3-text-blue w3-hover-blue" onclick="openRoomGraph('${room.kod_ruang}')">
+                            <i class="fa fa-line-chart"></i> View
+                        </button>
+                    </td>
                 </tr>
             `);
-        });
-    }
+                });
+            }
 
-    function renderPagination() {
-        const totalItems = filteredRooms.length;
-        const totalPages = Math.ceil(totalItems / itemsPerPage);
-        const startItem = totalItems === 0 ? 0 : (currentPage - 1) * itemsPerPage + 1;
-        const endItem = Math.min(currentPage * itemsPerPage, totalItems);
+            function renderPagination() {
+                const totalItems = filteredRooms.length;
+                const totalPages = Math.ceil(totalItems / itemsPerPage);
+                const startItem = totalItems === 0 ? 0 : (currentPage - 1) * itemsPerPage + 1;
+                const endItem = Math.min(currentPage * itemsPerPage, totalItems);
 
-        const html = `
+                const html = `
             <div class="w3-text-grey w3-small">Showing ${startItem}-${endItem} of ${totalItems} rooms</div>
             <div class="w3-bar w3-border w3-round w3-white">
-                <button class="w3-bar-item w3-button ${currentPage === 1 ? 'w3-disabled' : ''}" onclick="changePage(${currentPage-1})">❮</button>
+                <button class="w3-bar-item w3-button ${currentPage === 1 ? 'w3-disabled' : ''}" onclick="changePage(${currentPage - 1})">❮</button>
                 ${generatePageButtons(totalPages)}
-                <button class="w3-bar-item w3-button ${currentPage === totalPages || totalPages === 0 ? 'w3-disabled' : ''}" onclick="changePage(${currentPage+1})">❯</button>
+                <button class="w3-bar-item w3-button ${currentPage === totalPages || totalPages === 0 ? 'w3-disabled' : ''}" onclick="changePage(${currentPage + 1})">❯</button>
             </div>
         `;
-        $("#paginationBottom").html(html);
-    }
+                $("#paginationBottom").html(html);
+            }
 
-    window.changePage = function(p) {
-        const totalPages = Math.ceil(filteredRooms.length / itemsPerPage);
-        if (p < 1 || p > totalPages) return;
-        currentPage = p;
-        updateDisplay();
-        window.scrollTo(0, 450); 
-    };
+            window.changePage = function (p) {
+                const totalPages = Math.ceil(filteredRooms.length / itemsPerPage);
+                if (p < 1 || p > totalPages) return;
+                currentPage = p;
+                updateDisplay();
+                window.scrollTo(0, 450);
+            };
 
-    function generatePageButtons(total) {
-        let btns = "";
-        for (let i = 1; i <= Math.min(total, 6); i++) {
-            btns += `<button class="w3-bar-item w3-button ${i === currentPage ? 'w3-blue' : ''}" onclick="changePage(${i})">${i}</button>`;
-        }
-        if (total > 6) btns += `<span class="w3-bar-item">...</span>`;
-        return btns;
-    }
+            function generatePageButtons(total) {
+                let btns = "";
+                for (let i = 1; i <= Math.min(total, 6); i++) {
+                    btns += `<button class="w3-bar-item w3-button ${i === currentPage ? 'w3-blue' : ''}" onclick="changePage(${i})">${i}</button>`;
+                }
+                if (total > 6) btns += `<span class="w3-bar-item">...</span>`;
+                return btns;
+            }
 
-    // --- USAGE ANALYSIS LOGIC ---
-    function analyzeRoomUsage(rooms) {
-    return Promise.all(
-        rooms.map(room =>
-            fetch(`http://web.fc.utm.my/ttms/web_man_webservice_json.cgi?entity=jadual_ruang&sesi=${currentSesi}&semester=${currentSemester}&kod_ruang=${room.kod_ruang}`)
-                .then(res => res.json())
-                .then(schedule => calculateUsage(room, Array.isArray(schedule) ? schedule : []))
-                .catch(() => ({ ...room, usageHours: 0, subjectCount: 0 }))
-        )
-    );
-}
+            // --- USAGE ANALYSIS LOGIC ---
+            function analyzeRoomUsage(rooms) {
+                // Limit parallel requests to chunks to avoid overwhelming server if needed, 
+                // but for <50 rooms Promise.all is usually fine.
+                return Promise.all(
+                    rooms.map(room =>
+                        fetch(`http://web.fc.utm.my/ttms/web_man_webservice_json.cgi?entity=jadual_ruang&sesi=${currentSesi}&semester=${currentSemester}&kod_ruang=${room.kod_ruang}`)
+                            .then(res => res.json())
+                            .then(schedule => calculateUsage(room, Array.isArray(schedule) ? schedule : []))
+                            .catch(() => ({ ...room, usageHours: 0, subjectCount: 0 }))
+                    )
+                );
+            }
 
-    function calculateUsage(room, schedule) {
-        const uniqueSlots = new Set();
-        const uniqueSubs = new Set();
-        schedule.forEach(s => {
+            function calculateUsage(room, schedule) {
+                const uniqueSlots = new Set();
+                const uniqueSubs = new Set();
 
-        if (s.subjek && s.hari && s.masa) {
-            uniqueSlots.add(`${s.hari}-${s.masa}`);
-            uniqueSubs.add(s.subjek.kod_subjek);
-        }
-    });
-        return { ...room, usageHours: uniqueSlots.size, subjectCount: uniqueSubs.size };
-    }
+                // Initialize daily usage: 1=Mon, 2=Tue, 3=Wed, 4=Thu, 5=Fri
+                // Note: UTM default is Sunday-Thursday (1=Sun), but user requested Monday-Friday mapping.
+                // If data seems inaccurate, it might be because '1' in DB is actually Sunday. 
+                // However, we will display '1' as Monday as requested.
+                // Initialize daily usage: 1=Sun, 2=Mon, 3=Tue, 4=Wed, 5=Thu, 6=Fri, 7=Sat
+                // We want to display Mon-Fri (Indices 2 to 6)
+                const dailyStats = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0, 7: 0 };
 
-    // --- CHART LOGIC: LABEL BY TYPE ---
-    function drawRoomUsageChart(data) {
-        const topData = data.filter(r => r.usageHours > 0).slice(0, 10);
-        if (topData.length < 1) { $("#chart_div").hide(); return; }
-        $("#chart_div").show();
-        
-        const gData = new google.visualization.DataTable();
-        gData.addColumn('string', 'Room Type');
-        gData.addColumn('number', 'Usage Hours/Week');
-        
-        topData.forEach(r => {
-            // Label combines type and code: e.g. "MAKMAL (N28-01)"
-            const label = `${r.jenis || 'ROOM'} (${r.nama_ruang_singkatan})`;
-            gData.addRow([label, r.usageHours]);
+                schedule.forEach(s => {
+                    if (s.subjek && s.hari && s.masa) {
+                        const slotId = `${s.hari}-${s.masa}`;
+                        if (!uniqueSlots.has(slotId)) {
+                            uniqueSlots.add(slotId);
+                            // Increment daily count if it's a valid day key
+                            if (dailyStats[s.hari] !== undefined) {
+                                dailyStats[s.hari]++;
+                            }
+                        }
+                        uniqueSubs.add(s.subjek.kod_subjek);
+                    }
+                });
+                return {
+                    ...room,
+                    usageHours: uniqueSlots.size,
+                    subjectCount: uniqueSubs.size,
+                    dailyStats: dailyStats
+                };
+            }
+
+            // --- DAILY USAGE GRAPH POPUP LOGIC ---
+            window.openRoomGraph = function (roomCode) {
+                const room = allAnalyzedRooms.find(r => r.kod_ruang === roomCode);
+                if (!room) return;
+
+                // Show Modal
+                $("#graphModal").show();
+                $("#modalRoomTitle").text(`${room.kod_ruang} - ${room.nama_ruang || ''}`);
+
+                drawDailyChart(room);
+            };
+
+            function drawDailyChart(room) {
+                if (!isChartLibLoaded) return;
+
+                const data = new google.visualization.DataTable();
+                data.addColumn('string', 'Day');
+                data.addColumn('number', 'Hours');
+
+                // Convert day numbers: 2=Mon, 3=Tue, 4=Wed, 5=Thu, 6=Fri
+                const dayNames = { 2: "Monday", 3: "Tuesday", 4: "Wednesday", 5: "Thursday", 6: "Friday" };
+
+                const rows = [];
+                for (let i = 2; i <= 6; i++) {
+                    rows.push([dayNames[i], room.dailyStats[i] || 0]);
+                }
+                data.addRows(rows);
+
+                const options = {
+                    title: 'Daily Room Usage (Hours per Day)',
+                    // curveType: 'function', // Removed to make lines straight
+                    legend: { position: 'bottom' },
+                    height: 400,
+                    pointSize: 5,
+                    hAxis: { title: 'Day of Week' },
+                    vAxis: { title: 'Hours Used', minValue: 0, format: '0' },
+                    colors: ['#e65100']
+                };
+
+                const chart = new google.visualization.LineChart(document.getElementById('daily_chart_div'));
+                chart.draw(data, options);
+            }
+
+            // Close Modal Logic
+            window.closeGraphModal = function () {
+                $("#graphModal").hide();
+            };
+
+            // --- CHART LOGIC: LABEL BY TYPE ---
+            function drawRoomUsageChart(data) {
+                if (!isChartLibLoaded || typeof google === 'undefined' || !google.visualization) return;
+
+                const topData = data.filter(r => r.usageHours > 0).slice(0, 10);
+                if (topData.length < 1) { $("#chart_div").hide(); return; }
+                $("#chart_div").show();
+
+                const gData = new google.visualization.DataTable();
+                gData.addColumn('string', 'Room Type');
+                gData.addColumn('number', 'Usage Hours/Week');
+
+                topData.forEach(r => {
+                    // Label combines type and code: e.g. "MAKMAL (N28-01)"
+                    const label = `${r.nama_ruang_singkatan}`;
+                    gData.addRow([label, r.usageHours]);
+                });
+
+                const chart = new google.charts.Bar(document.getElementById('chart_div'));
+                chart.draw(gData, google.charts.Bar.convertOptions({
+                    bars: 'horizontal',
+                    height: 400,
+                    colors: ['#2196F3'],
+                    chartArea: { width: '50%' },
+                    hAxis: { title: 'Hours Per Week' }
+                }));
+            }
         });
-
-        const chart = new google.charts.Bar(document.getElementById('chart_div'));
-        chart.draw(gData, google.charts.Bar.convertOptions({
-            bars: 'horizontal', 
-            height: 400, 
-            colors: ['#2196F3'],
-            chartArea: {width: '50%'}, 
-            hAxis: {title: 'Hours Per Week'}
-        }));
-    }
-});
-</script>
+    </script>
 </body>
+
+<!-- Modal for Graph -->
+<div id="graphModal" class="w3-modal" style="z-index: 9999; display: none;">
+    <div class="w3-modal-content w3-animate-zoom w3-card-4 w3-round-large">
+        <header class="w3-container w3-blue-grey w3-round-large"
+            style="border-bottom-left-radius: 0; border-bottom-right-radius: 0;">
+            <span onclick="closeGraphModal()"
+                class="w3-button w3-display-topright w3-large w3-hover-red w3-round-tr-large">&times;</span>
+            <h3 id="modalRoomTitle" style="margin:10px 0;">Room Graph</h3>
+        </header>
+        <div class="w3-container w3-padding">
+            <div id="daily_chart_div" style="width: 100%; height: 400px;"></div>
+        </div>
+        <footer class="w3-container w3-light-grey w3-padding w3-right-align w3-round-large"
+            style="border-top-left-radius: 0; border-top-right-radius: 0;">
+            <button class="w3-button w3-white w3-border w3-round" onclick="closeGraphModal()">Close</button>
+        </footer>
+    </div>
+</div>
+
 </html>

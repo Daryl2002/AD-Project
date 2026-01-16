@@ -1,33 +1,38 @@
 <!DOCTYPE html>
 <html>
+
 <head>
     <title>FSKSM Room Availability Checker</title>
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <link rel="stylesheet" href="https://www.w3schools.com/w3css/4/w3.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="../Authenticate.js"></script>
+    <script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
     <style>
         body {
             font-family: Arial, sans-serif;
             margin: 20px;
             background-color: #f5f5f5;
         }
+
         .header {
             text-align: center;
             margin-bottom: 30px;
             padding: 20px;
             background: white;
             border-radius: 8px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
         }
+
         /* Consolidated Control Panel */
         .master-control-panel {
             background: white;
             border-radius: 8px;
             padding: 25px;
             margin-bottom: 20px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
         }
+
         .panel-title {
             display: flex;
             align-items: center;
@@ -36,28 +41,34 @@
             padding-bottom: 15px;
             border-bottom: 2px solid #f0f0f0;
         }
+
         .panel-title i {
             color: #3f51b5;
         }
+
         .control-grid {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
             gap: 20px;
             margin-bottom: 15px;
         }
+
         .control-group {
             display: flex;
             flex-direction: column;
         }
+
         .control-group label {
             font-weight: bold;
             margin-bottom: 8px;
             color: #333;
             font-size: 14px;
         }
+
         .search-box {
             position: relative;
         }
+
         .search-box i {
             position: absolute;
             left: 15px;
@@ -65,10 +76,12 @@
             transform: translateY(-50%);
             color: #666;
         }
+
         .search-box input {
             padding-left: 40px;
             width: 100%;
         }
+
         .filter-tags-row {
             display: flex;
             flex-wrap: wrap;
@@ -77,6 +90,7 @@
             padding-top: 15px;
             border-top: 2px solid #f0f0f0;
         }
+
         .filter-tag {
             padding: 8px 16px;
             border-radius: 20px;
@@ -87,20 +101,24 @@
             align-items: center;
             gap: 8px;
         }
+
         .filter-tag.active {
             background-color: #3f51b5;
             color: white;
         }
+
         .filter-tag:hover {
             transform: translateY(-2px);
-            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
         }
+
         .action-buttons {
             display: flex;
             gap: 10px;
             margin-top: 20px;
             justify-content: flex-end;
         }
+
         /* Table Styles */
         .loading {
             text-align: center;
@@ -108,45 +126,54 @@
             color: #666;
             font-size: 16px;
         }
+
         .custom-table {
             border-collapse: collapse;
             width: 100%;
             border-radius: 8px;
             overflow: hidden;
-            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
         }
+
         .custom-table thead tr {
             background-color: #3f51b5;
             color: white;
             text-align: center;
             font-weight: bold;
         }
+
         .custom-table th,
         .custom-table td {
             padding: 12px 15px;
             text-align: left;
             border-bottom: 1px solid #e0e0e0;
         }
+
         .custom-table th {
             font-weight: 600;
             text-transform: none;
         }
+
         .custom-table tbody tr {
             background-color: white;
         }
+
         .custom-table tbody tr:nth-child(even) {
             background-color: #f8f9fa;
         }
+
         .custom-table tbody tr:hover {
             background-color: #e8f4fd;
         }
+
         .table-container {
             background: white;
             border-radius: 8px;
             padding: 0;
             overflow: hidden;
-            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
         }
+
         .status-tag {
             padding: 4px 10px;
             border-radius: 12px;
@@ -155,6 +182,7 @@
             display: inline-block;
             text-align: center;
         }
+
         .no-results {
             text-align: center;
             padding: 40px;
@@ -164,14 +192,16 @@
             border-radius: 8px;
             margin-top: 20px;
         }
+
         .error-panel {
             background: white;
             border-radius: 8px;
             padding: 20px;
-            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
             border-left: 4px solid #f44336;
             margin-top: 20px;
         }
+
         .refresh-btn {
             margin-top: 20px;
             padding: 20px;
@@ -179,21 +209,26 @@
             border-radius: 8px;
             text-align: center;
         }
+
         .date-input-group {
             display: flex;
             gap: 10px;
             align-items: flex-end;
         }
+
         .date-field {
             flex: 1;
         }
+
         .time-input-group {
             display: flex;
             gap: 10px;
         }
+
         .time-field {
             flex: 1;
         }
+
         /* Pagination Styles */
         .pagination-container {
             display: flex;
@@ -203,17 +238,20 @@
             padding: 15px;
             background: white;
             border-radius: 8px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
         }
+
         .pagination-info {
             margin-right: 20px;
             color: #666;
             font-size: 14px;
         }
+
         .pagination {
             display: flex;
             gap: 5px;
         }
+
         .page-btn {
             padding: 8px 14px;
             border: 1px solid #ddd;
@@ -223,22 +261,27 @@
             font-size: 14px;
             transition: all 0.3s;
         }
+
         .page-btn:hover {
             background: #f0f0f0;
         }
+
         .page-btn.active {
             background-color: #3f51b5;
             color: white;
             border-color: #3f51b5;
         }
+
         .page-btn.disabled {
             opacity: 0.5;
             cursor: not-allowed;
         }
+
         .page-dots {
             padding: 8px 5px;
             color: #666;
         }
+
         /* Day filter styles */
         .day-filter-container {
             display: flex;
@@ -246,6 +289,7 @@
             flex-wrap: wrap;
             margin-bottom: 10px;
         }
+
         .day-filter-btn {
             padding: 10px 20px;
             border: 2px solid #ddd;
@@ -258,436 +302,507 @@
             min-width: 100px;
             text-align: center;
         }
+
         .day-filter-btn:hover {
             background: #f0f0f0;
             transform: translateY(-2px);
         }
+
         .day-filter-btn.active {
             background-color: #3f51b5;
             color: white;
             border-color: #3f51b5;
         }
+
         @media (max-width: 768px) {
             .control-grid {
                 grid-template-columns: 1fr;
             }
-            .date-input-group, .time-input-group {
+
+            .date-input-group,
+            .time-input-group {
                 flex-direction: column;
             }
+
             .action-buttons {
                 justify-content: stretch;
             }
+
             .action-buttons button {
                 flex: 1;
             }
+
             .pagination-container {
                 flex-direction: column;
                 gap: 15px;
             }
+
             .pagination-info {
                 margin-right: 0;
                 margin-bottom: 10px;
             }
+
             .day-filter-container {
                 justify-content: center;
             }
+
             .day-filter-btn {
                 min-width: 80px;
                 padding: 8px 12px;
                 font-size: 13px;
             }
         }
+
+        /* Chart Styles */
+        .charts-container {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 20px;
+            margin-bottom: 20px;
+            padding: 15px;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        .chart-box {
+            flex: 1;
+            min-width: 300px;
+            height: 300px;
+            border: 1px solid #f0f0f0;
+            border-radius: 8px;
+            padding: 10px;
+            background: #fff;
+        }
+
+        .chart-title {
+            text-align: center;
+            font-weight: bold;
+            color: #555;
+            margin-bottom: 10px;
+            font-size: 14px;
+            border-bottom: 1px solid #eee;
+            padding-bottom: 5px;
+        }
     </style>
 </head>
+
 <body class="w3-container">
 
-<div class="header">
-    <h2 class="w3-text-blue">🏫 FSKSM Room Availability</h2>
-    <p class="w3-text-grey">Find available rooms by day, time, and category</p>
-</div>
-
-<!-- Consolidated Master Control Panel -->
-<div class="master-control-panel">
-    <div class="panel-title">
-        <i class="fas fa-sliders-h fa-lg"></i>
-        <h3 class="w3-text-blue" style="margin: 0;">Room Search & Availability Controls</h3>
+    <div class="header">
+        <h2 class="w3-text-blue">🏫 FSKSM Room Availability</h2>
+        <p class="w3-text-grey">Find available rooms by day, time, and category</p>
     </div>
-    
-    <div class="control-grid">
-        <!-- Search Column -->
-        <div class="control-group">
-            <label><i class="fas fa-search"></i> SEARCH ROOMS</label>
-            <div class="search-box">
-                <i class="fas fa-search"></i>
-                <input type="text" id="searchInput" class="w3-input w3-border w3-round" 
-                       placeholder="Search by room code, name, or shortform...">
-            </div>
-            <div style="margin-top: 10px; font-size: 12px; color: #666;">
-                <i class="fas fa-info-circle"></i> Examples: N28-114-01, BK4, Bilik Kuliah
-            </div>
+
+    <!-- Consolidated Master Control Panel -->
+    <div class="master-control-panel">
+        <div class="panel-title">
+            <i class="fas fa-sliders-h fa-lg"></i>
+            <h3 class="w3-text-blue" style="margin: 0;">Room Search & Availability Controls</h3>
         </div>
-        
-        <!-- Day Selection Column -->
-        <div class="control-group">
-            <label><i class="fas fa-calendar-day"></i> SELECT DAY</label>
-            <div class="day-filter-container">
-                <button class="day-filter-btn active" onclick="selectDay(2)">Monday</button>
-                <button class="day-filter-btn" onclick="selectDay(3)">Tuesday</button>
-                <button class="day-filter-btn" onclick="selectDay(4)">Wednesday</button>
-                <button class="day-filter-btn" onclick="selectDay(5)">Thursday</button>
-                <button class="day-filter-btn" onclick="selectDay(6)">Friday</button>
-            </div>
-        </div>
-        
-        <!-- Time Selection Column -->
-        <div class="control-group">
-            <label><i class="fas fa-clock"></i> SELECT TIME SLOT</label>
-            <div class="time-input-group">
-                <div class="time-field">
-                    <select id="startTime" class="w3-select w3-border w3-round">
-                        <option value="8">08:00</option>
-                        <option value="9">09:00</option>
-                        <option value="10">10:00</option>
-                        <option value="11">11:00</option>
-                        <option value="12">12:00</option>
-                        <option value="13" selected>13:00</option>
-                        <option value="14">14:00</option>
-                        <option value="15">15:00</option>
-                        <option value="16">16:00</option>
-                        <option value="17">17:00</option>
-                    </select>
+
+        <div class="control-grid">
+            <!-- Search Column -->
+            <div class="control-group">
+                <label><i class="fas fa-search"></i> SEARCH ROOMS</label>
+                <div class="search-box">
+                    <i class="fas fa-search"></i>
+                    <input type="text" id="searchInput" class="w3-input w3-border w3-round"
+                        placeholder="Search by room code, name, or shortform...">
                 </div>
-                <div style="align-self: center; color: #666;">to</div>
-                <div class="time-field">
-                    <select id="endTime" class="w3-select w3-border w3-round">
-                        <option value="9">09:00</option>
-                        <option value="10">10:00</option>
-                        <option value="11">11:00</option>
-                        <option value="12">12:00</option>
-                        <option value="13">13:00</option>
-                        <option value="14">14:00</option>
-                        <option value="15">15:00</option>
-                        <option value="16" selected>16:00</option>
-                        <option value="17">17:00</option>
-                        <option value="18">18:00</option>
-                    </select>
+                <div style="margin-top: 10px; font-size: 12px; color: #666;">
+                    <i class="fas fa-info-circle"></i> Examples: N28-114-01, BK4, Bilik Kuliah
                 </div>
             </div>
+
+            <!-- Day Selection Column -->
+            <div class="control-group">
+                <label><i class="fas fa-calendar-day"></i> SELECT DAY</label>
+                <div class="day-filter-container">
+                    <button class="day-filter-btn active" onclick="selectDay(2)">Monday</button>
+                    <button class="day-filter-btn" onclick="selectDay(3)">Tuesday</button>
+                    <button class="day-filter-btn" onclick="selectDay(4)">Wednesday</button>
+                    <button class="day-filter-btn" onclick="selectDay(5)">Thursday</button>
+                    <button class="day-filter-btn" onclick="selectDay(6)">Friday</button>
+                </div>
+            </div>
+
+            <!-- Time Selection Column -->
+            <div class="control-group">
+                <label><i class="fas fa-clock"></i> SELECT TIME SLOT</label>
+                <div class="time-input-group">
+                    <div class="time-field">
+                        <select id="startTime" class="w3-select w3-border w3-round">
+                            <option value="8">08:00</option>
+                            <option value="9">09:00</option>
+                            <option value="10">10:00</option>
+                            <option value="11">11:00</option>
+                            <option value="12">12:00</option>
+                            <option value="13" selected>13:00</option>
+                            <option value="14">14:00</option>
+                            <option value="15">15:00</option>
+                            <option value="16">16:00</option>
+                            <option value="17">17:00</option>
+                        </select>
+                    </div>
+                    <div style="align-self: center; color: #666;">to</div>
+                    <div class="time-field">
+                        <select id="endTime" class="w3-select w3-border w3-round">
+                            <option value="9">09:00</option>
+                            <option value="10">10:00</option>
+                            <option value="11">11:00</option>
+                            <option value="12">12:00</option>
+                            <option value="13">13:00</option>
+                            <option value="14">14:00</option>
+                            <option value="15">15:00</option>
+                            <option value="16" selected>16:00</option>
+                            <option value="17">17:00</option>
+                            <option value="18">18:00</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Room Category Filter Tags -->
+        <div class="filter-tags-row">
+            <span class="filter-tag w3-blue active" onclick="filterByCategory('all')">
+                <i class="fas fa-layer-group"></i> All Rooms
+            </span>
+            <span class="filter-tag w3-light-grey" onclick="filterByCategory('N28')">
+                <i class="fas fa-building"></i> N28
+            </span>
+            <span class="filter-tag w3-light-grey" onclick="filterByCategory('N28A')">
+                <i class="fas fa-building"></i> N28A
+            </span>
+            <span class="filter-tag w3-light-grey" onclick="filterByCategory('Bilik Kuliah')">
+                <i class="fas fa-chalkboard-teacher"></i> Bilik Kuliah
+            </span>
+            <span class="filter-tag w3-light-grey" onclick="filterByCategory('Dewan')">
+                <i class="fas fa-university"></i> Dewan
+            </span>
+            <span class="filter-tag w3-light-grey" onclick="filterByCategory('Makmal')">
+                <i class="fas fa-flask"></i> Makmal
+            </span>
+        </div>
+
+        <!-- Action Buttons -->
+        <div class="action-buttons">
+            <button class="w3-button w3-light-grey w3-round" onclick="loadRoomData()">
+                <i class="fas fa-sync-alt"></i> Reload Rooms
+            </button>
+            <button class="w3-button w3-blue w3-round" onclick="checkAvailability()">
+                <i class="fas fa-check-circle"></i> Check Availability
+            </button>
         </div>
     </div>
-    
-    <!-- Room Category Filter Tags -->
-    <div class="filter-tags-row">
-        <span class="filter-tag w3-blue active" onclick="filterByCategory('all')">
-            <i class="fas fa-layer-group"></i> All Rooms
-        </span>
-        <span class="filter-tag w3-light-grey" onclick="filterByCategory('N28')">
-            <i class="fas fa-building"></i> N28
-        </span>
-        <span class="filter-tag w3-light-grey" onclick="filterByCategory('N28A')">
-            <i class="fas fa-building"></i> N28A
-        </span>
-        <span class="filter-tag w3-light-grey" onclick="filterByCategory('Bilik Kuliah')">
-            <i class="fas fa-chalkboard-teacher"></i> Bilik Kuliah
-        </span>
-        <span class="filter-tag w3-light-grey" onclick="filterByCategory('Dewan')">
-            <i class="fas fa-university"></i> Dewan
-        </span>
-        <span class="filter-tag w3-light-grey" onclick="filterByCategory('Makmal')">
-            <i class="fas fa-flask"></i> Makmal
-        </span>
-    </div>
-    
-    <!-- Action Buttons -->
-    <div class="action-buttons">
-        <button class="w3-button w3-light-grey w3-round" onclick="loadRoomData()">
-            <i class="fas fa-sync-alt"></i> Reload Rooms
-        </button>
-        <button class="w3-button w3-blue w3-round" onclick="checkAvailability()">
-            <i class="fas fa-check-circle"></i> Check Availability
-        </button>
-    </div>
-</div>
 
-<!-- Loading Message -->
-<div class="loading" id="loadingMsg">
-    <div class="w3-center">
-        <div class="w3-spinner w3-large"></div>
-        <p>Loading room data from TTMS system...</p>
-    </div>
-</div>
-
-<!-- Room Table -->
-<div id="roomTableContainer" style="display: none;">
-    <div class="table-container">
-        <table class="custom-table">
-            <thead>
-                <tr>
-                    <th>Bil</th>
-                    <th>Room Code</th>
-                    <th>Name</th>
-                    <th>Shortforms</th>
-                    <th>Category</th>
-                    <th>Day</th>
-                    <th>Time</th>
-                    <th>Status</th>
-                </tr>
-            </thead>
-            <tbody id="roomTableBody">
-                <!-- Room data will be inserted here -->
-            </tbody>
-        </table>
-    </div>
-    
-    <!-- Pagination Controls -->
-    <div id="paginationContainer" class="pagination-container" style="display: none;">
-        <div class="pagination-info" id="pageInfo">Page 1 of 1</div>
-        <div class="pagination" id="pagination">
-            <!-- Page buttons will be inserted here -->
+    <!-- Loading Message -->
+    <div class="loading" id="loadingMsg">
+        <div class="w3-center">
+            <div class="w3-spinner w3-large"></div>
+            <p>Loading room data from TTMS system...</p>
         </div>
     </div>
-</div>
 
-<!-- No Results Message -->
-<div id="noResults" style="display: none;" class="no-results">
-    <i class="fas fa-search fa-2x" style="color: #ccc; margin-bottom: 10px;"></i>
-    <h4>No matching rooms found</h4>
-    <p>Try adjusting your search criteria or select different filters</p>
-</div>
+    <!-- Room Table -->
+    <div id="roomTableContainer" style="display: none;">
+        <!-- Charts Section -->
+        <div id="chartsContainer" class="charts-container" style="display: none;">
+            <div class="chart-box">
+                <div class="chart-title"><i class="fas fa-chalkboard-teacher"></i> Bilik Kuliah Availability</div>
+                <div id="chart_BK" style="width: 100%; height: 250px;"></div>
+            </div>
+            <div class="chart-box">
+                <div class="chart-title"><i class="fas fa-flask"></i> Makmal Availability</div>
+                <div id="chart_MAK" style="width: 100%; height: 250px;"></div>
+            </div>
+            <div class="chart-box">
+                <div class="chart-title"><i class="fas fa-university"></i> Others (Dewan/Meeting)</div>
+                <div id="chart_OTH" style="width: 100%; height: 250px;"></div>
+            </div>
+        </div>
 
-<!-- Error Display -->
-<div id="errorDisplay" style="display: none;" class="error-panel">
-    <h3 class="w3-text-red"><i class="fas fa-exclamation-triangle"></i> Error Loading Data</h3>
-    <p id="errorMessage" class="w3-text-dark-grey">Unable to load room information</p>
-    <button class="w3-button w3-red w3-round" onclick="loadRoomData()">
-        <i class="fas fa-redo"></i> Try Again
-    </button>
-</div>
+        <div class="table-container">
+            <table class="custom-table">
+                <thead>
+                    <tr>
+                        <th>Bil</th>
+                        <th>Room Code</th>
+                        <th>Name</th>
+                        <th>Shortforms</th>
+                        <th>Category</th>
+                        <th>Day</th>
+                        <th>Time</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody id="roomTableBody">
+                    <!-- Room data will be inserted here -->
+                </tbody>
+            </table>
+        </div>
 
-<script>
-// Configuration
-const BASE_API_URL = "http://web.fc.utm.my/ttms/web_man_webservice_json.cgi";
-const FACULTY_CODE = "fsksm";
-const CURRENT_SESSION = "2025/2026";
-const CURRENT_SEMESTER = "1";
-const ROOMS_PER_PAGE = 20; // Number of rooms to display per page
+        <!-- Pagination Controls -->
+        <div id="paginationContainer" class="pagination-container" style="display: none;">
+            <div class="pagination-info" id="pageInfo">Page 1 of 1</div>
+            <div class="pagination" id="pagination">
+                <!-- Page buttons will be inserted here -->
+            </div>
+        </div>
+    </div>
 
-let allRooms = [];
-let roomSchedules = {};
-let currentFilter = 'all';
-let currentSearch = '';
-let currentPage = 1;
-let filteredRooms = [];
-let totalPages = 1;
-let selectedDay = 2; // Monday (2 = Monday in UTM system)
+    <!-- No Results Message -->
+    <div id="noResults" style="display: none;" class="no-results">
+        <i class="fas fa-search fa-2x" style="color: #ccc; margin-bottom: 10px;"></i>
+        <h4>No matching rooms found</h4>
+        <p>Try adjusting your search criteria or select different filters</p>
+    </div>
 
-// Initialize the page
-$(document).ready(function() {
-    // Set up search input event listener
-    $("#searchInput").on("keyup", function() {
-        currentSearch = $(this).val().toLowerCase();
-        applyFilters();
-    });
-    
-    console.log("Page loaded, fetching room data...");
-    loadRoomData();
-});
+    <!-- Error Display -->
+    <div id="errorDisplay" style="display: none;" class="error-panel">
+        <h3 class="w3-text-red"><i class="fas fa-exclamation-triangle"></i> Error Loading Data</h3>
+        <p id="errorMessage" class="w3-text-dark-grey">Unable to load room information</p>
+        <button class="w3-button w3-red w3-round" onclick="loadRoomData()">
+            <i class="fas fa-redo"></i> Try Again
+        </button>
+    </div>
 
-// Select day (Monday to Friday)
-function selectDay(day) {
-    selectedDay = day;
-    
-    // Update active state of day buttons
-    $(".day-filter-btn").removeClass("active");
-    $(event.target).addClass("active");
-    
-    // Re-apply filters if we already have availability data
-    if (roomSchedules && Object.keys(roomSchedules).length > 0) {
-        applyFilters();
-    }
-}
+    <script>
+        // Configuration
+        const BASE_API_URL = "http://web.fc.utm.my/ttms/web_man_webservice_json.cgi";
+        const FACULTY_CODE = "fsksm";
+        const CURRENT_SESSION = "2025/2026";
+        const CURRENT_SEMESTER = "1";
+        const ROOMS_PER_PAGE = 20; // Number of rooms to display per page
 
-// Get day name from number
-function getDayName(dayNumber) {
-    const days = {
-        2: "Monday",
-        3: "Tuesday", 
-        4: "Wednesday",
-        5: "Thursday",
-        6: "Friday"
-    };
-    return days[dayNumber] || "Day " + dayNumber;
-}
+        let allRooms = [];
+        let roomSchedules = {};
+        let currentFilter = 'all';
+        let currentSearch = '';
+        let currentPage = 1;
+        let filteredRooms = [];
+        let totalPages = 1;
+        let selectedDay = 2; // Monday (2 = Monday in UTM system)
+        let isChartLibLoaded = false;
 
-// Improved function to extract room number for sorting
-function extractRoomNumber(roomCode) {
-    if (!roomCode) return 999999;
-    
-    // Normalize the room code
-    const normalizedCode = roomCode.toUpperCase().trim();
-    
-    // Create a sortable key
-    let sortKey = '';
-    
-    // First priority: Building (N28 comes before N28A)
-    if (normalizedCode.startsWith('N28A')) {
-        sortKey += 'B'; // 'B' for N28A (comes after 'A')
-    } else if (normalizedCode.startsWith('N28')) {
-        sortKey += 'A'; // 'A' for N28 (comes before 'B')
-    } else {
-        sortKey += 'Z'; // Other rooms come last
-    }
-    
-    // Second priority: Main room number (extract first set of digits)
-    const firstNumMatch = normalizedCode.match(/\d+/);
-    if (firstNumMatch) {
-        // Pad to 3 digits for proper sorting
-        sortKey += firstNumMatch[0].padStart(3, '0');
-    } else {
-        sortKey += '000';
-    }
-    
-    // Third priority: Sub-room number (extract second set of digits if exists)
-    const allNums = normalizedCode.match(/\d+/g);
-    if (allNums && allNums.length > 1) {
-        sortKey += allNums[1].padStart(3, '0');
-    } else {
-        sortKey += '000';
-    }
-    
-    // Convert to numeric value for sorting
-    return parseInt(sortKey, 10);
-}
+        // Initialize the page
+        $(document).ready(function () {
+            // Load Charts
+            google.charts.load('current', { 'packages': ['corechart'] });
+            google.charts.setOnLoadCallback(function () { isChartLibLoaded = true; });
 
-// Filter by category
-function filterByCategory(category) {
-    currentFilter = category;
-    currentPage = 1; // Reset to first page when changing filter
-    
-    // Update active state of filter tags
-    $(".filter-tag").removeClass("active w3-blue").addClass("w3-light-grey");
-    $(event.target).closest(".filter-tag").removeClass("w3-light-grey").addClass("active w3-blue");
-    
-    applyFilters();
-}
+            // Set up search input event listener
+            $("#searchInput").on("keyup", function () {
+                currentSearch = $(this).val().toLowerCase();
+                applyFilters();
+            });
 
-// Apply filters and update pagination
-function applyFilters() {
-    // Hide loading message when filtering (data is already loaded)
-    $("#loadingMsg").hide();
-    
-    // First, filter the rooms based on current criteria
-    filterRooms();
-    
-    // Then display the current page
-    displayCurrentPage();
-}
+            console.log("Page loaded, fetching room data...");
+            loadRoomData();
+        });
 
-// Filter rooms based on search and category
-function filterRooms() {
-    filteredRooms = allRooms.filter(room => {
-        if (!room || !room.kod_ruang) return false;
-        
-        const roomCode = (room.kod_ruang || '').toLowerCase();
-        const roomName = (room.nama_ruang || '').toLowerCase();
-        const roomShort = (room.nama_ruang_singkatan || '').toLowerCase();
-        const roomCategory = (room.jenis || '').toLowerCase();
-        
-        // Apply category filter
-        let categoryMatch = false;
-        
-        if (currentFilter === 'all') {
-            categoryMatch = true;
-        } 
-        // Check for building codes - N28 should show ONLY N28 building rooms
-        else if (currentFilter === 'N28') {
-            // Match N28-xxx patterns but NOT N28A-xxx patterns
-            categoryMatch = roomCode.startsWith('n28-') || 
-                           (roomCode.includes('n28') && !roomCode.includes('n28a'));
-        } 
-        // Check for N28A building
-        else if (currentFilter === 'N28A') {
-            // Match N28A-xxx patterns
-            categoryMatch = roomCode.startsWith('n28a-') || 
-                           roomCode.includes('n28a');
-        } 
-        // Check for category types (Bilik Kuliah, Dewan, Makmal)
-        else {
-            categoryMatch = roomCategory.includes(currentFilter.toLowerCase());
+        // Select day (Monday to Friday)
+        function selectDay(day) {
+            selectedDay = day;
+
+            // Update active state of day buttons
+            $(".day-filter-btn").removeClass("active");
+            $(event.target).addClass("active");
+
+            // Re-apply filters if we already have availability data
+            if (roomSchedules && Object.keys(roomSchedules).length > 0) {
+                applyFilters();
+            }
         }
-        
-        // Apply search filter
-        let searchMatch = true;
-        if (currentSearch) {
-            searchMatch = roomCode.includes(currentSearch) || 
-                         roomName.includes(currentSearch) || 
-                         roomShort.includes(currentSearch) ||
-                         roomCategory.includes(currentSearch);
-        }
-        
-        return categoryMatch && searchMatch;
-    });
-    
-    // Sort rooms: N28 first, then N28A, then others, all in ascending order
-    filteredRooms.sort((a, b) => {
-        const sortA = extractRoomNumber(a.kod_ruang);
-        const sortB = extractRoomNumber(b.kod_ruang);
-        return sortA - sortB;
-    });
-    
-    // Calculate total pages
-    totalPages = Math.ceil(filteredRooms.length / ROOMS_PER_PAGE);
-    if (totalPages === 0) totalPages = 1;
-    
-    // Ensure current page is valid
-    if (currentPage > totalPages) {
-        currentPage = totalPages;
-    }
-    if (currentPage < 1) {
-        currentPage = 1;
-    }
-}
 
-// Display current page of rooms
-function displayCurrentPage() {
-    const tableBody = $("#roomTableBody");
-    tableBody.empty();
-    
-    if (filteredRooms.length === 0) {
-        $("#noResults").show();
-        $("#roomTableContainer").hide();
-        $("#paginationContainer").hide();
-        // Hide loading message when showing "no results"
-        $("#loadingMsg").hide();
-        return;
-    }
-    
-    // Hide loading message when showing table
-    $("#loadingMsg").hide();
-    
-    // Calculate start and end indices for current page
-    const startIndex = (currentPage - 1) * ROOMS_PER_PAGE;
-    const endIndex = Math.min(startIndex + ROOMS_PER_PAGE, filteredRooms.length);
-    const currentPageRooms = filteredRooms.slice(startIndex, endIndex);
-    
-    // Get time slot
-    const startHour = parseInt($("#startTime").val());
-    const endHour = parseInt($("#endTime").val());
-    const hasAvailabilityData = roomSchedules && Object.keys(roomSchedules).length > 0;
-    const dayName = getDayName(selectedDay);
-    const timeDisplay = `${String(startHour).padStart(2, '0')}:00 - ${String(endHour).padStart(2, '0')}:00`;
-    
-    // Add rows for current page
-    currentPageRooms.forEach((room, index) => {
-        const globalIndex = startIndex + index + 1;
-        const roomCode = room.kod_ruang;
-        
-        if (hasAvailabilityData) {
-            // Display with availability status
-            const roomSchedule = roomSchedules[roomCode] || [];
-            const isAvailable = isRoomAvailable(roomSchedule, selectedDay, startHour, endHour);
-            
-            const row = `
+        // Get day name from number
+        function getDayName(dayNumber) {
+            const days = {
+                2: "Monday",
+                3: "Tuesday",
+                4: "Wednesday",
+                5: "Thursday",
+                6: "Friday"
+            };
+            return days[dayNumber] || "Day " + dayNumber;
+        }
+
+        // Improved function to extract room number for sorting
+        function extractRoomNumber(roomCode) {
+            if (!roomCode) return 999999;
+
+            // Normalize the room code
+            const normalizedCode = roomCode.toUpperCase().trim();
+
+            // Create a sortable key
+            let sortKey = '';
+
+            // First priority: Building (N28 comes before N28A)
+            if (normalizedCode.startsWith('N28A')) {
+                sortKey += 'B'; // 'B' for N28A (comes after 'A')
+            } else if (normalizedCode.startsWith('N28')) {
+                sortKey += 'A'; // 'A' for N28 (comes before 'B')
+            } else {
+                sortKey += 'Z'; // Other rooms come last
+            }
+
+            // Second priority: Main room number (extract first set of digits)
+            const firstNumMatch = normalizedCode.match(/\d+/);
+            if (firstNumMatch) {
+                // Pad to 3 digits for proper sorting
+                sortKey += firstNumMatch[0].padStart(3, '0');
+            } else {
+                sortKey += '000';
+            }
+
+            // Third priority: Sub-room number (extract second set of digits if exists)
+            const allNums = normalizedCode.match(/\d+/g);
+            if (allNums && allNums.length > 1) {
+                sortKey += allNums[1].padStart(3, '0');
+            } else {
+                sortKey += '000';
+            }
+
+            // Convert to numeric value for sorting
+            return parseInt(sortKey, 10);
+        }
+
+        // Filter by category
+        function filterByCategory(category) {
+            currentFilter = category;
+            currentPage = 1; // Reset to first page when changing filter
+
+            // Update active state of filter tags
+            $(".filter-tag").removeClass("active w3-blue").addClass("w3-light-grey");
+            $(event.target).closest(".filter-tag").removeClass("w3-light-grey").addClass("active w3-blue");
+
+            applyFilters();
+        }
+
+        // Apply filters and update pagination
+        function applyFilters() {
+            // Hide loading message when filtering (data is already loaded)
+            $("#loadingMsg").hide();
+
+            // First, filter the rooms based on current criteria
+            filterRooms();
+
+            // Draw Charts if we have data
+            if (Object.keys(roomSchedules).length > 0) {
+                calculateAndDrawCharts();
+            }
+
+            // Then display the current page
+            displayCurrentPage();
+        }
+
+        // Filter rooms based on search and category
+        function filterRooms() {
+            filteredRooms = allRooms.filter(room => {
+                if (!room || !room.kod_ruang) return false;
+
+                const roomCode = (room.kod_ruang || '').toLowerCase();
+                const roomName = (room.nama_ruang || '').toLowerCase();
+                const roomShort = (room.nama_ruang_singkatan || '').toLowerCase();
+                const roomCategory = (room.jenis || '').toLowerCase();
+
+                // Apply category filter
+                let categoryMatch = false;
+
+                if (currentFilter === 'all') {
+                    categoryMatch = true;
+                }
+                // Check for building codes - N28 should show ONLY N28 building rooms
+                else if (currentFilter === 'N28') {
+                    // Match N28-xxx patterns but NOT N28A-xxx patterns
+                    categoryMatch = roomCode.startsWith('n28-') ||
+                        (roomCode.includes('n28') && !roomCode.includes('n28a'));
+                }
+                // Check for N28A building
+                else if (currentFilter === 'N28A') {
+                    // Match N28A-xxx patterns
+                    categoryMatch = roomCode.startsWith('n28a-') ||
+                        roomCode.includes('n28a');
+                }
+                // Check for category types (Bilik Kuliah, Dewan, Makmal)
+                else {
+                    categoryMatch = roomCategory.includes(currentFilter.toLowerCase());
+                }
+
+                // Apply search filter
+                let searchMatch = true;
+                if (currentSearch) {
+                    searchMatch = roomCode.includes(currentSearch) ||
+                        roomName.includes(currentSearch) ||
+                        roomShort.includes(currentSearch) ||
+                        roomCategory.includes(currentSearch);
+                }
+
+                return categoryMatch && searchMatch;
+            });
+
+            // Sort rooms: N28 first, then N28A, then others, all in ascending order
+            filteredRooms.sort((a, b) => {
+                const sortA = extractRoomNumber(a.kod_ruang);
+                const sortB = extractRoomNumber(b.kod_ruang);
+                return sortA - sortB;
+            });
+
+            // Calculate total pages
+            totalPages = Math.ceil(filteredRooms.length / ROOMS_PER_PAGE);
+            if (totalPages === 0) totalPages = 1;
+
+            // Ensure current page is valid
+            if (currentPage > totalPages) {
+                currentPage = totalPages;
+            }
+            if (currentPage < 1) {
+                currentPage = 1;
+            }
+        }
+
+        // Display current page of rooms
+        function displayCurrentPage() {
+            const tableBody = $("#roomTableBody");
+            tableBody.empty();
+
+            if (filteredRooms.length === 0) {
+                $("#noResults").show();
+                $("#roomTableContainer").hide();
+                $("#paginationContainer").hide();
+                // Hide loading message when showing "no results"
+                $("#loadingMsg").hide();
+                return;
+            }
+
+            // Hide loading message when showing table
+            $("#loadingMsg").hide();
+
+            // Calculate start and end indices for current page
+            const startIndex = (currentPage - 1) * ROOMS_PER_PAGE;
+            const endIndex = Math.min(startIndex + ROOMS_PER_PAGE, filteredRooms.length);
+            const currentPageRooms = filteredRooms.slice(startIndex, endIndex);
+
+            // Get time slot
+            const startHour = parseInt($("#startTime").val());
+            const endHour = parseInt($("#endTime").val());
+            const hasAvailabilityData = roomSchedules && Object.keys(roomSchedules).length > 0;
+            const dayName = getDayName(selectedDay);
+            const timeDisplay = `${String(startHour).padStart(2, '0')}:00 - ${String(endHour).padStart(2, '0')}:00`;
+
+            // Add rows for current page
+            currentPageRooms.forEach((room, index) => {
+                const globalIndex = startIndex + index + 1;
+                const roomCode = room.kod_ruang;
+
+                if (hasAvailabilityData) {
+                    // Display with availability status
+                    const roomSchedule = roomSchedules[roomCode] || [];
+                    const isAvailable = isRoomAvailable(roomSchedule, selectedDay, startHour, endHour);
+
+                    const row = `
                 <tr>
                     <td style="text-align: center;">${globalIndex}</td>
                     <td><strong>${roomCode}</strong></td>
@@ -703,10 +818,10 @@ function displayCurrentPage() {
                     </td>
                 </tr>
             `;
-            tableBody.append(row);
-        } else {
-            // Display basic info only
-            const row = `
+                    tableBody.append(row);
+                } else {
+                    // Display basic info only
+                    const row = `
                 <tr>
                     <td style="text-align: center;">${globalIndex}</td>
                     <td><strong>${roomCode}</strong></td>
@@ -718,236 +833,309 @@ function displayCurrentPage() {
                     </td>
                 </tr>
             `;
-            tableBody.append(row);
-        }
-    });
-    
-    // Update pagination controls
-    updatePaginationControls();
-    
-    // Show/hide containers
-    $("#noResults").hide();
-    $("#roomTableContainer").show();
-    $("#paginationContainer").show();
-}
-
-// Update pagination buttons
-function updatePaginationControls() {
-    const paginationDiv = $("#pagination");
-    paginationDiv.empty();
-    
-    // Update page info
-    const startIndex = (currentPage - 1) * ROOMS_PER_PAGE + 1;
-    const endIndex = Math.min(startIndex + ROOMS_PER_PAGE - 1, filteredRooms.length);
-    $("#pageInfo").html(`Showing ${startIndex}-${endIndex} of ${filteredRooms.length} rooms`);
-    
-    // Previous button
-    const prevBtn = `<button class="page-btn ${currentPage === 1 ? 'disabled' : ''}" 
-                     onclick="changePage(${currentPage - 1})" ${currentPage === 1 ? 'disabled' : ''}>
-                     <i class="fas fa-chevron-left"></i></button>`;
-    paginationDiv.append(prevBtn);
-    
-    // Page buttons
-    const maxVisiblePages = 5;
-    let startPage = Math.max(1, currentPage - Math.floor(maxVisiblePages / 2));
-    let endPage = Math.min(totalPages, startPage + maxVisiblePages - 1);
-    
-    // Adjust if we're near the end
-    if (endPage - startPage + 1 < maxVisiblePages) {
-        startPage = Math.max(1, endPage - maxVisiblePages + 1);
-    }
-    
-    // First page and ellipsis
-    if (startPage > 1) {
-        paginationDiv.append(`<button class="page-btn" onclick="changePage(1)">1</button>`);
-        if (startPage > 2) {
-            paginationDiv.append(`<span class="page-dots">...</span>`);
-        }
-    }
-    
-    // Page numbers
-    for (let i = startPage; i <= endPage; i++) {
-        const activeClass = i === currentPage ? 'active' : '';
-        paginationDiv.append(`<button class="page-btn ${activeClass}" onclick="changePage(${i})">${i}</button>`);
-    }
-    
-    // Last page and ellipsis
-    if (endPage < totalPages) {
-        if (endPage < totalPages - 1) {
-            paginationDiv.append(`<span class="page-dots">...</span>`);
-        }
-        paginationDiv.append(`<button class="page-btn" onclick="changePage(${totalPages})">${totalPages}</button>`);
-    }
-    
-    // Next button
-    const nextBtn = `<button class="page-btn ${currentPage === totalPages ? 'disabled' : ''}" 
-                     onclick="changePage(${currentPage + 1})" ${currentPage === totalPages ? 'disabled' : ''}>
-                     <i class="fas fa-chevron-right"></i></button>`;
-    paginationDiv.append(nextBtn);
-}
-
-// Change to specific page
-function changePage(page) {
-    if (page < 1 || page > totalPages || page === currentPage) return;
-    
-    currentPage = page;
-    displayCurrentPage();
-    
-    // Scroll to top of table
-    $('html, body').animate({
-        scrollTop: $("#roomTableContainer").offset().top - 20
-    }, 300);
-}
-
-// Main function to load room list
-function loadRoomData() {
-    console.log("Loading room data...");
-    
-    // Reset pagination
-    currentPage = 1;
-    
-    // Show loading, hide everything else
-    $("#loadingMsg").show();
-    $("#roomTableContainer").hide();
-    $("#paginationContainer").hide();
-    $("#errorDisplay").hide();
-    $("#noResults").hide();
-    
-    // API URL for FSKSM rooms
-    const apiUrl = `${BASE_API_URL}?entity=ruang&kod_fakulti=${FACULTY_CODE}`;
-    
-    $.ajax({
-        url: apiUrl,
-        type: "GET",
-        dataType: "json",
-        timeout: 10000,
-        success: function(rooms) {
-            console.log("Room list data received:", rooms);
-            
-            if (!rooms || !Array.isArray(rooms) || rooms.length === 0) {
-                showError("No room data available from server");
-                return;
-            }
-            
-            allRooms = rooms;
-            roomSchedules = {}; // Clear previous schedules
-            
-            // Initial filter and display
-            filterRooms();
-            displayCurrentPage();
-        },
-        error: function(xhr, status, error) {
-            console.error("Error loading room list:", status, error);
-            let errorMsg = "Failed to load room list";
-            if (status === "timeout") {
-                errorMsg = "Server timeout - try again";
-            } else if (status === "parsererror") {
-                errorMsg = "Invalid data format from room list API";
-            }
-            showError(errorMsg + ": " + (error || status));
-        }
-    });
-}
-
-// Function to check availability for all rooms
-function checkAvailability() {
-    const startHour = parseInt($("#startTime").val());
-    const endHour = parseInt($("#endTime").val());
-    
-    if (startHour >= endHour) {
-        alert("End time must be after start time!");
-        return;
-    }
-    
-    console.log(`Checking availability for ${getDayName(selectedDay)}, ${startHour}:00-${endHour}:00`);
-    
-    // Show loading while fetching schedules
-    $("#loadingMsg").show();
-    $("#roomTableContainer").hide();
-    $("#paginationContainer").hide();
-    $("#noResults").hide();
-    
-    // Build promises for fetching all room schedules
-    const schedulePromises = allRooms.map(room => {
-        const roomCode = room.kod_ruang;
-        if (!roomCode) return Promise.resolve(null);
-        
-        const scheduleUrl = `${BASE_API_URL}?entity=jadual_ruang&sesi=${CURRENT_SESSION}&semester=${CURRENT_SEMESTER}&kod_ruang=${encodeURIComponent(roomCode)}`;
-        
-        return $.ajax({
-            url: scheduleUrl,
-            type: "GET",
-            dataType: "json",
-            timeout: 8000
-        }).then(function(schedule) {
-            return { roomCode, schedule };
-        }).catch(function(error) {
-            console.warn(`Failed to fetch schedule for ${roomCode}:`, error);
-            return { roomCode, schedule: [] };
-        });
-    });
-    
-    // Fetch all schedules in parallel
-    Promise.all(schedulePromises)
-        .then(results => {
-            // Store schedules
-            roomSchedules = {};
-            results.forEach(result => {
-                if (result && result.roomCode) {
-                    roomSchedules[result.roomCode] = result.schedule || [];
+                    tableBody.append(row);
                 }
             });
-            
-            console.log("Fetched schedules for", Object.keys(roomSchedules).length, "rooms");
-            
-            // Re-filter and display with availability
-            filterRooms();
-            displayCurrentPage();
-        })
-        .catch(error => {
-            console.error("Error fetching schedules:", error);
-            showError("Failed to fetch room schedules: " + error);
-        });
-}
 
-// Check if a room is available (modified for day instead of date)
-function isRoomAvailable(roomSchedule, day, startHour, endHour) {
-    if (!roomSchedule || !Array.isArray(roomSchedule) || roomSchedule.length === 0) {
-        return true; // No schedule means room is available
-    }
-    
-    // We don't check date range anymore, just check if the room has a class
-    // on the selected day and time
-    for (const booking of roomSchedule) {
-        // Check if booking day matches
-        if (parseInt(booking.hari) === day) {
-            // Convert booking masa to 24-hour format: UTM masa 1 = 8:00 AM
-            const bookingStartHour = booking.masa + 7;
-            const bookingEndHour = bookingStartHour + 1; // Assumes 1-hour slots
-            
-            // Check for time overlap
-            if (bookingStartHour < endHour && bookingEndHour > startHour) {
-                return false; // Room is occupied
-            }
+            // Update pagination controls
+            updatePaginationControls();
+
+            // Show/hide containers
+            $("#noResults").hide();
+            $("#roomTableContainer").show();
+            $("#paginationContainer").show();
         }
-    }
-    
-    return true; // No conflicts found
-}
 
-function showError(message) {
-    $("#loadingMsg").hide();
-    $("#roomTableContainer").hide();
-    $("#paginationContainer").hide();
-    $("#noResults").hide();
-    
-    $("#errorMessage").text(message);
-    $("#errorDisplay").show();
-}
-</script>
+        // Update pagination buttons
+        function updatePaginationControls() {
+            const paginationDiv = $("#pagination");
+            paginationDiv.empty();
 
-<!-- Load jQuery -->
-<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
+            // Update page info
+            const startIndex = (currentPage - 1) * ROOMS_PER_PAGE + 1;
+            const endIndex = Math.min(startIndex + ROOMS_PER_PAGE - 1, filteredRooms.length);
+            $("#pageInfo").html(`Showing ${startIndex}-${endIndex} of ${filteredRooms.length} rooms`);
+
+            // Previous button
+            const prevBtn = `<button class="page-btn ${currentPage === 1 ? 'disabled' : ''}"
+                     onclick="changePage(${currentPage - 1})" ${currentPage === 1 ? 'disabled' : ''}>
+                     <i class="fas fa-chevron-left"></i></button>`;
+            paginationDiv.append(prevBtn);
+
+            // Page buttons
+            const maxVisiblePages = 5;
+            let startPage = Math.max(1, currentPage - Math.floor(maxVisiblePages / 2));
+            let endPage = Math.min(totalPages, startPage + maxVisiblePages - 1);
+
+            // Adjust if we're near the end
+            if (endPage - startPage + 1 < maxVisiblePages) {
+                startPage = Math.max(1, endPage - maxVisiblePages + 1);
+            }
+
+            // First page and ellipsis
+            if (startPage > 1) {
+                paginationDiv.append(`<button class="page-btn" onclick="changePage(1)">1</button>`);
+                if (startPage > 2) {
+                    paginationDiv.append(`<span class="page-dots">...</span>`);
+                }
+            }
+
+            // Page numbers
+            for (let i = startPage; i <= endPage; i++) {
+                const activeClass = i === currentPage ? 'active' : '';
+                paginationDiv.append(`<button class="page-btn ${activeClass}" onclick="changePage(${i})">${i}</button>`);
+            }
+
+            // Last page and ellipsis
+            if (endPage < totalPages) {
+                if (endPage < totalPages - 1) {
+                    paginationDiv.append(`<span class="page-dots">...</span>`);
+                }
+                paginationDiv.append(`<button class="page-btn" onclick="changePage(${totalPages})">${totalPages}</button>`);
+            }
+
+            // Next button
+            const nextBtn = `<button class="page-btn ${currentPage === totalPages ? 'disabled' : ''}"
+                     onclick="changePage(${currentPage + 1})" ${currentPage === totalPages ? 'disabled' : ''}>
+                     <i class="fas fa-chevron-right"></i></button>`;
+            paginationDiv.append(nextBtn);
+        }
+
+        // Change to specific page
+        function changePage(page) {
+            if (page < 1 || page > totalPages || page === currentPage) return;
+
+            currentPage = page;
+            displayCurrentPage();
+
+            // Scroll to top of table
+            $('html, body').animate({
+                scrollTop: $("#roomTableContainer").offset().top - 20
+            }, 300);
+        }
+
+        // Main function to load room list
+        function loadRoomData() {
+            console.log("Loading room data...");
+
+            // Reset pagination
+            currentPage = 1;
+
+            // Show loading, hide everything else
+            $("#loadingMsg").show();
+            $("#roomTableContainer").hide();
+            $("#chartsContainer").hide();
+            $("#paginationContainer").hide();
+            $("#errorDisplay").hide();
+            $("#noResults").hide();
+
+            // API URL for FSKSM rooms
+            const apiUrl = `${BASE_API_URL}?entity=ruang&kod_fakulti=${FACULTY_CODE}`;
+
+            $.ajax({
+                url: apiUrl,
+                type: "GET",
+                dataType: "json",
+                timeout: 10000,
+                success: function (rooms) {
+                    console.log("Room list data received:", rooms);
+
+                    if (!rooms || !Array.isArray(rooms) || rooms.length === 0) {
+                        showError("No room data available from server");
+                        return;
+                    }
+
+                    allRooms = rooms;
+                    roomSchedules = {}; // Clear previous schedules
+
+                    // Initial filter and display
+                    filterRooms();
+                    displayCurrentPage();
+                },
+                error: function (xhr, status, error) {
+                    console.error("Error loading room list:", status, error);
+                    let errorMsg = "Failed to load room list";
+                    if (status === "timeout") {
+                        errorMsg = "Server timeout - try again";
+                    } else if (status === "parsererror") {
+                        errorMsg = "Invalid data format from room list API";
+                    }
+                    showError(errorMsg + ": " + (error || status));
+                }
+            });
+        }
+
+        // Function to check availability for all rooms
+        function checkAvailability() {
+            const startHour = parseInt($("#startTime").val());
+            const endHour = parseInt($("#endTime").val());
+
+            if (startHour >= endHour) {
+                alert("End time must be after start time!");
+                return;
+            }
+
+            console.log(`Checking availability for ${getDayName(selectedDay)}, ${startHour}:00-${endHour}:00`);
+
+            // Show loading while fetching schedules
+            $("#loadingMsg").show();
+            $("#roomTableContainer").hide();
+            $("#chartsContainer").hide();
+            $("#paginationContainer").hide();
+            $("#noResults").hide();
+
+            // Build promises for fetching all room schedules
+            const schedulePromises = allRooms.map(room => {
+                const roomCode = room.kod_ruang;
+                if (!roomCode) return Promise.resolve(null);
+
+                const scheduleUrl = `${BASE_API_URL}?entity=jadual_ruang&sesi=${CURRENT_SESSION}&semester=${CURRENT_SEMESTER}&kod_ruang=${encodeURIComponent(roomCode)}`;
+
+                return $.ajax({
+                    url: scheduleUrl,
+                    type: "GET",
+                    dataType: "json",
+                    timeout: 8000
+                }).then(function (schedule) {
+                    return { roomCode, schedule };
+                }).catch(function (error) {
+                    console.warn(`Failed to fetch schedule for ${roomCode}:`, error);
+                    return { roomCode, schedule: [] };
+                });
+            });
+
+            // Fetch all schedules in parallel
+            Promise.all(schedulePromises)
+                .then(results => {
+                    // Store schedules
+                    roomSchedules = {};
+                    results.forEach(result => {
+                        if (result && result.roomCode) {
+                            roomSchedules[result.roomCode] = result.schedule || [];
+                        }
+                    });
+
+                    console.log("Fetched schedules for", Object.keys(roomSchedules).length, "rooms");
+
+                    console.log("Fetched schedules for", Object.keys(roomSchedules).length, "rooms");
+
+                    // Draw Charts
+                    calculateAndDrawCharts();
+
+                    // Re-filter and display with availability
+                    filterRooms();
+                    displayCurrentPage();
+                })
+                .catch(error => {
+                    console.error("Error fetching schedules:", error);
+                    showError("Failed to fetch room schedules: " + error);
+                });
+        }
+
+        // Check if a room is available (modified for day instead of date)
+        function isRoomAvailable(roomSchedule, day, startHour, endHour) {
+            if (!roomSchedule || !Array.isArray(roomSchedule) || roomSchedule.length === 0) {
+                return true; // No schedule means room is available
+            }
+
+            // We don't check date range anymore, just check if the room has a class
+            // on the selected day and time
+            for (const booking of roomSchedule) {
+                // Check if booking day matches
+                if (parseInt(booking.hari) === day) {
+                    // Convert booking masa to 24-hour format: UTM masa 1 = 8:00 AM
+                    const bookingStartHour = booking.masa + 7;
+                    const bookingEndHour = bookingStartHour + 1; // Assumes 1-hour slots
+
+                    // Check for time overlap
+                    if (bookingStartHour < endHour && bookingEndHour > startHour) {
+                        return false; // Room is occupied
+                    }
+                }
+            }
+
+            return true; // No conflicts found
+        }
+
+        // Calculate and Draw Pie Charts
+        function calculateAndDrawCharts() {
+            if (!isChartLibLoaded) return;
+
+            $("#chartsContainer").show();
+
+            const startHour = parseInt($("#startTime").val());
+            const endHour = parseInt($("#endTime").val());
+
+            // tallies: [Available, Unavailable]
+            let stats = {
+                'BK': [0, 0],    // Bilik Kuliah
+                'MAK': [0, 0],   // Makmal
+                'OTH': [0, 0]    // Others
+            };
+
+            filteredRooms.forEach(room => {
+                const type = (room.jenis || '').toUpperCase();
+                const sched = roomSchedules[room.kod_ruang] || [];
+                const isAvail = isRoomAvailable(sched, selectedDay, startHour, endHour);
+                const idx = isAvail ? 0 : 1;
+
+                if (type.includes('DEWAN')) {
+                    stats['OTH'][idx]++;
+                } else if (type.includes('KULIAH')) {
+                    stats['BK'][idx]++;
+                } else if (type.includes('MAKMAL')) {
+                    stats['MAK'][idx]++;
+                } else {
+                    stats['OTH'][idx]++;
+                }
+            });
+
+            drawPieChart('chart_BK', 'Bilik Kuliah', stats['BK']);
+            drawPieChart('chart_MAK', 'Makmal', stats['MAK']);
+            drawPieChart('chart_OTH', 'Others', stats['OTH']);
+        }
+
+        function drawPieChart(elemId, title, data) {
+            // data = [available, unavailable]
+            // If no data at all
+            if (data[0] === 0 && data[1] === 0) {
+                document.getElementById(elemId).innerHTML = '<div style="text-align:center; padding-top:100px; color:#ccc;">No Data</div>';
+                return;
+            }
+
+            const dataTable = google.visualization.arrayToDataTable([
+                ['Status', 'Count'],
+                ['Available', data[0]],
+                ['Occupied', data[1]]
+            ]);
+
+            const options = {
+                pieHole: 0.4,
+                colors: ['#4CAF50', '#F44336'], // Green, Red
+                legend: { position: 'bottom' },
+                chartArea: { width: '90%', height: '80%' },
+                pieSliceText: 'percentage',
+                fontSize: 12
+            };
+
+            const chart = new google.visualization.PieChart(document.getElementById(elemId));
+            chart.draw(dataTable, options);
+        }
+
+        function showError(message) {
+            $("#loadingMsg").hide();
+            $("#roomTableContainer").hide();
+            $("#paginationContainer").hide();
+            $("#noResults").hide();
+
+            $("#errorMessage").text(message);
+            $("#errorDisplay").show();
+        }
+    </script>
+
+    <!-- Load jQuery -->
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
 
 </body>
+
 </html>

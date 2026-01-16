@@ -303,8 +303,9 @@
             // ==========================================
             function placeIntoTable(subject, slot) {
                 const day = slot.hari;
-                // 0-based index correction
-                const time = slot.masa - 1;
+                // 0-based index correction: masa 4 (10am) -> index 2 (8am+2 = 10am)
+                // Assuming masa begins at 7am or similar 1-based index that needs shifting relative to 8am start
+                const time = slot.masa - 2;
 
                 const slotKey = `${day}-${time}`;
                 occupiedSlots.add(slotKey);
