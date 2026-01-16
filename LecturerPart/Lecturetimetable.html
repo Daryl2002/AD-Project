@@ -1,382 +1,406 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
+
 <head>
-    <title>My Lecturer Timetable</title>
-    <link rel="stylesheet" href="https://www.w3schools.com/w3css/4/w3.css">
-    <link rel="stylesheet" href="Styles/MyTimetableStyle.css"> 
+    <title>TTMS - Lecturer Timetable</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
     <script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
-    
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
+    <!-- CSS Path fixed: Relative to MainLecturer.html since it's loaded dynamically -->
+    <link rel="stylesheet" href="Styles/MyTimetableStyle.css">
+
+    <!-- Inline overrides if necessary, or just rely on MyTimetableStyle -->
     <style>
-        /* Custom style for slots in the timetable */
-        .slot {
-            padding: 5px;
-            margin: 2px 0;
-            border-radius: 4px;
-            background-color: #e8f5e9; /* Light green background */
-            border-left: 5px solid #4caf50; /* Green bar */
-            font-size: 0.8em;
-            line-height: 1.2;
-            overflow: hidden;
-            text-overflow: ellipsis;
-        }
-        .w3-table-all th:not(:first-child) {
-             text-align: center;
-        }
-        .info-box {
-            background-color: #f5f5f5;
-            padding: 15px;
-            border-radius: 8px;
-            margin-bottom: 20px;
-            border-left: 5px solid #4caf50;
+        /* Specific adjustments for lecturer view if needed */
+        .badge-active {
+            background-color: var(--primary-color, #10b981);
+            color: white;
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 0.8rem;
+            font-weight: 600;
         }
     </style>
 </head>
 
-<body class="w3-container">
+<body>
 
-<h2 class="w3-center">My Lecturer Timetable</h2>
+    <div class="timetable-wrapper">
+        <div class="timetable-header">
+            <h2>My Lecture Timetable</h2>
+            <div class="info-grid">
+                <div class="info-stat-card">
+                    <label>Lecturer</label>
+                    <span id="lecturerName">Loading...</span>
+                </div>
+                <div class="info-stat-card">
+                    <label>Staff No.</label>
+                    <span id="staffNo">Loading...</span>
+                </div>
+                <div class="info-stat-card">
+                    <label>Current Term</label>
+                    <span id="sessionSem">Loading...</span>
+                </div>
+            </div>
+        </div>
 
-<div class="info-box">
-    <p><strong>Lecturer:</strong> <span id="lecturerName">Loading...</span></p>
-    <p><strong>Staff No:</strong> <span id="staffNo">Loading...</span></p>
-    <p><strong>Session/Semester:</strong> <span id="sessionSem">Loading...</span></p>
-</div>
+        <div class="chart-container">
+            <div id="freeTimeChartDiv"></div>
+        </div>
 
-<div class="loading" id="loadingMsg">
-    🔄 Loading your timetable from TTMS...
-</div>
+        <div class="loading" id="loadingMsg">
+            <i class="fa fa-spinner fa-spin"></i> Loading your timetable from TTMS...
+        </div>
 
-<div id="freeTimeChartDiv" style="width: 100%; height: 400px;"></div>
-<hr>
+        <div class="table-container" id="timetableContainer" style="display:none;">
+            <table class="proto-table">
+                <thead>
+                    <tr>
+                        <th class="time-header">Time</th>
+                        <th>MON</th>
+                        <th>TUE</th>
+                        <th>WED</th>
+                        <th>THU</th>
+                        <th>FRI</th>
+                    </tr>
+                </thead>
+                <tbody id="timetableBody"></tbody>
+            </table>
+        </div>
 
-<table class="w3-table-all" id="timetableTable" style="display:none;">
-    <thead>
-        <tr>
-            <th>Time</th>
-            <th>Monday</th>
-            <th>Tuesday</th>
-            <th>Wednesday</th>
-            <th>Thursday</th>
-            <th>Friday</th>
-        </tr>
-    </thead>
-    <tbody id="timetableBody"></tbody>
-</table>
+        <div class="course-section" id="courseListSection" style="display:none;">
+            <h3>My Teaching Courses</h3>
+            <div class="table-container">
+                <table class="course-table">
+                    <thead>
+                        <tr>
+                            <th>Code</th>
+                            <th>Course Name</th>
+                            <th class="center">Section</th>
+                            <th class="center">Students</th>
+                        </tr>
+                    </thead>
+                    <tbody id="courseListBody"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
 
-<br>
+    <script>
+        $(document).ready(function () {
+            // --- GLOBAL TRACKING FOR FREE TIME ---
+            const HOURS_PER_DAY = 10;
+            let occupiedSlots = new Set();
+            const DAYS_OF_WEEK = {
+                2: 'Monday',
+                3: 'Tuesday',
+                4: 'Wednesday',
+                5: 'Thursday',
+                6: 'Friday'
+            };
 
-<div id="courseListSection" style="display:none;">
-    <h3 class="w3-center w3-text-green">📚 My Teaching Courses This Semester</h3>
-    
-    <table class="w3-table-all w3-hoverable w3-card-4">
-        <thead>
-            <tr class="w3-light-grey">
-                <th>No.</th>
-                <th>Course Code</th>
-                <th>Course Name</th>
-                <th>Section</th>
-                <th>Students</th>
-            </tr>
-        </thead>
-        <tbody id="courseListBody"></tbody>
-    </table>
-</div>
+            // ==========================================
+            // 1. AUTO-GET LECTURER INFO FROM localStorage or Parent
+            // ==========================================
+            const userSession = window.parent.userSession || JSON.parse(localStorage.getItem("TTMSFC_userSession"));
 
-<br>
+            let staffNo, fullName, apiStaffNo;
 
-<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
-<script>
-$(document).ready(function() {
-
-    // --- GLOBAL TRACKING FOR FREE TIME ---
-    const HOURS_PER_DAY = 10;
-    let occupiedSlots = new Set();
-    
-    const DAYS_OF_WEEK = {
-        2: 'Monday',
-        3: 'Tuesday',
-        4: 'Wednesday',
-        5: 'Thursday',
-        6: 'Friday'
-    };
-
-    // ==========================================
-    // 1. AUTO-GET LECTURER INFO FROM localStorage
-    // ==========================================
-    const userSession = JSON.parse(localStorage.getItem("TTMSFC_userSession"));
-    
-    let staffNo, fullName;
-    
-    if (!userSession) {
-        // Fallback for testing - GUNA INI UNTUK TEST
-        staffNo = '12085'; // Test account
-        fullName = 'Test Lecturer';
-        $("#lecturerName").text(fullName);
-        $("#staffNo").text(staffNo);
-    } else {
-        staffNo = userSession.login_name;  
-        fullName = userSession.full_name;
-        $("#lecturerName").text(fullName);
-        $("#staffNo").text(staffNo);
-    }
-
-    console.log("✅ Auto-detected Staff No:", staffNo);
-    console.log("✅ Lecturer Name:", fullName);
-
-    // ==========================================
-    // 2. GET CURRENT SESSION/SEMESTER & START
-    // ==========================================
-    let currentSesi = window.parent.currentSesi;
-    let currentSemester = window.parent.currentSemester;
-    
-    google.charts.load('current', {'packages':['corechart']});
-    google.charts.setOnLoadCallback(startExecution);
-    
-    function startExecution() {
-        if (!currentSesi || !currentSemester) {
-            console.warn("⚠️ Session/Semester not available from parent, fetching...");
-            fetchCurrentSession().then(() => {
-                loadTimetable(staffNo, currentSesi, currentSemester);
-            });
-        } else {
-            $("#sessionSem").text(`${currentSesi} - Semester ${currentSemester}`);
-            console.log("✅ Using session:", currentSesi, "Semester:", currentSemester);
-            loadTimetable(staffNo, currentSesi, currentSemester);
-        }
-    }
-
-    // ==========================================
-    // FUNCTIONS
-    // ==========================================
-
-    function fetchCurrentSession() {
-        return fetch("http://web.fc.utm.my/ttms/web_man_webservice_json.cgi?entity=sesisemester")
-            .then(res => res.json())
-            .then(sessemList => {
-                const active = sessemList.find(s => s.sesi_semester_id) || sessemList[0];
-                currentSesi = active.sesi;
-                currentSemester = active.semester;
-                $("#sessionSem").text(`${currentSesi} - Semester ${currentSemester}`);
-                console.log("✅ Fetched session:", currentSesi, currentSemester);
-            })
-            .catch(err => {
-                console.error("❌ Error fetching session:", err);
-                $("#sessionSem").text("Error loading session");
-            });
-    }
-
-    function loadTimetable(staffNo, sesi, semester) {
-        buildEmptyTable();
-        fetchLecturerSubjects(staffNo, sesi, semester);
-    }
-
-    // ==========================================
-    // 3. BUILD EMPTY TIMETABLE GRID
-    // ==========================================
-    function buildEmptyTable() {
-        let body = "";
-        for (let hour = 1; hour <= 9; hour++) {  
-            body += "<tr>";
-            body += `<td><strong>${formatTime(hour)}</strong></td>`;
-            for (let day = 2; day <= 6; day++) {
-                body += `<td data-day='${day}' data-time='${hour}'></td>`;
+            if (!userSession) {
+                // Fallback for testing
+                staffNo = '12085';
+                apiStaffNo = '23970';
+                fullName = 'Test Lecturer';
+                $("#lecturerName").text(fullName);
+                $("#staffNo").text(staffNo);
+            } else {
+                staffNo = userSession.login_name; // Display ID
+                apiStaffNo = userSession.no_pekerja || userSession.login_name; // Internal API ID
+                fullName = userSession.full_name;
+                $("#lecturerName").text(fullName);
+                $("#staffNo").text(staffNo);
             }
-            body += "</tr>";
-        }
-        $("#timetableBody").html(body);
-        occupiedSlots.clear();
-    }
 
-    // ==========================================
-    // 4. FETCH LECTURER'S SUBJECTS
-    // ==========================================
-    function fetchLecturerSubjects(staffNo, sesi, semester) {
-        // API endpoint untuk pensyarah subjek
-        const url = `http://web.fc.utm.my/ttms/web_man_webservice_json.cgi?entity=pensyarah_subjek&no_pekerja=${staffNo}`;
+            console.log("✅ Auto-detected Display Staff No:", staffNo);
+            console.log("✅ API Internal Staff No:", apiStaffNo);
 
-        console.log("📡 Fetching lecturer subjects from:", url);
+            // ==========================================
+            // 2. GET CURRENT SESSION/SEMESTER & START
+            // ==========================================
+            let currentSesi = window.parent.currentSesi;
+            let currentSemester = window.parent.currentSemester;
 
-        fetch(url)
-            .then(res => res.json())
-            .then(subjects => {
-                console.log("📦 All subjects received:", subjects);
-                
-                const currentSubjects = subjects.filter(s => 
-                    s.sesi === sesi && s.semester == semester
-                );
+            // CHART RETRY LOGIC
+            let isChartLibReady = false;
+            let chartRetry = 0;
 
-                console.log("✅ Current semester subjects:", currentSubjects);
+            function initCharts() {
+                try {
+                    if (typeof google !== 'undefined' && google.charts) {
+                        google.charts.load('current', { 'packages': ['corechart'] });
+                        google.charts.setOnLoadCallback(function () {
+                            isChartLibReady = true;
+                            console.log("✅ Google Charts Library Loaded");
+                            if (occupiedSlots.size > 0) drawFreeTimeChart();
+                        });
+                    } else {
+                        chartRetry++;
+                        if (chartRetry < 20) setTimeout(initCharts, 500);
+                        else console.error("❌ Google Charts failed to load after retries");
+                    }
+                } catch (e) {
+                    console.warn("Chart init error", e);
+                    setTimeout(initCharts, 500);
+                }
+            }
+            initCharts();
 
-                if (currentSubjects.length === 0) {
-                    $("#loadingMsg").html("⚠️ No teaching subjects found for current semester.");
-                    $("#timetableTable").show();
-                    drawFreeTimeChart(); 
+            // Start Data Fetching IMMEDIATELY (Don't wait for charts)
+            startExecution();
+
+            function startExecution() {
+                if (!currentSesi || !currentSemester) {
+                    console.warn("⚠️ Session/Semester not available from parent, fetching...");
+                    fetchCurrentSession().then(() => {
+                        loadTimetable(apiStaffNo, currentSesi, currentSemester);
+                    });
+                } else {
+                    $("#sessionSem").text(`${currentSesi} - Semester ${currentSemester}`);
+                    console.log("✅ Using session:", currentSesi, "Semester:", currentSemester);
+                    loadTimetable(apiStaffNo, currentSesi, currentSemester);
+                }
+            }
+
+            // ==========================================
+            // FUNCTIONS
+            // ==========================================
+
+            function fetchCurrentSession() {
+                return fetch("http://web.fc.utm.my/ttms/web_man_webservice_json.cgi?entity=sesisemester")
+                    .then(res => res.json())
+                    .then(sessemList => {
+                        const active = sessemList.find(s => s.sesi_semester_id) || sessemList[0];
+                        currentSesi = active.sesi;
+                        currentSemester = active.semester;
+                        $("#sessionSem").text(`${currentSesi} - Semester ${currentSemester}`);
+                    })
+                    .catch(err => {
+                        console.error("❌ Error fetching session:", err);
+                        $("#sessionSem").text("Error loading session");
+                    });
+            }
+
+            function loadTimetable(apiStaffNo, sesi, semester) {
+                buildEmptyTable();
+                fetchLecturerSubjects(apiStaffNo, sesi, semester);
+            }
+
+            // ==========================================
+            // 3. BUILD EMPTY TIMETABLE GRID
+            // ==========================================
+            function buildEmptyTable() {
+                let body = "";
+                // Match MyTimetable.html: 0 to 9 (10 slots)
+                for (let hour = 0; hour <= 9; hour++) {
+                    body += "<tr>";
+                    // Use .time-cell for proper styling from CSS
+                    body += `<td class="time-cell">${formatTime(hour)}</td>`;
+                    for (let day = 2; day <= 6; day++) {
+                        body += `<td data-day='${day}' data-time='${hour}'></td>`;
+                    }
+                    body += "</tr>";
+                }
+                $("#timetableBody").html(body);
+                occupiedSlots.clear();
+            }
+
+            // ==========================================
+            // 4. FETCH LECTURER'S SUBJECTS
+            // ==========================================
+            function fetchLecturerSubjects(apiStaffNo, sesi, semester) {
+                // API endpoint for lecturer subjects
+                const url = `http://web.fc.utm.my/ttms/web_man_webservice_json.cgi?entity=pensyarah_subjek&no_pekerja=${apiStaffNo}`;
+
+                console.log("📡 Fetching lecturer subjects from:", url);
+
+                fetch(url)
+                    .then(res => res.json())
+                    .then(subjects => {
+                        console.log("📦 All subjects received:", subjects);
+
+                        const currentSubjects = subjects.filter(s =>
+                            s.sesi === sesi && s.semester == semester
+                        );
+
+                        if (currentSubjects.length === 0) {
+                            $("#loadingMsg").html("⚠️ No teaching subjects found for current semester.");
+                            $("#timetableContainer").show(); // Show empty table even if no subs
+                            drawFreeTimeChart();
+                            return;
+                        }
+
+                        displayCourseList(currentSubjects);
+                        let promises = currentSubjects.map(subj => fetchSubjectTimetable(subj));
+
+                        Promise.all(promises).then(() => {
+                            $("#loadingMsg").hide();
+                            $("#timetableContainer").show(); // Use new ID
+                            console.log("✅ Timetable loaded successfully!");
+                            drawFreeTimeChart();
+                        });
+                    })
+                    .catch(err => {
+                        console.error("❌ Error fetching subjects:", err);
+                        $("#loadingMsg").html("❌ Error loading subjects. Please try again.");
+                    });
+            }
+
+            // ==========================================
+            // 4.5 DISPLAY COURSE LIST
+            // ==========================================
+            function displayCourseList(courses) {
+                $("#courseListBody").empty();
+
+                courses.forEach((course, index) => {
+                    const studentCount = course.bil_pelajar || 0;
+
+                    const row = `
+                        <tr>
+                            <td class="course-code">${course.kod_subjek}</td>
+                            <td class="course-name">${course.nama_subjek}</td>
+                            <td class="center"><strong>${course.seksyen}</strong></td>
+                            <td class="center"><span class="badge-active">${studentCount} Students</span></td>
+                        </tr>
+                    `;
+                    $("#courseListBody").append(row);
+                });
+
+                $("#courseListSection").show();
+            }
+
+            // ==========================================
+            // 5. FETCH TIMETABLE PER SUBJECT
+            // ==========================================
+            function fetchSubjectTimetable(subject) {
+                const url = `http://web.fc.utm.my/ttms/web_man_webservice_json.cgi?entity=jadual_subjek&sesi=${subject.sesi}&semester=${subject.semester}&kod_subjek=${subject.kod_subjek}&seksyen=${subject.seksyen}`;
+
+                return fetch(url)
+                    .then(res => res.json())
+                    .then(times => {
+                        if (Array.isArray(times)) {
+                            times.forEach(slot => {
+                                placeIntoTable(subject, slot);
+                            });
+                        }
+                    })
+                    .catch(err => {
+                        console.error(`❌ Error fetching timetable for ${subject.kod_subjek}:`, err);
+                    });
+            }
+
+            // ==========================================
+            // 6. PLACE SUBJECT INTO TIMETABLE GRID
+            // ==========================================
+            function placeIntoTable(subject, slot) {
+                const day = slot.hari;
+                // 0-based index correction
+                const time = slot.masa - 1;
+
+                const slotKey = `${day}-${time}`;
+                occupiedSlots.add(slotKey);
+
+                const room = slot.ruang ? (slot.ruang.nama_ruang_singkatan || slot.ruang.kod_ruang || 'N/A') : 'N/A';
+
+                const cell = $(`td[data-day='${day}'][data-time='${time}']`);
+
+                if (cell.length === 0) {
+                    console.warn(`⚠️ Cell not found for Day=${day}, Time=${time}`);
                     return;
                 }
 
-                displayCourseList(currentSubjects);
-                let promises = currentSubjects.map(subj => fetchSubjectTimetable(subj));
+                // Match Student Slot Design
+                const slotHTML = `
+                    <div class="slot">
+                        <strong>${subject.kod_subjek}</strong>
+                        <span>Sec ${subject.seksyen}</span>
+                        <div class="room-tag"><i class="fa fa-map-marker"></i> ${room}</div>
+                    </div>
+                `;
 
-                Promise.all(promises).then(() => {
-                    $("#loadingMsg").hide();
-                    $("#timetableTable").show();
-                    console.log("✅ Timetable loaded successfully!");
-                    drawFreeTimeChart(); 
+                cell.append(slotHTML);
+            }
+
+            // ==========================================
+            // 7. TIME FORMATTING
+            // ==========================================
+            function formatTime(masa) {
+                const start = 8 + masa;
+                const end = start + 1;
+                return `${start}:00 - ${end}:00`;
+            }
+
+            // ==========================================
+            // 8. CHARTING LOGIC
+            // ==========================================
+            function drawFreeTimeChart() {
+                if (!isChartLibReady || typeof google === 'undefined' || !google.visualization) {
+                    console.warn("⚠️ Chart library not ready yet, skipping draw.");
+                    return;
+                }
+
+                const dailyDataMap = {};
+                for (let dayCode = 2; dayCode <= 6; dayCode++) {
+                    dailyDataMap[dayCode] = {
+                        dayName: DAYS_OF_WEEK[dayCode],
+                        occupied: 0,
+                        free: HOURS_PER_DAY
+                    };
+                }
+
+                occupiedSlots.forEach(slotKey => {
+                    const dayCode = slotKey.split('-')[0];
+                    if (dailyDataMap[dayCode]) {
+                        dailyDataMap[dayCode].occupied++;
+                        dailyDataMap[dayCode].free--;
+                    }
                 });
-            })
-            .catch(err => {
-                console.error("❌ Error fetching subjects:", err);
-                $("#loadingMsg").html("❌ Error loading subjects. Please try again.");
-            });
-    }
 
-    // ==========================================
-    // 4.5 DISPLAY COURSE LIST
-    // ==========================================
-    function displayCourseList(courses) {
-        $("#courseListBody").empty();
-        
-        courses.forEach((course, index) => {
-            const studentCount = course.bil_pelajar || 0;
-            
-            const row = `
-                <tr>
-                    <td>${index + 1}</td>
-                    <td><strong>${course.kod_subjek}</strong></td>
-                    <td>${course.nama_subjek}</td>
-                    <td class="w3-center">${course.seksyen}</td>
-                    <td class="w3-center"><span class="w3-badge w3-green">${studentCount}</span></td>
-                </tr>
-            `;
-            $("#courseListBody").append(row);
-        });
+                const dataArray = [
+                    ['Day', 'Teaching Time (Hrs)', 'Free Time (Hrs)']
+                ];
 
-        $("#courseListSection").show();
-    }
+                for (let dayCode = 2; dayCode <= 6; dayCode++) {
+                    const dayEntry = dailyDataMap[dayCode];
+                    dataArray.push([
+                        dayEntry.dayName,
+                        dayEntry.occupied,
+                        dayEntry.free
+                    ]);
+                }
 
-    // ==========================================
-    // 5. FETCH TIMETABLE PER SUBJECT
-    // ==========================================
-    function fetchSubjectTimetable(subject) {
-        const url = `http://web.fc.utm.my/ttms/web_man_webservice_json.cgi?entity=jadual_subjek&sesi=${subject.sesi}&semester=${subject.semester}&kod_subjek=${subject.kod_subjek}&seksyen=${subject.seksyen}`;
+                const data = google.visualization.arrayToDataTable(dataArray);
 
-        console.log(`📡 Fetching timetable for ${subject.kod_subjek}:`, url);
+                // Use simple options to match student look
+                const options = {
+                    isStacked: true,
+                    colors: ['#10b981', '#f1f5f9'], // Mint green and light gray
+                    legend: { position: 'top' },
+                    chartArea: { width: '90%', height: '70%' },
+                    animation: { startup: true, duration: 800, easing: 'out' },
+                    vAxis: {
+                        baselineColor: '#ccc',
+                        gridlines: { color: '#f5f5f5' }
+                    },
+                    hAxis: {
+                        baselineColor: '#ccc'
+                    }
+                };
 
-        return fetch(url)
-            .then(res => res.json())
-            .then(times => {
-                console.log(`📅 Timetable slots for ${subject.kod_subjek}:`, times);
-                
-                if (Array.isArray(times)) {
-                    times.forEach(slot => {
-                        placeIntoTable(subject, slot);
-                    });
-                } 
-            })
-            .catch(err => {
-                console.error(`❌ Error fetching timetable for ${subject.kod_subjek}:`, err);
-            });
-    }
-
-    // ==========================================
-    // 6. PLACE SUBJECT INTO TIMETABLE GRID
-    // ==========================================
-    function placeIntoTable(subject, slot) {
-        const day = slot.hari;           
-        const time = slot.masa - 1;     
-        
-        console.log(`📍 Placing ${subject.kod_subjek}: Day=${day}, Time=${time}`);
-        
-        const slotKey = `${day}-${time-1}`;
-        occupiedSlots.add(slotKey);
-
-        const room = slot.ruang.nama_ruang_singkatan || slot.ruang.kod_ruang || 'N/A';
-
-        const cell = $(`td[data-day='${day}'][data-time='${time-1}']`);
-
-        if (cell.length === 0) {
-            console.warn(`⚠️ Cell not found for Day=${day}, Time=${time-1}`);
-            return;
-        }
-
-        const slotHTML = `
-            <div class="slot">
-                <strong>${subject.kod_subjek} (${subject.seksyen})</strong><br>
-                <small>${subject.nama_subjek}</small><br>
-                📍 ${room}
-            </div>
-        `;
-
-        cell.append(slotHTML);
-    }
-
-    // ==========================================
-    // 7. TIME FORMATTING
-    // ==========================================
-    function formatTime(masa) {
-        const start = 7 + masa; 
-        const end = start + 1;
-        return `${start}:00 - ${end}:00`;
-    }
-
-    // ==========================================
-    // 8. CHARTING LOGIC
-    // ==========================================
-    function drawFreeTimeChart() {
-        const dailyDataMap = {};
-        for (let dayCode = 2; dayCode <= 6; dayCode++) {
-            dailyDataMap[dayCode] = {
-                dayName: DAYS_OF_WEEK[dayCode],
-                occupied: 0,
-                free: HOURS_PER_DAY
-            };
-        }
-
-        occupiedSlots.forEach(slotKey => {
-            const dayCode = slotKey.split('-')[0];
-            
-            if (dailyDataMap[dayCode]) {
-                dailyDataMap[dayCode].occupied++;
-                dailyDataMap[dayCode].free--;
+                const chart = new google.visualization.ColumnChart(document.getElementById('freeTimeChartDiv'));
+                chart.draw(data, options);
             }
         });
-        
-        const dataArray = [
-          ['Day', 'Teaching Time (Hrs)', 'Free Time (Hrs)']
-        ];
-
-        for (let dayCode = 2; dayCode <= 6; dayCode++) {
-            const dayEntry = dailyDataMap[dayCode];
-            dataArray.push([
-                dayEntry.dayName,
-                dayEntry.occupied,
-                dayEntry.free
-            ]);
-        }
-
-        const data = google.visualization.arrayToDataTable(dataArray);
-
-        const options = {
-          title: 'Weekly Teaching Schedule (8:00 - 18:00)',
-          isStacked: true,
-          legend: { position: 'top', maxLines: 3 },
-          vAxis: {
-            title: 'Hours',
-            minValue: 0,
-            maxValue: HOURS_PER_DAY,
-            ticks: [0, 2, 4, 6, 8, 10]
-          },
-          hAxis: {
-            title: 'Day of Week'
-          },
-          colors: ['#4caf50', '#bdbdbd'], // Green for teaching, Grey for free
-          height: 400
-        };
-
-        const chart = new google.visualization.ColumnChart(document.getElementById('freeTimeChartDiv'));
-        chart.draw(data, options);
-    }
-});
-</script>
+    </script>
 </body>
+
 </html>
