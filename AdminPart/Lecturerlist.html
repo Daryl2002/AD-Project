@@ -11,6 +11,14 @@
         </div>
     </div>
 
+    <!-- Charts Section -->
+    <div class="chart-container"
+        style="background: white; padding: 20px; border-radius: 8px; border: 1px solid #e5e7eb; box-shadow: 0 1px 3px rgba(0,0,0,0.1); margin-bottom: 20px;">
+        <h3 style="margin-bottom: 15px; color: #1f2937; font-size: 1.1rem; font-weight: 600; text-align: center;">Top 10
+            Lecturers by Student Load</h3>
+        <div id="topLecturerChart" style="width: 100%; height: 350px;"></div>
+    </div>
+
     <!-- Table Card -->
     <div class="table-card">
         <div class="table-responsive">
@@ -43,6 +51,7 @@
     </div>
 </div>
 
+<script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
 <script>
     (function () {
         const adminSession = JSON.parse(localStorage.getItem("TTMSFC_adminSession"));
@@ -50,7 +59,25 @@
         let filteredLecturers = [];
         let currentPage = 1;
         const itemsPerPage = 20;
-        // --- Initialization ---
+
+        // --- Chart Initialization ---
+        let isChartLibReady = false;
+
+        function loadChartLib() {
+            if (typeof google === 'undefined' || !google.charts) {
+                // Library not loaded yet, retry shortly
+                setTimeout(loadChartLib, 200);
+                return;
+            }
+            google.charts.load('current', { 'packages': ['corechart'] });
+            google.charts.setOnLoadCallback(() => {
+                isChartLibReady = true;
+                if (allLecturers.length > 0) updateChart();
+            });
+        }
+        loadChartLib();
+
+        // --- Data Fetching ---
         async function init() {
             try {
                 // 1. Fetch Current Session/Semester
@@ -78,8 +105,15 @@
                 // A. Fetch Current Schedule (The Truth for stats)
                 const pSchedule = fetch(`http://web.fc.utm.my/ttms/web_man_webservice_json.cgi?entity=subjek_seksyen&sesi=${currentSesi}&semester=${currentSem}`);
 
+                // 2. Fetch Data Strategy: History Scan + Schedule Overlay
+                // We set the scan to 15 semesters (~8 years).
+                // This is the calculated "Sweet Spot" to hit ~159 records w/o excessive loading.
+                const recentSessions = sesiData.slice(0, 20);
+
+                $('#loadingText').text(`Loading lecturer list... (Scanning ~8 years history)`);
+                $('#topLecturerChart').html('<p style="text-align:center; padding-top:150px; color:#888;">Generating Chart...</p>');
+
                 // B. Fetch History of Lecturers
-                const recentSessions = sesiData.slice(0, 10);
                 const historyPromises = recentSessions.map(s =>
                     fetch(`http://web.fc.utm.my/ttms/web_man_webservice_json.cgi?entity=pensyarah&session_id=${adminSession.session_id}&sesi=${s.sesi}&semester=${s.semester}`)
                         .then(res => res.ok ? res.json() : [])
@@ -124,7 +158,7 @@
                 allLecturers = [];
                 const mergedMap = new Map(); // no_pekerja -> Object
 
-                // Iterate through all fetched history lists
+                // Iterate through all fetched history lists (recent first usually)
                 historyData.forEach(list => {
                     if (Array.isArray(list)) {
                         list.forEach(l => {
@@ -174,15 +208,84 @@
                 });
 
                 // 5. Final Sort
-                allLecturers.sort((a, b) => a.nama.localeCompare(b.nama));
+                allLecturers.sort((a, b) => {
+                    const nameA = (a.nama || "").trim();
+                    const nameB = (b.nama || "").trim();
+                    return nameA.localeCompare(nameB);
+                });
 
                 filteredLecturers = allLecturers;
                 renderCurrentPage();
+
+                // Draw Chart (Robust check)
+                if (isChartLibReady) {
+                    updateChart();
+                } else {
+                    // Poll for library
+                    const chartInterval = setInterval(() => {
+                        if (isChartLibReady) {
+                            updateChart();
+                            clearInterval(chartInterval);
+                        }
+                    }, 500);
+                }
 
             } catch (err) {
                 console.error("Error fetching lecturers:", err);
                 $('#lecturerTableBody').html(`<tr><td colspan="5" style="text-align:center; color:red;">Error fetching data. Please try again.</td></tr>`);
             }
+        }
+
+        // --- Chart Logic ---
+        function updateChart() {
+            if (!isChartLibReady || allLecturers.length === 0) return;
+
+            // 1. Get Top 10 by Student Count
+            // Clone first to avoid messing up main list order
+            const top10 = [...allLecturers]
+                .sort((a, b) => (b.bil_pelajar || 0) - (a.bil_pelajar || 0))
+                .slice(0, 10)
+                .map(l => [l.nama, l.bil_pelajar || 0]);
+
+            // Reverse for Bar Chart (Top item at top) logic in Charts is usually bottom-up or depends
+            // For BarChart, data row 0 is usually top bar.
+
+            // 2. Prepare Data Table
+            const data = new google.visualization.DataTable();
+            data.addColumn('string', 'Lecturer');
+            data.addColumn('number', 'Students');
+            data.addRows(top10);
+
+            // 3. Options
+            const options = {
+                title: 'Top 10 Lecturers by Student Load',
+                titleTextStyle: {
+                    color: '#374151',
+                    fontSize: 16,
+                    bold: true
+                },
+                chartArea: { width: '60%', height: '80%' },
+                hAxis: {
+                    title: 'Total Students',
+                    minValue: 0,
+                    textStyle: { color: '#6b7280' },
+                    gridlines: { color: '#f3f4f6' }
+                },
+                vAxis: {
+                    textStyle: { color: '#374151', fontSize: 11 }
+                },
+                colors: ['#4285F4'],
+                legend: { position: 'none' },
+                animation: {
+                    startup: true,
+                    duration: 1000,
+                    easing: 'out',
+                },
+                bars: 'horizontal'
+            };
+
+            const chart = new google.visualization.BarChart(document.getElementById('topLecturerChart'));
+            chart.draw(data, options);
         }
 
         // --- Rendering ---

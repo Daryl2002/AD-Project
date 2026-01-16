@@ -133,13 +133,9 @@
                     }
                 })
                 .catch(err => {
-                    if (detectStudentOrLecturer(userSession)) {
-                        alert("Login successfully");
-                    }
-                    else {
-                        alert("Login failed. Invalid credentials or connection error.");
-                        console.error(err);
-                    }
+                    // Unified error message for all users
+                    alert("Invalid Id or password");
+                    console.warn("Login attempt failed:", err);
                 });
         });
 

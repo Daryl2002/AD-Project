@@ -1,0 +1,480 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TTMS Admin - Student Clash Analysis</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="Styles/studentClash.css">
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
+    <script src="Authenticate.js"></script>
+</head>
+
+<body>
+
+    <!-- Sidebar placeholder (matches AdminMain structure) -->
+    <div style="display:flex;">
+        <div class="page-container" style="flex:1;">
+            <div class="header-section">
+                <h1 class="page-title">Student Schedule Clash Analysis</h1>
+            </div>
+
+            <!-- Progress Bar -->
+            <div class="card-box status-bar" id="scanProgress" style="display:block;">
+                <div class="status-text">
+                    <span id="scanStatus">Initializing Scan...</span>
+                    <span id="scanPercent">0%</span>
+                </div>
+                <div class="progress-track">
+                    <div class="progress-fill" id="scanFill"></div>
+                </div>
+            </div>
+
+            <!-- Results Table -->
+            <div class="card-box" style="margin-top: 20px;">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th style="width: 50px;">NO.</th>
+                            <th>NAME</th>
+                            <th style="width: 120px;">YEAR/COURSE</th>
+                            <th style="width: 100px;">FACULTY</th>
+                            <th style="width: 100px;">SUBJ. COUNT</th>
+                            <th>SCHEDULE CLASH DETAILS</th>
+                            <th style="width: 80px;">SUGGESTION</th>
+                        </tr>
+                    </thead>
+                    <tbody id="clashTableBody">
+                        <tr class="empty-state">
+                            <td colspan="8">
+                                Please wait, analyzing all student schedules...
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Suggestion Modal -->
+    <div id="suggestionModal" class="modal-overlay" style="display:none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Schedule Suggestions</h3>
+                <button class="close-btn" onclick="$('#suggestionModal').hide()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p id="modalStudentName" style="font-weight:bold; margin-bottom:10px;"></p>
+                <p style="margin-bottom:10px;">The following section combinations are available and conflict-free:</p>
+                <div id="modalSuggestionsList" class="suggestion-list-container"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        (function () {
+            // -- Configuration --
+            // Use local variable to avoid global conflict or grab from localStorage directly
+            const localAdminSession = JSON.parse(localStorage.getItem("TTMSFC_adminSession"));
+            const API_BASE = "http://web.fc.utm.my/ttms/web_man_webservice_json.cgi";
+            let currentSesi = "";
+            let currentSem = "";
+
+            // -- Mappers --
+            const dayMap = { 1: "Sun", 2: "Mon", 3: "Tue", 4: "Wed", 5: "Thu", 6: "Fri", 7: "Sat" };
+
+            function formatTime(masaCode) {
+                const startHour = 7 + parseInt(masaCode);
+                const endHour = startHour + 1;
+                const ampm = h => h >= 12 ? (h > 12 ? h - 12 : h) + "pm" : h + "am";
+                return `${ampm(startHour)}-${ampm(endHour)}`;
+            }
+
+            async function startClashAnalysis() {
+                if (!localAdminSession) { alert("Session expired."); return; }
+
+                // UI Reset
+                $('#scanProgress').show();
+                $('#clashTableBody').html('<tr><td colspan="8" class="empty-state">Initializing...</td></tr>');
+
+                try {
+                    // 1. Get Session
+                    updateStatus("Fetching session info...", 5);
+                    const sesiRes = await fetch(`${API_BASE}?entity=sesisemester`);
+                    const sesiData = await sesiRes.json();
+                    currentSesi = sesiData[0].sesi;
+                    currentSem = sesiData[0].semester;
+
+                    // 2. Fetch Master Subject List
+                    updateStatus(`Fetching all subjects & sections for ${currentSesi}...`, 10);
+                    const subRes = await fetch(`${API_BASE}?entity=subjek_seksyen&sesi=${currentSesi}&semester=${currentSem}`);
+                    const allSubjects = await subRes.json();
+
+                    let allSections = [];
+                    // Map to quickly find all sections for a given subject code
+                    const subjectSectionsMap = new Map();
+
+                    allSubjects.forEach(sub => {
+                        if (sub.seksyen_list) {
+                            // Init map
+                            if (!subjectSectionsMap.has(sub.kod_subjek)) subjectSectionsMap.set(sub.kod_subjek, []);
+
+                            sub.seksyen_list.forEach(sec => {
+                                const secObj = {
+                                    kod_subjek: sub.kod_subjek,
+                                    nama_subjek: sub.nama_subjek,
+                                    seksyen: sec.seksyen,
+                                    key: `${sub.kod_subjek}-${sec.seksyen}`
+                                };
+                                allSections.push(secObj);
+                                subjectSectionsMap.get(sub.kod_subjek).push(secObj);
+                            });
+                        }
+                    });
+
+                    console.log(`Found ${allSections.length} total sections.`);
+                    updateStatus(`Analyzing timetables for ${allSections.length} sections...`, 15);
+
+                    // 3. Fetch Timetables
+                    const timetableMap = new Map();
+                    const sectionTimeMap = new Map();
+
+                    const chunkSize = 50;
+                    let processed = 0;
+
+                    for (let i = 0; i < allSections.length; i += chunkSize) {
+                        const chunk = allSections.slice(i, i + chunkSize);
+                        const promises = chunk.map(sec =>
+                            fetch(`${API_BASE}?entity=jadual_subjek&sesi=${currentSesi}&semester=${currentSem}&kod_subjek=${sec.kod_subjek}&seksyen=${sec.seksyen}`)
+                                .then(r => r.json())
+                                .then(data => ({ sec, data }))
+                                .catch(e => ({ sec, data: [] }))
+                        );
+
+                        const resultChunk = await Promise.all(promises);
+
+                        resultChunk.forEach(({ sec, data }) => {
+                            if (Array.isArray(data)) {
+                                const times = [];
+                                data.forEach(slot => {
+                                    // Validations
+                                    if (!slot.hari || !slot.masa) return;
+
+                                    const timeKey = `${slot.hari}-${slot.masa}`;
+                                    if (!timetableMap.has(timeKey)) timetableMap.set(timeKey, []);
+                                    timetableMap.get(timeKey).push(sec);
+                                    times.push({
+                                        day: slot.hari,
+                                        time: slot.masa,
+                                        key: timeKey,
+                                        prettyTime: `${dayMap[slot.hari] || 'Day' + slot.hari} ${formatTime(slot.masa)}`
+                                    });
+                                });
+                                if (times.length > 0) sectionTimeMap.set(sec.key, times);
+                            }
+                        });
+
+                        processed += chunk.length;
+                        const pct = 15 + Math.round((processed / allSections.length) * 35);
+                        updateStatus(`Fetching timetables... (${processed}/${allSections.length})`, pct);
+                    }
+
+                    // 4. Identify Potential Clashes
+                    const candidateSections = new Set();
+
+                    timetableMap.forEach((sectionList, timeKey) => {
+                        if (sectionList.length > 1) {
+                            sectionList.forEach(s => candidateSections.add(s));
+                        }
+                    });
+
+                    if (candidateSections.size === 0) {
+                        renderEmpty("No schedule overlaps found in the system.");
+                        return;
+                    }
+
+                    updateStatus(`Checking student lists for ${candidateSections.size} potential clashes...`, 50);
+
+                    // 5. Fetch Students
+                    const studentMap = new Map();
+                    const studentSchedules = new Map();
+
+                    const candidatesArray = Array.from(candidateSections);
+                    processed = 0;
+
+                    for (let i = 0; i < candidatesArray.length; i += chunkSize) {
+                        const chunk = candidatesArray.slice(i, i + chunkSize);
+                        const promises = chunk.map(sec =>
+                            fetch(`${API_BASE}?entity=subjek_pelajar&session_id=${localAdminSession.session_id}&sesi=${currentSesi}&semester=${currentSem}&kod_subjek=${sec.kod_subjek}&seksyen=${sec.seksyen}`)
+                                .then(r => r.json())
+                                .then(data => ({ sec, data }))
+                                .catch(e => ({ sec, data: [] }))
+                        );
+
+                        const resChunk = await Promise.all(promises);
+
+                        resChunk.forEach(({ sec, data }) => {
+                            if (Array.isArray(data)) {
+                                data.forEach(stud => {
+                                    if (!stud.no_matrik) return;
+                                    if (!studentMap.has(stud.no_matrik)) {
+                                        studentMap.set(stud.no_matrik, stud);
+                                        studentSchedules.set(stud.no_matrik, []);
+                                    }
+                                    studentSchedules.get(stud.no_matrik).push(sec);
+                                });
+                            }
+                        });
+
+                        processed += chunk.length;
+                        const pct = 50 + Math.round((processed / candidatesArray.length) * 40);
+                        updateStatus(`Analyzing student enrollments... (${processed}/${candidatesArray.length})`, pct);
+                    }
+
+                    // 6. Compute Clashes & Suggestions
+                    updateStatus("Finalizing clash report...", 95);
+                    const clashReport = [];
+
+                    studentSchedules.forEach((rawSections, matrik) => {
+                        // Deduplicate sections (handle if student appears twice in same section list)
+                        const uniqueSectionKeys = new Set();
+                        const sections = [];
+                        rawSections.forEach(s => {
+                            if (!uniqueSectionKeys.has(s.key)) {
+                                uniqueSectionKeys.add(s.key);
+                                sections.push(s);
+                            }
+                        });
+
+                        if (sections.length < 2) return; // No chance of clash
+
+                        const uniqueClashes = new Set();
+                        const studentClashes = [];
+                        const clashingSubjects = new Set(); // Codes of subjects involved in clashes
+
+                        for (let a = 0; a < sections.length; a++) {
+                            for (let b = a + 1; b < sections.length; b++) {
+                                const secA = sections[a];
+                                const secB = sections[b];
+
+                                // Prevent self-clash (redundant with dedup but safe)
+                                if (secA.key === secB.key) continue;
+
+                                const timesA = sectionTimeMap.get(secA.key) || [];
+                                const timesB = sectionTimeMap.get(secB.key) || [];
+
+                                timesA.forEach(tA => {
+                                    timesB.forEach(tB => {
+                                        if (tA.key === tB.key) {
+                                            const clashId = [secA.key, secB.key].sort().join(" vs ");
+                                            if (!uniqueClashes.has(clashId)) {
+                                                uniqueClashes.add(clashId);
+                                                studentClashes.push({
+                                                    subject1: `${secA.kod_subjek}-${secA.seksyen}`,
+                                                    subject2: `${secB.kod_subjek}-${secB.seksyen}`,
+                                                    time: tA.prettyTime
+                                                });
+                                                clashingSubjects.add(secA.kod_subjek);
+                                                clashingSubjects.add(secB.kod_subjek);
+                                            }
+                                        }
+                                    });
+                                });
+                            }
+                        }
+
+                        if (studentClashes.length > 0) {
+                            // Generate Suggestions
+                            const suggestions = generateSuggestions(sections, clashingSubjects, subjectSectionsMap, sectionTimeMap);
+
+                            clashReport.push({
+                                student: studentMap.get(matrik),
+                                clashes: studentClashes,
+                                subjectCount: sections.length,
+                                suggestions: suggestions
+                            });
+                        }
+                    });
+
+                    // 7. Render
+                    updateStatus("Done!", 100);
+                    renderTable(clashReport);
+
+                } catch (err) {
+                    console.error(err);
+                    alert("Error during scan: " + err.message);
+                    updateStatus("Error: " + err.message, 0);
+                }
+            }
+
+            // --- Suggestion Algorithm ---
+            function generateSuggestions(currentSections, clashingSubjectCodes, subjectSectionsMap, sectionTimeMap) {
+                // Logic: 
+                // 1. Identify which subjects are 'Problematic' (involved in clash).
+                // 2. Identify 'Safe' subjects (not involved, keep them fixed).
+                // 3. Try to swap problem subjects with their other sections.
+                // 4. Return valid combinations.
+
+                // For simplicity, we only try to swap ONE subject at a time if possible, or combinations.
+                // Full recursive solving might be too heavy? Let's try simple iteration first.
+                // Actually, we want to find a combination of sections for ALL subjects that has NO overlaps.
+
+                // Optimization: Only iterate variations for Clashing Subjects. Keep others fixed.
+                const fixedSections = currentSections.filter(s => !clashingSubjectCodes.has(s.kod_subjek));
+                const problemSubjects = Array.from(clashingSubjectCodes);
+
+                // If too many problem subjects (> 3), complexity explodes. Limit??
+                // Let's assume usually 2 subjects clash.
+
+                const solutions = [];
+
+                // Helper to check if a set of sections has clashes
+                function hasClash(testSections) {
+                    for (let a = 0; a < testSections.length; a++) {
+                        for (let b = a + 1; b < testSections.length; b++) {
+                            const sA = testSections[a];
+                            const sB = testSections[b];
+                            // Get times
+                            const tA = sectionTimeMap.get(sA.key) || [];
+                            const tB = sectionTimeMap.get(sB.key) || [];
+                            // Check overlap
+                            for (const timeA of tA) {
+                                for (const timeB of tB) {
+                                    if (timeA.key === timeB.key) return true;
+                                }
+                            }
+                        }
+                    }
+                    return false;
+                }
+
+                // Recursive solver
+                function solve(index, currentBuild) {
+                    if (index >= problemSubjects.length) {
+                        // Base case: All problem subjects assigned.
+                        // Combine with fixed sections
+                        const fullSet = [...fixedSections, ...currentBuild];
+                        if (!hasClash(fullSet)) {
+                            solutions.push(fullSet);
+                        }
+                        return;
+                    }
+
+                    const subjCode = problemSubjects[index];
+                    const availableSections = subjectSectionsMap.get(subjCode) || [];
+
+                    // Try each available section for this subject
+                    availableSections.forEach(sec => {
+                        solve(index + 1, [...currentBuild, sec]);
+                    });
+                }
+
+                solve(0, []);
+
+                // Format solutions for display
+                // Filter out the solution that is identical to current (if current had no clash? Impossible we in clash block)
+                // But we know current has clash.
+
+                return solutions.slice(0, 10); // Limit to top 10
+            }
+
+            function renderTable(report) {
+                const tbody = $('#clashTableBody');
+                tbody.empty();
+                if (report.length === 0) {
+                    tbody.html('<tr class="empty-state"><td colspan="8">No clashes detected! Everyone is safe.</td></tr>');
+                    return;
+                }
+                report.sort((a, b) => a.student.nama.localeCompare(b.student.nama));
+
+                report.forEach((item, idx) => {
+                    const s = item.student;
+                    // Build Clash Details
+                    const detailsHtml = item.clashes.map(c => `
+                    <div class="clash-detail">
+                        <strong>${c.subject1}</strong> : <strong>${c.subject2}</strong> 
+                        <span style="color:#7f1d1d;">(${c.time})</span>
+                    </div>
+                `).join("");
+
+                    // Build Suggestion Cell
+                    const suggCount = item.suggestions.length;
+                    const suggHtml = suggCount > 0
+                        ? `<a href="javascript:void(0)" class="suggestion-link" data-idx="${idx}">${suggCount}</a>`
+                        : `<span style="color:#999; font-size:0.9rem;">0</span>`;
+
+                    const row = `
+                    <tr>
+                        <td>${idx + 1}.</td>
+                        <td>
+                            <div style="font-weight:600;">${s.nama}</div>
+                            <div style="font-size:0.8rem; color:#6b7280;">${s.no_matrik}</div>
+                        </td>
+                        <td>${s.tahun_kursus} ${s.kod_kursus}</td>
+                        <td><span class="badge badge-faculty">${s.kod_fakulti}</span></td>
+                        <td style="text-align:center;">${item.subjectCount}</td>
+                        <td class="clash-row">${detailsHtml}</td>
+                        <td style="text-align:center;">${suggHtml}</td>
+                    </tr>
+                `;
+                    tbody.append(row);
+                });
+
+                // Bind Clicks
+                $('.suggestion-link').click(function () {
+                    const idx = $(this).data('idx');
+                    showSuggestions(report[idx]);
+                });
+
+                $('#scanStatus').text(`Scan Complete. Found ${report.length} students with schedule conflicts.`);
+            }
+
+            function showSuggestions(item) {
+                $('#modalStudentName').text(`Suggestions for ${item.student.nama}`);
+                const list = $('#modalSuggestionsList');
+                list.empty();
+
+                if (!item.suggestions || item.suggestions.length === 0) {
+                    list.html('<p>No valid schedule combinations found.</p>');
+                } else {
+                    item.suggestions.forEach((sol, i) => {
+                        // sol is array of sections
+                        // Sort by code so it looks neat
+                        sol.sort((a, b) => a.kod_subjek.localeCompare(b.kod_subjek));
+
+                        const str = sol.map(sec => {
+                            // Highlight if this section is different from original enrolled?
+                            // Complex to track. Just show list.
+                            // Or highlight red if it matches the "Problem Subject"?
+                            return `<span class="sugg-sec">${sec.kod_subjek}-${sec.seksyen}</span>`;
+                        }).join(" ");
+
+                        list.append(`<div class="suggestion-item"><strong>Option ${i + 1}:</strong> ${str}</div>`);
+                    });
+                }
+                $('#suggestionModal').show();
+            }
+
+            function renderEmpty(msg) {
+                $('#clashTableBody').html(`<tr class="empty-state"><td colspan="8">${msg}</td></tr>`);
+                updateStatus("Completed", 100);
+            }
+
+            function updateStatus(msg, percent) {
+                $('#scanStatus').text(msg);
+                $('#scanPercent').text(percent + "%");
+                $('#scanFill').css('width', percent + "%");
+            }
+
+            // Auto-Start
+            $(document).ready(function () {
+                startClashAnalysis();
+            });
+
+        })();
+    </script>
+</body>
+
+</html>
