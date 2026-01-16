@@ -159,40 +159,35 @@
         async function fetchAndCacheStudents() {
             try {
                 allStudents = []; // Reset
-                let fetchOffset = 0;
-                const batchLimit = 1000; // API likely caps at this
-                let keepFetching = true;
+                const batchLimit = 1000;
 
-                while (keepFetching) {
-                    // Update UI 
-                    $('#studentTableBody').html(`
-                        <tr>
-                            <td colspan="5" style="text-align: center; padding: 40px; color: #6b7280;">
-                                <i class="fa fa-spinner fa-spin" style="font-size: 24px; margin-bottom: 10px;"></i>
-                                <p>Loading student list for analysis...</p>
-                            </td>
-                        </tr>
-                    `);
+                $('#studentTableBody').html(`
+                    <tr>
+                        <td colspan="5" style="text-align: center; padding: 40px; color: #6b7280;">
+                            <i class="fa fa-spinner fa-spin" style="font-size: 24px; margin-bottom: 10px;"></i>
+                            <p>Loading student list for analysis...</p>
+                        </td>
+                    </tr>
+                `);
 
-                    const url = `http://web.fc.utm.my/ttms/web_man_webservice_json.cgi?entity=pelajar&session_id=${adminSession.session_id}&sesi=${currentSesi}&semester=${currentSem}&limit=${batchLimit}&offset=${fetchOffset}`;
+                // Create speculative offsets for parallel fetching (0 to 9000 = 10k students max)
+                // This covers most faculties. Parallel requests are much faster than sequential.
+                const offsets = [0, 1000, 2000, 3000, 4000, 5000, 6000, 7000, 8000, 9000];
 
-                    const response = await fetch(url);
-                    const students = await response.json();
+                const fetchPromises = offsets.map(offset =>
+                    fetch(`http://web.fc.utm.my/ttms/web_man_webservice_json.cgi?entity=pelajar&session_id=${adminSession.session_id}&sesi=${currentSesi}&semester=${currentSem}&limit=${batchLimit}&offset=${offset}`)
+                        .then(res => res.ok ? res.json() : [])
+                        .catch(e => [])
+                );
 
-                    if (!Array.isArray(students)) throw new Error("Invalid format");
+                const results = await Promise.all(fetchPromises);
 
-                    if (students.length === 0) {
-                        break; // Done
+                // Merge all valid arrays
+                results.forEach(data => {
+                    if (Array.isArray(data)) {
+                        allStudents = allStudents.concat(data);
                     }
-
-                    allStudents = allStudents.concat(students);
-                    fetchOffset += students.length;
-
-                    // If we got fewer than the limit, we've reached the end
-                    if (students.length < batchLimit) {
-                        keepFetching = false;
-                    }
-                }
+                });
 
                 // Populate Filters
                 populateFilters(allStudents);
