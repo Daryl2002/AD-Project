@@ -1,0 +1,86 @@
+<div class="header-section">
+    <h1 class="page-title">Admin Dashboard</h1>
+</div>
+
+<div class="card-box">
+    <h3>Top 10 Courses by Student Enrollment</h3>
+    <div id="dashboard_chart_div" style="width: 100%; height: 400px;">
+        <div class="loading-spinner">Loading Chart...</div>
+    </div>
+</div>
+
+<script>
+    (function () {
+        // Ensure Google Charts is loaded (Main page should load it, but we check)
+        if (typeof google === 'undefined') {
+            $.getScript("https://www.gstatic.com/charts/loader.js", function () {
+                initDashboard();
+            });
+        } else {
+            initDashboard();
+        }
+
+        function initDashboard() {
+            google.charts.load('current', { 'packages': ['bar'] });
+            google.charts.setOnLoadCallback(fetchAndDraw);
+        }
+
+        function fetchAndDraw() {
+            // Use 2025/2026 Sem 1 as default
+            const url = "http://web.fc.utm.my/ttms/web_man_webservice_json.cgi?entity=subjek&sesi=2025/2026&semester=1";
+
+            // Use CacheUtil from parent scope
+            // If running standalone, this might fail, but this file is designed for AdminMain
+            if (typeof cachedFetch === 'undefined') {
+                console.error("CacheUtil not loaded!");
+                $("#dashboard_chart_div").html("Error: CacheUtil missing.");
+                return;
+            }
+
+            cachedFetch(url)
+                .then(data => {
+                    if (!Array.isArray(data)) return;
+
+                    // Parse numbers and sort
+                    const validData = data.filter(d => d.bil_pelajar).map(d => ({
+                        name: d.nama_subjek,
+                        code: d.kod_subjek,
+                        count: parseInt(d.bil_pelajar)
+                    }));
+
+                    validData.sort((a, b) => b.count - a.count);
+                    const top10 = validData.slice(0, 10);
+
+                    drawChart(top10);
+                })
+                .catch(err => {
+                    console.error("Dashboard fetch error:", err);
+                    $("#dashboard_chart_div").html("Failed to load data.");
+                });
+        }
+
+        function drawChart(courses) {
+            const data = new google.visualization.DataTable();
+            data.addColumn('string', 'Course');
+            data.addColumn('number', 'Students');
+
+            const rows = courses.map(c => [`${c.code} - ${c.name}`, c.count]);
+            data.addRows(rows);
+
+            const options = {
+                chart: {
+                    title: 'Student Enrollment per Course',
+                    subtitle: 'Top 10 most populated subjects',
+                },
+                bars: 'horizontal',
+                height: 400,
+                colors: ['#1b9e77'],
+                hAxis: { format: 'decimal' },
+                legend: { position: 'none' }
+            };
+
+            const chart = new google.charts.Bar(document.getElementById('dashboard_chart_div'));
+            chart.draw(data, google.charts.Bar.convertOptions(options));
+        }
+    })();
+</script>

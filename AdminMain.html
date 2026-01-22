@@ -24,7 +24,7 @@
                     const userSession = JSON.parse(userSessionStr);
                     if (!userSession.session_id) throw new Error("No session ID");
 
-                    // Use the endpoint from AjaxThing line 61
+                    // Use the endpoint from AjaxThing line 61 - skip cache for auth (security sensitive)
                     const response = await fetch(`http://web.fc.utm.my/ttms/auth-admin.php?session_id=${userSession.session_id}`);
                     const data = await response.json();
 
@@ -128,7 +128,7 @@
     </div>
 
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
-
+    <script src="CacheUtil.js"></script>
 
     <script>
         const BASE_URL =

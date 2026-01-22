@@ -7,9 +7,10 @@
     <link rel="stylesheet" href="https://www.w3schools.com/w3css/4/w3.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
     <script src="../Authenticate.js"></script>
+    <script src="../CacheUtil.js"></script>
     <script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
-    <!-- CSS Path Adjusted: pointing to ../Styles as the folder is in the root -->
-    <link rel="stylesheet" href="../Styles/RoomUsageAnalysisStyle.css">
+    <!-- CSS Path: Relative to MainLecturer.html since it's loaded dynamically -->
+    <link rel="stylesheet" href="Styles/RoomUsageAnalysisStyle.css">
 </head>
 
 <body class="w3-container">
@@ -140,19 +141,7 @@
 
                 console.log("Fetching room data from: " + url);
 
-                fetch(url)
-                    .then(res => {
-                        if (!res.ok) throw new Error("Server returned " + res.status);
-                        return res.text(); // Get text first to debug invalid JSON
-                    })
-                    .then(text => {
-                        try {
-                            return JSON.parse(text);
-                        } catch (e) {
-                            console.error("API Response was not JSON:", text.substring(0, 100));
-                            throw new Error("Invalid API Response");
-                        }
-                    })
+                cachedFetch(url)
                     .then(rooms => {
                         // Initial filter for N28/N28A
                         const targets = rooms.filter(r => r.kod_ruang && (r.kod_ruang.startsWith('N28') || r.kod_ruang.startsWith('N28A')));
@@ -313,8 +302,7 @@
                 // but for <50 rooms Promise.all is usually fine.
                 return Promise.all(
                     rooms.map(room =>
-                        fetch(`http://web.fc.utm.my/ttms/web_man_webservice_json.cgi?entity=jadual_ruang&sesi=${currentSesi}&semester=${currentSemester}&kod_ruang=${room.kod_ruang}`)
-                            .then(res => res.json())
+                        cachedFetch(`http://web.fc.utm.my/ttms/web_man_webservice_json.cgi?entity=jadual_ruang&sesi=${currentSesi}&semester=${currentSemester}&kod_ruang=${room.kod_ruang}`)
                             .then(schedule => calculateUsage(room, Array.isArray(schedule) ? schedule : []))
                             .catch(() => ({ ...room, usageHours: 0, subjectCount: 0 }))
                     )
@@ -384,16 +372,15 @@
 
                 const options = {
                     title: 'Daily Room Usage (Hours per Day)',
-                    // curveType: 'function', // Removed to make lines straight
-                    legend: { position: 'bottom' },
+                    legend: { position: 'none' }, // No legend needed for single series
                     height: 400,
-                    pointSize: 5,
                     hAxis: { title: 'Day of Week' },
                     vAxis: { title: 'Hours Used', minValue: 0, format: '0' },
-                    colors: ['#e65100']
+                    colors: ['#e65100'],
+                    bar: { groupWidth: "50%" }
                 };
 
-                const chart = new google.visualization.LineChart(document.getElementById('daily_chart_div'));
+                const chart = new google.visualization.ColumnChart(document.getElementById('daily_chart_div'));
                 chart.draw(data, options);
             }
 

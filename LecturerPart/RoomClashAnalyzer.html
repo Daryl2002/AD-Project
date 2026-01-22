@@ -1,152 +1,157 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
-<meta charset="UTF-8">
-<title>Room Clash Analyzer</title>
-<meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta charset="UTF-8">
+  <title>Room Clash Analyzer</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
 
-<link rel="stylesheet" href="https://www.w3schools.com/w3css/4/w3.css">
-<script src="../Authenticate.js"></script>
-<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
+  <link rel="stylesheet" href="https://www.w3schools.com/w3css/4/w3.css">
+  <script src="../Authenticate.js"></script>
+  <script src="../CacheUtil.js"></script>
+  <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
 
-<style>
-  body { font-size: 14px; }
+  <style>
+    body {
+      font-size: 14px;
+    }
 
-  table {
-    border-collapse: collapse;
-    width: 100%;
-  }
+    table {
+      border-collapse: collapse;
+      width: 100%;
+    }
 
-  th {
-    background: #fff3a0;
-    position: sticky;
-    top: 0;
-    z-index: 10;
-  }
+    th {
+      background: #fff3a0;
+      position: sticky;
+      top: 0;
+      z-index: 10;
+    }
 
-  .clash-row {
-    background-color: #ffe1e1;
-  }
+    .clash-row {
+      background-color: #ffe1e1;
+    }
 
-  td, th {
-    border: 1px solid #ccc;
-    padding: 6px;
-    text-align: left;
-    white-space: nowrap;
-  }
-</style>
+    td,
+    th {
+      border: 1px solid #ccc;
+      padding: 6px;
+      text-align: left;
+      white-space: nowrap;
+    }
+  </style>
 </head>
 
 <body class="w3-container">
 
-<h3 class="w3-center w3-text-blue">
-  Room Clash Analyzer – Ruang & Masa
-</h3>
+  <h3 class="w3-center w3-text-blue">
+    Room Clash Analyzer – Ruang & Masa
+  </h3>
 
-<div class="w3-panel w3-light-grey w3-round">
-  <b>Sesi / Semester:</b>
-  <span id="sessionSem">Loading…</span>
-</div>
+  <div class="w3-panel w3-light-grey w3-round">
+    <b>Sesi / Semester:</b>
+    <span id="sessionSem">Loading…</span>
+  </div>
 
-<div class="w3-responsive">
-<table class="w3-table-all">
-<thead>
-<tr>
-  <th>Bil.</th>
-  <th>Kod Ruang</th>
-  <th>Nama Ruang</th>
-  <th>Nama Singkatan</th>
-  <th>Kod Fakulti/Jabatan</th>
-  <th>Hari</th>
-  <th>Masa</th>
-  <th>Subjek</th>
-</tr>
-</thead>
-<tbody id="resultBody">
-<tr><td colspan="8" class="w3-center">Loading data…</td></tr>
-</tbody>
-</table>
-</div>
+  <div class="w3-responsive">
+    <table class="w3-table-all">
+      <thead>
+        <tr>
+          <th>Bil.</th>
+          <th>Kod Ruang</th>
+          <th>Nama Ruang</th>
+          <th>Nama Singkatan</th>
+          <th>Kod Fakulti/Jabatan</th>
+          <th>Hari</th>
+          <th>Masa</th>
+          <th>Subjek</th>
+        </tr>
+      </thead>
+      <tbody id="resultBody">
+        <tr>
+          <td colspan="8" class="w3-center">Loading data…</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
 
-<script>
-/* ================= STATE ================= */
-const state = {
-  sesi: window.parent.currentSesi,
-  semester: window.parent.currentSemester,
-  lecturerCache: {}
-};
+  <script>
+    /* ================= STATE ================= */
+    const state = {
+      sesi: window.parent.currentSesi,
+      semester: window.parent.currentSemester,
+      lecturerCache: {}
+    };
 
-$("#sessionSem").text(`${state.sesi} | Semester ${state.semester}`);
+    $("#sessionSem").text(`${state.sesi} | Semester ${state.semester}`);
 
-/* ================= INIT ================= */
-$(document).ready(loadRooms);
+    /* ================= INIT ================= */
+    $(document).ready(loadRooms);
 
-/* ================= LOAD ROOMS ================= */
-function loadRooms() {
-  fetch("http://web.fc.utm.my/ttms/web_man_webservice_json.cgi?entity=ruang&kod_fakulti=fsksm")
-    .then(r => r.json())
-    .then(rooms => {
-      const targetRooms = rooms.filter(r =>
-        r.kod_ruang && r.kod_ruang.startsWith("N28")
-      );
-      return Promise.all(targetRooms.map(loadRoomSchedule));
-    })
-    .then(data => detectClashes(data.flat()))
-    .catch(showError);
-}
+    /* ================= LOAD ROOMS ================= */
+    function loadRooms() {
+      cachedFetch("http://web.fc.utm.my/ttms/web_man_webservice_json.cgi?entity=ruang&kod_fakulti=fsksm")
+        .then(rooms => {
+          const targetRooms = rooms.filter(r =>
+            r.kod_ruang && r.kod_ruang.startsWith("N28")
+          );
+          return Promise.all(targetRooms.map(loadRoomSchedule));
+        })
+        .then(data => detectClashes(data.flat()))
+        .catch(showError);
+    }
 
-/* ================= LOAD ROOM SCHEDULE ================= */
-function loadRoomSchedule(room) {
-  return fetch(
-    `http://web.fc.utm.my/ttms/web_man_webservice_json.cgi?entity=jadual_ruang&sesi=${state.sesi}&semester=${state.semester}&kod_ruang=${room.kod_ruang}`
-  )
-  .then(r => r.json())
-  .then(list => {
-    if (!Array.isArray(list)) return [];
-    return list.map(j => ({
-      room,
-      hari: j.hari,
-      masa: j.masa,
-      kod_subjek: j.subjek?.kod_subjek,
-      seksyen: j.subjek?.seksyen
-    }));
-  });
-}
+    /* ================= LOAD ROOM SCHEDULE ================= */
+    function loadRoomSchedule(room) {
+      return cachedFetch(
+        `http://web.fc.utm.my/ttms/web_man_webservice_json.cgi?entity=jadual_ruang&sesi=${state.sesi}&semester=${state.semester}&kod_ruang=${room.kod_ruang}`
+      )
+        .then(list => {
+          if (!Array.isArray(list)) return [];
+          return list.map(j => ({
+            room,
+            hari: j.hari,
+            masa: j.masa,
+            kod_subjek: j.subjek?.kod_subjek,
+            seksyen: j.subjek?.seksyen
+          }));
+        });
+    }
 
-/* ================= CLASH DETECTION ================= */
-function detectClashes(rows) {
-  const map = {};
+    /* ================= CLASH DETECTION ================= */
+    function detectClashes(rows) {
+      const map = {};
 
-  rows.forEach(r => {
-    if (!r.hari || !r.masa || !r.kod_subjek) return;
-    const key = `${r.room.kod_ruang}|${r.hari}|${r.masa}`;
-    if (!map[key]) map[key] = [];
-    map[key].push(r);
-  });
+      rows.forEach(r => {
+        if (!r.hari || !r.masa || !r.kod_subjek) return;
+        const key = `${r.room.kod_ruang}|${r.hari}|${r.masa}`;
+        if (!map[key]) map[key] = [];
+        map[key].push(r);
+      });
 
-  const clashes = Object.values(map)
-    .filter(g => g.length > 1)
-    .flat();
+      const clashes = Object.values(map)
+        .filter(g => g.length > 1)
+        .flat();
 
-  renderTable(clashes);
-}
+      renderTable(clashes);
+    }
 
-/* ================= RENDER TABLE ================= */
-async function renderTable(rows) {
-  const body = $("#resultBody");
-  body.empty();
+    /* ================= RENDER TABLE ================= */
+    async function renderTable(rows) {
+      const body = $("#resultBody");
+      body.empty();
 
-  if (rows.length === 0) {
-    body.append(`<tr><td colspan="8" class="w3-center">Tiada pertindihan ruang</td></tr>`);
-    return;
-  }
+      if (rows.length === 0) {
+        body.append(`<tr><td colspan="8" class="w3-center">Tiada pertindihan ruang</td></tr>`);
+        return;
+      }
 
-  let bil = 1;
+      let bil = 1;
 
-  for (const r of rows) {
-    const lec = await getLecturer(r.kod_subjek, r.seksyen);
+      for (const r of rows) {
+        const lec = await getLecturer(r.kod_subjek, r.seksyen);
 
-    body.append(`
+        body.append(`
       <tr class="clash-row">
         <td>${bil++}</td>
         <td>${r.room.kod_ruang}</td>
@@ -158,44 +163,45 @@ async function renderTable(rows) {
         <td>${r.kod_subjek} - ${r.seksyen} - ${lec}</td>
       </tr>
     `);
-  }
-}
-
-/* ================= LECTURER LOOKUP ================= */
-function getLecturer(kod, seksyen) {
-  return new Promise(resolve => {
-    const key = `${kod}-${seksyen}`;
-    if (state.lecturerCache[key]) {
-      resolve(state.lecturerCache[key]);
-      return;
+      }
     }
 
-    $.ajax({
-      url: `http://web.fc.utm.my/ttms/web_man_webservice_json.cgi?entity=subjek_pensyarah&kod_subjek=${kod}&sesi=${state.sesi}&semester=${state.semester}&seksyen=${seksyen}`,
-      dataType: "json",
-      success: d => {
-        const name = (d && d.length > 0 && d[0].nama)
-          ? d[0].nama.toLowerCase()
-          : "unknown";
-        state.lecturerCache[key] = name;
-        resolve(name);
-      },
-      error: () => {
-        state.lecturerCache[key] = "unknown";
-        resolve("unknown");
-      }
-    });
-  });
-}
+    /* ================= LECTURER LOOKUP ================= */
+    function getLecturer(kod, seksyen) {
+      return new Promise(resolve => {
+        const key = `${kod}-${seksyen}`;
+        if (state.lecturerCache[key]) {
+          resolve(state.lecturerCache[key]);
+          return;
+        }
 
-/* ================= ERROR ================= */
-function showError(e) {
-  console.error(e);
-  $("#resultBody").html(
-    `<tr><td colspan="8" class="w3-center w3-red">Ralat memuat data</td></tr>`
-  );
-}
-</script>
+        $.ajax({
+          url: `http://web.fc.utm.my/ttms/web_man_webservice_json.cgi?entity=subjek_pensyarah&kod_subjek=${kod}&sesi=${state.sesi}&semester=${state.semester}&seksyen=${seksyen}`,
+          dataType: "json",
+          success: d => {
+            const name = (d && d.length > 0 && d[0].nama)
+              ? d[0].nama.toLowerCase()
+              : "unknown";
+            state.lecturerCache[key] = name;
+            resolve(name);
+          },
+          error: () => {
+            state.lecturerCache[key] = "unknown";
+            resolve("unknown");
+          }
+        });
+      });
+    }
+
+    /* ================= ERROR ================= */
+    function showError(e) {
+      console.error(e);
+      $("#resultBody").html(
+        `<tr><td colspan="8" class="w3-center w3-red">Ralat memuat data</td></tr>`
+      );
+    }
+  </script>
 
 </body>
+
 </html>

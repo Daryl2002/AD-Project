@@ -35,11 +35,12 @@
 </html>
 
 <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
+<script src="../CacheUtil.js"></script>
 <script>
   var url = "http://web.fc.utm.my/ttms/web_man_webservice_json.cgi?entity=subjek&sesi=2025/2026&semester=1";
 
   alert("Access TTMS-AJAX service");
-  fetch(url)
+  cachedFetch(url)
     .then(res => res.json())
     .then(jsonInst => {
 

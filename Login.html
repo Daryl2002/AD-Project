@@ -60,6 +60,7 @@
     </div>
 
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
+    <script src="CacheUtil.js"></script>
 
     <script>
         const BASE_URL =
@@ -91,7 +92,7 @@
             const authUrl =
                 `${BASE_URL}?entity=authentication&login=${loginId}&password=${password}`;
 
-            // 1️⃣ Authenticate
+            // 1️⃣ Authenticate - DO NOT CACHE (security sensitive)
             fetch(authUrl)
                 .then(res => res.json())
                 .then(data => {
@@ -110,11 +111,10 @@
 
                     // 2️⃣ Admin mode requested?
                     if (loginAsAdmin) {
-                        // Check if user is a student first
+                        // Check if user is a student first - USE CACHE for faster role detection
                         const checkStudentUrl = `${BASE_URL}?entity=pelajar_subjek&no_matrik=${userSession.login_name}`;
 
-                        fetch(checkStudentUrl)
-                            .then(r => r.json())
+                        cachedFetch(checkStudentUrl)
                             .then(sData => {
                                 if (Array.isArray(sData) && sData.length > 0) {
                                     // It IS a student
@@ -147,6 +147,7 @@
             const adminUrl =
                 `http://web.fc.utm.my/ttms/auth-admin.php?session_id=${userSession.session_id}`;
 
+            // DO NOT CACHE admin auth (security sensitive)
             fetch(adminUrl)
                 .then(res => res.json())
                 .then(adminData => {
@@ -180,8 +181,8 @@
             const studentUrl =
                 `${BASE_URL}?entity=pelajar_subjek&no_matrik=${loginName}`;
 
-            fetch(studentUrl)
-                .then(res => res.json())
+            // USE CACHE for role detection - this data doesn't change frequently
+            cachedFetch(studentUrl)
                 .then(data => {
 
                     if (Array.isArray(data) && data.length > 0) {

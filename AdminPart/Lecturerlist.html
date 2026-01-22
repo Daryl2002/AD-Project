@@ -1,5 +1,6 @@
 <html>
 <script src="../Authenticate.js"></script>
+<script src="../CacheUtil.js"></script>
 <link rel="stylesheet" href="Styles/lecturerList.css">
 
 <div class="page-container">
@@ -81,8 +82,7 @@
         async function init() {
             try {
                 // 1. Fetch Current Session/Semester
-                const sesiResponse = await fetch("http://web.fc.utm.my/ttms/web_man_webservice_json.cgi?entity=sesisemester");
-                const sesiData = await sesiResponse.json();
+                const sesiData = await cachedFetch("http://web.fc.utm.my/ttms/web_man_webservice_json.cgi?entity=sesisemester");
                 if (!sesiData || !sesiData[0]) throw new Error("Failed to fetch session info");
 
                 const currentSesi = sesiData[0].sesi;
@@ -103,7 +103,7 @@
                 `);
 
                 // A. Fetch Current Schedule (The Truth for stats)
-                const pSchedule = fetch(`http://web.fc.utm.my/ttms/web_man_webservice_json.cgi?entity=subjek_seksyen&sesi=${currentSesi}&semester=${currentSem}`);
+                const pSchedule = cachedFetch(`http://web.fc.utm.my/ttms/web_man_webservice_json.cgi?entity=subjek_seksyen&sesi=${currentSesi}&semester=${currentSem}`);
 
                 // 2. Fetch Data Strategy: History Scan + Schedule Overlay
                 // We set the scan to 15 semesters (~8 years).
@@ -115,14 +115,12 @@
 
                 // B. Fetch History of Lecturers
                 const historyPromises = recentSessions.map(s =>
-                    fetch(`http://web.fc.utm.my/ttms/web_man_webservice_json.cgi?entity=pensyarah&session_id=${adminSession.session_id}&sesi=${s.sesi}&semester=${s.semester}`)
-                        .then(res => res.ok ? res.json() : [])
+                    cachedFetch(`http://web.fc.utm.my/ttms/web_man_webservice_json.cgi?entity=pensyarah&session_id=${adminSession.session_id}&sesi=${s.sesi}&semester=${s.semester}`)
                         .catch(e => [])
                 );
 
                 // Execute
-                const [resSchedule, ...historyData] = await Promise.all([pSchedule, ...historyPromises]);
-                const scheduleData = await resSchedule.json();
+                const [scheduleData, ...historyData] = await Promise.all([pSchedule, ...historyPromises]);
 
                 if (!Array.isArray(scheduleData)) throw new Error("Invalid schedule data");
 

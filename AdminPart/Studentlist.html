@@ -1,5 +1,6 @@
 <html>
 <script src="../Authenticate.js"></script>
+<script src="../CacheUtil.js"></script>
 <script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
 <link rel="stylesheet" href="Styles/studentList.css">
 
@@ -133,12 +134,10 @@
         let currentPage = 1;
         const itemsPerPage = 20;
 
-        // Init
         async function init() {
             try {
                 // 1. Get Session
-                const res = await fetch("http://web.fc.utm.my/ttms/web_man_webservice_json.cgi?entity=sesisemester");
-                const data = await res.json();
+                const data = await cachedFetch("http://web.fc.utm.my/ttms/web_man_webservice_json.cgi?entity=sesisemester");
                 if (Array.isArray(data) && data.length > 0) {
                     currentSesi = data[0].sesi;
                     currentSem = data[0].semester;
@@ -175,8 +174,7 @@
                 const offsets = [0, 1000, 2000, 3000, 4000, 5000, 6000, 7000, 8000, 9000];
 
                 const fetchPromises = offsets.map(offset =>
-                    fetch(`http://web.fc.utm.my/ttms/web_man_webservice_json.cgi?entity=pelajar&session_id=${adminSession.session_id}&sesi=${currentSesi}&semester=${currentSem}&limit=${batchLimit}&offset=${offset}`)
-                        .then(res => res.ok ? res.json() : [])
+                    cachedFetch(`http://web.fc.utm.my/ttms/web_man_webservice_json.cgi?entity=pelajar&session_id=${adminSession.session_id}&sesi=${currentSesi}&semester=${currentSem}&limit=${batchLimit}&offset=${offset}`)
                         .catch(e => [])
                 );
 

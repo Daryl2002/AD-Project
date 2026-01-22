@@ -267,6 +267,52 @@ body {
     }
 }
 
+/* No Results Message */
+.no-results {
+    text-align: center;
+    padding: 40px 20px;
+    background: var(--white);
+    border-radius: 16px;
+    box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
+    border: 1px solid var(--border-color);
+    margin-top: 24px;
+}
+
+.no-results h4 {
+    color: var(--text-main);
+    margin: 10px 0;
+    font-weight: 700;
+}
+
+.no-results p {
+    color: var(--text-muted);
+    margin: 0;
+}
+
+/* Error Panel */
+.error-panel {
+    background: var(--white);
+    border-radius: 16px;
+    padding: 24px;
+    box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
+    border-left: 4px solid #dc2626;
+    margin-top: 24px;
+}
+
+.error-panel h3 {
+    color: #dc2626;
+    margin: 0 0 10px 0;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.error-panel p {
+    color: var(--text-muted);
+    margin: 0 0 15px 0;
+}
+
 /* Responsive Adjustments */
 @media (max-width: 640px) {
     .action-buttons { flex-direction: column; }
