@@ -6,6 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
+    <script src="../CacheUtil.js"></script>
     <!-- CSS Path fixed: Relative to MainLecturer.html since it's loaded dynamically -->
     <link rel="stylesheet" href="Styles/MyTimetableStyle.css">
 
@@ -176,8 +177,7 @@
             // ==========================================
 
             function fetchCurrentSession() {
-                return fetch("http://web.fc.utm.my/ttms/web_man_webservice_json.cgi?entity=sesisemester")
-                    .then(res => res.json())
+                return cachedFetch("http://web.fc.utm.my/ttms/web_man_webservice_json.cgi?entity=sesisemester")
                     .then(sessemList => {
                         const active = sessemList.find(s => s.sesi_semester_id) || sessemList[0];
                         currentSesi = active.sesi;
@@ -223,8 +223,7 @@
 
                 console.log("📡 Fetching lecturer subjects from:", url);
 
-                fetch(url)
-                    .then(res => res.json())
+                cachedFetch(url)
                     .then(subjects => {
                         console.log("📦 All subjects received:", subjects);
 
@@ -284,8 +283,7 @@
             function fetchSubjectTimetable(subject) {
                 const url = `http://web.fc.utm.my/ttms/web_man_webservice_json.cgi?entity=jadual_subjek&sesi=${subject.sesi}&semester=${subject.semester}&kod_subjek=${subject.kod_subjek}&seksyen=${subject.seksyen}`;
 
-                return fetch(url)
-                    .then(res => res.json())
+                return cachedFetch(url)
                     .then(times => {
                         if (Array.isArray(times)) {
                             times.forEach(slot => {

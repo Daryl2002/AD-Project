@@ -1,0 +1,665 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TTMS Admin - Student Clash Analysis</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="Styles/studentClash.css">
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
+    <script src="Authenticate.js"></script>
+    <!-- CacheUtil is loaded by AdminMain, removing to avoid path errors -->
+    <script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
+</head>
+
+<body>
+
+    <!-- Sidebar placeholder (matches AdminMain structure) -->
+    <div style="display:flex;">
+        <div class="page-container" style="flex:1;">
+            <div class="header-section">
+                <h1 class="page-title">Student Schedule Clash Analysis</h1>
+            </div>
+
+            <!-- Progress Bar -->
+            <div class="card-box status-bar" id="scanProgress" style="display:block;">
+                <div class="status-text">
+                    <span id="scanStatus">Initializing Scan...</span>
+                    <span id="scanPercent">0%</span>
+                </div>
+                <div class="progress-track">
+                    <div class="progress-fill" id="scanFill"></div>
+                </div>
+            </div>
+
+            <!-- Dashboard Charts Container -->
+            <div id="clash_charts_container" class="card-box" style="margin-top: 20px; display:none;">
+                <div style="display:flex; flex-wrap:wrap; gap:20px;">
+                    <div style="flex:1; min-width:300px;">
+                        <h4 style="margin-top:0;">Conflict Severity (Students)</h4>
+                        <div id="piechart_severity" style="width: 100%; height: 250px;"></div>
+                    </div>
+                    <div style="flex:1; min-width:300px;">
+                        <h4 style="margin-top:0;">Top 5 Clashing Subjects</h4>
+                        <div id="barchart_subjects" style="width: 100%; height: 250px;"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Results Table -->
+            <div class="card-box" style="margin-top: 20px;">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th style="width: 50px;">NO.</th>
+                            <th>NAME</th>
+                            <th style="width: 120px;">YEAR/COURSE</th>
+                            <th style="width: 100px;">FACULTY</th>
+                            <th style="width: 100px;">SUBJ. COUNT</th>
+                            <th>SCHEDULE CLASH DETAILS</th>
+                            <th style="width: 80px;">SUGGESTION</th>
+                        </tr>
+                    </thead>
+                    <tbody id="clashTableBody">
+                        <tr class="empty-state">
+                            <td colspan="8">
+                                Please wait, analyzing all student schedules...
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Suggestion Modal -->
+    <div id="suggestionModal" class="modal-overlay" style="display:none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Schedule Suggestions</h3>
+                <button class="close-btn" onclick="$('#suggestionModal').hide()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p id="modalStudentName" style="font-weight:bold; margin-bottom:10px;"></p>
+                <p style="margin-bottom:10px;">The following section combinations are available and conflict-free:</p>
+                <div id="modalSuggestionsList" class="suggestion-list-container"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        (function () {
+            // -- Configuration --
+            // Use local variable to avoid global conflict or grab from localStorage directly
+            const localAdminSession = JSON.parse(localStorage.getItem("TTMSFC_adminSession"));
+            const API_BASE = "http://web.fc.utm.my/ttms/web_man_webservice_json.cgi";
+            let currentSesi = "";
+            let currentSem = "";
+
+            // -- Mappers --
+            const dayMap = { 1: "Sun", 2: "Mon", 3: "Tue", 4: "Wed", 5: "Thu", 6: "Fri", 7: "Sat" };
+
+            function formatTime(masaCode) {
+                const startHour = 7 + parseInt(masaCode);
+                const endHour = startHour + 1;
+                const ampm = h => h >= 12 ? (h > 12 ? h - 12 : h) + "pm" : h + "am";
+                return `${ampm(startHour)}-${ampm(endHour)}`;
+            }
+
+            async function startClashAnalysis() {
+                if (!localAdminSession) { alert("Session expired."); return; }
+
+                // UI Reset
+                $('#scanProgress').show();
+                $('#clash_charts_container').hide();
+                $('#clashTableBody').html('<tr><td colspan="8" class="empty-state">Initializing...</td></tr>');
+
+                try {
+                    // 1. Get Session
+                    updateStatus("Fetching session info...", 5);
+                    const sesiData = await cachedFetch(`${API_BASE}?entity=sesisemester`);
+                    currentSesi = sesiData[0].sesi;
+                    currentSem = sesiData[0].semester;
+
+                    // 2. Fetch Master Subject List
+                    updateStatus(`Fetching all subjects & sections for ${currentSesi}...`, 10);
+                    const allSubjects = await cachedFetch(`${API_BASE}?entity=subjek_seksyen&sesi=${currentSesi}&semester=${currentSem}`);
+
+                    let allSections = [];
+                    // Map to quickly find all sections for a given subject code
+                    const subjectSectionsMap = new Map();
+
+                    allSubjects.forEach(sub => {
+                        if (sub.seksyen_list) {
+                            // Init map
+                            if (!subjectSectionsMap.has(sub.kod_subjek)) subjectSectionsMap.set(sub.kod_subjek, []);
+
+                            sub.seksyen_list.forEach(sec => {
+                                const secObj = {
+                                    kod_subjek: sub.kod_subjek,
+                                    nama_subjek: sub.nama_subjek,
+                                    seksyen: sec.seksyen,
+                                    key: `${sub.kod_subjek}-${sec.seksyen}`
+                                };
+                                allSections.push(secObj);
+                                subjectSectionsMap.get(sub.kod_subjek).push(secObj);
+                            });
+                        }
+                    });
+
+                    console.log(`Found ${allSections.length} total sections.`);
+                    updateStatus(`Analyzing timetables for ${allSections.length} sections...`, 15);
+
+                    // 3. Fetch Timetables (Optimized: Try Bulk First)
+                    const timetableMap = new Map();
+                    const sectionTimeMap = new Map();
+
+                    updateStatus(`Fetching global timetable data...`, 15);
+
+                    // Attempt Bulk Fetch
+                    let bulkTimetables = [];
+                    try {
+                        const d = await cachedFetch(`${API_BASE}?entity=jadual_subjek&sesi=${currentSesi}&semester=${currentSem}`);
+                        if (Array.isArray(d) && d.length > 0) {
+                            bulkTimetables = d;
+                            console.log("Bulk timetable fetch successful: " + d.length + " slots.");
+                        }
+                    } catch (e) {
+                        console.warn("Bulk timetable fetch failed, falling back to iterative.", e);
+                    }
+
+                    if (bulkTimetables.length > 0) {
+                        // Process Bulk Data
+                        bulkTimetables.forEach(slot => {
+                            if (!slot.hari || !slot.masa || !slot.kod_subjek || !slot.seksyen) return;
+
+                            // Find matching section in allSections (optional verification, but helps consistency)
+                            // Or just build map directly.
+                            const secKey = `${slot.kod_subjek}-${slot.seksyen}`;
+                            if (!sectionTimeMap.has(secKey)) sectionTimeMap.set(secKey, []);
+
+                            const timeKey = `${slot.hari}-${slot.masa}`;
+                            if (!timetableMap.has(timeKey)) timetableMap.set(timeKey, []);
+
+                            // We need the full section object. Since bulk data might not have nama_subjek, 
+                            // we lookup from our master list or reconstruct minimally.
+                            // Optimization: Create a lightweight ref.
+                            const secObj = {
+                                kod_subjek: slot.kod_subjek,
+                                seksyen: slot.seksyen,
+                                key: secKey
+                            };
+
+                            timetableMap.get(timeKey).push(secObj);
+
+                            const timeObj = {
+                                day: slot.hari,
+                                time: slot.masa,
+                                key: timeKey,
+                                prettyTime: `${dayMap[slot.hari] || 'Day' + slot.hari} ${formatTime(slot.masa)}`
+                            };
+                            sectionTimeMap.get(secKey).push(timeObj);
+                        });
+                        updateStatus(`Processed ${bulkTimetables.length} timetable slots.`, 30);
+                    } else {
+                        // Fallback: Individual Fetches
+                        const chunkSize = 100; // Increased from 50
+                        let processed = 0;
+
+                        for (let i = 0; i < allSections.length; i += chunkSize) {
+                            const chunk = allSections.slice(i, i + chunkSize);
+                            const promises = chunk.map(sec =>
+                                cachedFetch(`${API_BASE}?entity=jadual_subjek&sesi=${currentSesi}&semester=${currentSem}&kod_subjek=${sec.kod_subjek}&seksyen=${sec.seksyen}`)
+                                    .then(data => ({ sec, data }))
+                                    .catch(e => ({ sec, data: [] }))
+                            );
+
+                            const resultChunk = await Promise.all(promises);
+
+                            resultChunk.forEach(({ sec, data }) => {
+                                if (Array.isArray(data)) {
+                                    const times = [];
+                                    data.forEach(slot => {
+                                        if (!slot.hari || !slot.masa) return;
+                                        const timeKey = `${slot.hari}-${slot.masa}`;
+                                        if (!timetableMap.has(timeKey)) timetableMap.set(timeKey, []);
+                                        timetableMap.get(timeKey).push(sec);
+                                        times.push({
+                                            day: slot.hari,
+                                            time: slot.masa,
+                                            key: timeKey,
+                                            prettyTime: `${dayMap[slot.hari] || 'Day' + slot.hari} ${formatTime(slot.masa)}`
+                                        });
+                                    });
+                                    if (times.length > 0) sectionTimeMap.set(sec.key, times);
+                                }
+                            });
+
+                            processed += chunk.length;
+                            const pct = 15 + Math.round((processed / allSections.length) * 25);
+                            updateStatus(`Fetching timetables... (${processed}/${allSections.length})`, pct);
+                        }
+                    }
+
+                    // 4. Identify Potential Clashes
+                    const candidateSections = new Set();
+                    timetableMap.forEach((sectionList, timeKey) => {
+                        if (sectionList.length > 1) {
+                            sectionList.forEach(s => candidateSections.add(JSON.stringify(s))); // Use string for Set uniqueness of objects
+                        }
+                    });
+
+                    if (candidateSections.size === 0) {
+                        renderEmpty("No schedule overlaps found in the system.");
+                        return;
+                    }
+
+                    // Parse back to objects
+                    const candidatesArray = Array.from(candidateSections).map(s => JSON.parse(s));
+
+                    updateStatus(`Checking student lists for ${candidatesArray.length} potential clashes...`, 50);
+
+                    // 5. Fetch Students (Safe Mode: small chunks, no bulk)
+                    const studentMap = new Map();
+                    const studentSchedules = new Map();
+
+                    // Fallback: Individual Fetches
+                    const chunkSize = 150; // Increased to 150 for MAX speed
+                    let processed = 0;
+
+                    const sleep = ms => new Promise(r => setTimeout(r, ms));
+
+                    for (let i = 0; i < candidatesArray.length; i += chunkSize) {
+                        const chunk = candidatesArray.slice(i, i + chunkSize);
+
+                        // Minimized delay
+                        if (i > 0) await sleep(5);
+
+                        const promises = chunk.map(sec =>
+                            cachedFetch(`${API_BASE}?entity=subjek_pelajar&session_id=${localAdminSession.session_id}&sesi=${currentSesi}&semester=${currentSem}&kod_subjek=${sec.kod_subjek}&seksyen=${sec.seksyen}`)
+                                .then(data => ({ sec, data }))
+                                .catch(e => ({ sec, data: [] }))
+                        );
+
+                        const resChunk = await Promise.all(promises);
+
+                        resChunk.forEach(({ sec, data }) => {
+                            if (Array.isArray(data)) {
+                                data.forEach(stud => {
+                                    if (!stud.no_matrik) return;
+                                    if (!studentMap.has(stud.no_matrik)) {
+                                        studentMap.set(stud.no_matrik, stud);
+                                        studentSchedules.set(stud.no_matrik, []);
+                                    }
+                                    studentSchedules.get(stud.no_matrik).push(sec);
+                                });
+                            }
+                        });
+
+                        processed += chunk.length;
+                        const pct = 50 + Math.round((processed / candidatesArray.length) * 40);
+                        updateStatus(`Analyzing student enrollments... (${processed}/${candidatesArray.length})`, pct);
+                    }
+
+                    // 6. Compute Clashes & Suggestions
+                    updateStatus("Finalizing clash report...", 95);
+                    const clashReport = [];
+
+                    studentSchedules.forEach((rawSections, matrik) => {
+                        // Deduplicate sections (handle if student appears twice in same section list)
+                        const uniqueSectionKeys = new Set();
+                        const sections = [];
+                        rawSections.forEach(s => {
+                            if (!uniqueSectionKeys.has(s.key)) {
+                                uniqueSectionKeys.add(s.key);
+                                sections.push(s);
+                            }
+                        });
+
+                        if (sections.length < 2) return; // No chance of clash
+
+                        const uniqueClashes = new Set();
+                        const studentClashes = [];
+                        const clashingSubjects = new Set(); // Codes of subjects involved in clashes
+
+                        for (let a = 0; a < sections.length; a++) {
+                            for (let b = a + 1; b < sections.length; b++) {
+                                const secA = sections[a];
+                                const secB = sections[b];
+
+                                // Prevent self-clash (redundant with dedup but safe)
+                                if (secA.key === secB.key) continue;
+
+                                const timesA = sectionTimeMap.get(secA.key) || [];
+                                const timesB = sectionTimeMap.get(secB.key) || [];
+
+                                timesA.forEach(tA => {
+                                    timesB.forEach(tB => {
+                                        if (tA.key === tB.key) {
+                                            const clashId = [secA.key, secB.key].sort().join(" vs ");
+                                            if (!uniqueClashes.has(clashId)) {
+                                                uniqueClashes.add(clashId);
+                                                studentClashes.push({
+                                                    subject1: `${secA.kod_subjek}-${secA.seksyen}`,
+                                                    subject2: `${secB.kod_subjek}-${secB.seksyen}`,
+                                                    time: tA.prettyTime
+                                                });
+                                                clashingSubjects.add(secA.kod_subjek);
+                                                clashingSubjects.add(secB.kod_subjek);
+                                            }
+                                        }
+                                    });
+                                });
+                            }
+                        }
+
+                        if (studentClashes.length > 0) {
+                            // Generate Suggestions
+                            const suggestions = generateSuggestions(sections, clashingSubjects, subjectSectionsMap, sectionTimeMap);
+
+                            clashReport.push({
+                                student: studentMap.get(matrik),
+                                clashes: studentClashes,
+                                subjectCount: sections.length,
+                                suggestions: suggestions
+                            });
+                        }
+                    });
+
+                    // 7. Render
+                    updateStatus("Done!", 100);
+                    renderTable(clashReport);
+                    drawClashCharts(clashReport);
+
+                } catch (err) {
+                    console.error(err);
+                    alert("Error during scan: " + err.message);
+                    updateStatus("Error: " + err.message, 0);
+                }
+            }
+
+            // --- Google Charts Integration ---
+            let isGoogleChartsLoaded = false;
+            let pendingClashReport = null; // Store report if charts aren't ready
+
+            if (typeof google !== 'undefined') {
+                google.charts.load('current', { 'packages': ['corechart', 'bar'] });
+                google.charts.setOnLoadCallback(() => {
+                    isGoogleChartsLoaded = true;
+                    // If we have data waiting, draw it now
+                    if (pendingClashReport) {
+                        drawClashCharts(pendingClashReport);
+                    }
+                });
+            }
+
+            function drawClashCharts(report) {
+                // If lib not loaded yet, just save data for later
+                if (!isGoogleChartsLoaded) {
+                    console.log("Charts library not ready, queueing report...");
+                    pendingClashReport = report;
+                    return;
+                }
+
+                if (report.length === 0) return;
+
+                $('#clash_charts_container').show();
+
+                // 1. Data for Pie Chart (Severity)
+                // Buckets: 1 clash, 2 clashes, 3+ clashes
+                let s1 = 0, s2 = 0, s3 = 0;
+                report.forEach(r => {
+                    const c = r.clashes.length;
+                    if (c === 1) s1++;
+                    else if (c === 2) s2++;
+                    else if (c >= 3) s3++;
+                });
+
+                const pieData = google.visualization.arrayToDataTable([
+                    ['Severity', 'Count'],
+                    ['1 Conflict', s1],
+                    ['2 Conflicts', s2],
+                    ['3+ Conflicts', s3]
+                ]);
+
+                const pieOptions = {
+                    fontName: 'Inter',
+                    fontSize: 14,
+                    pieHole: 0.6, // Donut style
+                    colors: ['#fbc02d', '#f57c00', '#d32f2f'], // Vibrant Amber, Orange, Red
+                    chartArea: { width: '90%', height: '80%' },
+                    legend: { position: 'right', textStyle: { color: '#374151', fontSize: 13 } },
+                    animation: {
+                        startup: true,
+                        duration: 1000,
+                        easing: 'out'
+                    },
+                    tooltip: { showColorCode: true, textStyle: { fontName: 'Inter' } }
+                };
+
+                const pieChart = new google.visualization.PieChart(document.getElementById('piechart_severity'));
+                pieChart.draw(pieData, pieOptions);
+
+                // 2. Data for Bar Chart (Top Clashing Subjects)
+                const subjCount = {};
+                report.forEach(r => {
+                    r.clashes.forEach(c => {
+                        // clash.subject1 is "CODE-SEC"
+                        const code1 = c.subject1.split('-')[0];
+                        const code2 = c.subject2.split('-')[0];
+                        subjCount[code1] = (subjCount[code1] || 0) + 1;
+                        subjCount[code2] = (subjCount[code2] || 0) + 1;
+                    });
+                });
+
+                // Convert to array and sort
+                const sortedSubj = Object.entries(subjCount)
+                    .sort((a, b) => b[1] - a[1])
+                    .slice(0, 5); // Top 5
+
+                // Simplified Data Model for cleaner bars (Color handled by options)
+                const barArray = [['Subject', 'Conflicts']];
+                sortedSubj.forEach((item) => {
+                    barArray.push([item[0], item[1]]);
+                });
+
+                const barData = google.visualization.arrayToDataTable(barArray);
+                const barOptions = {
+                    fontName: 'Inter',
+                    fontSize: 13,
+                    legend: { position: "none" },
+                    chartArea: { width: '75%', height: '70%' },
+                    colors: ['#3b82f6'], // Modern Blue
+                    hAxis: {
+                        minValue: 0,
+                        format: '0',
+                        gridlines: { color: '#f3f4f6' },
+                        textStyle: { color: '#6b7280' }
+                    },
+                    vAxis: {
+                        textStyle: { color: '#374151', bold: true }
+                    },
+                    animation: {
+                        startup: true,
+                        duration: 1200,
+                        easing: 'out'
+                    },
+                    bar: { groupWidth: '65%' } // Sleeker bars
+                };
+
+                const barChart = new google.visualization.BarChart(document.getElementById('barchart_subjects'));
+                barChart.draw(barData, barOptions);
+            }
+
+            // --- Suggestion Algorithm (Refined: Swap One Strategy) ---
+            function generateSuggestions(currentSections, clashingSubjectCodes, subjectSectionsMap, sectionTimeMap) {
+                const solutions = [];
+                const solutionsKeys = new Set(); // To avoid dupes
+
+                // Identify Problem and Safe subjects
+                // But actually, we just want to look at the subjects involved in the clash (clashingSubjectCodes)
+                // and try to move them ONE BY ONE to a safe spot.
+
+                const problemSubjects = Array.from(clashingSubjectCodes);
+
+                // Helper to check for clash
+                function hasClash(testSections) {
+                    for (let a = 0; a < testSections.length; a++) {
+                        for (let b = a + 1; b < testSections.length; b++) {
+                            const sA = testSections[a];
+                            const sB = testSections[b];
+                            if (sA.key === sB.key) continue; // Same section OK
+
+                            const tA = sectionTimeMap.get(sA.key) || [];
+                            const tB = sectionTimeMap.get(sB.key) || [];
+                            for (const timeA of tA) {
+                                for (const timeB of tB) {
+                                    if (timeA.key === timeB.key) return true;
+                                }
+                            }
+                        }
+                    }
+                    return false;
+                }
+
+                // Try to swap EACH clashing subject
+                problemSubjects.forEach(pCode => {
+                    // Find the section object for this code currently enrolled
+                    const currentSecIndex = currentSections.findIndex(s => s.kod_subjek === pCode);
+                    if (currentSecIndex === -1) return; // Should not happen
+
+                    const originalSec = currentSections[currentSecIndex];
+
+                    // Get alternatives
+                    const alternatives = subjectSectionsMap.get(pCode) || [];
+
+                    alternatives.forEach(altSec => {
+                        // Skip if it's the same section
+                        if (altSec.seksyen === originalSec.seksyen) return;
+
+                        // Construct trial schedule
+                        const trialSchedule = [...currentSections];
+                        trialSchedule[currentSecIndex] = altSec; // Swap
+
+                        // Check validity
+                        if (!hasClash(trialSchedule)) {
+                            // Valid Suggestion!
+                            const solKey = trialSchedule.map(s => s.key).sort().join("|");
+                            if (!solutionsKeys.has(solKey)) {
+                                solutionsKeys.add(solKey);
+                                solutions.push({
+                                    schedule: trialSchedule,
+                                    changedSubj: pCode, // Mark which one changed
+                                    newSection: altSec
+                                });
+                            }
+                        }
+                    });
+                });
+
+                return solutions;
+            }
+
+            function renderTable(report) {
+                const tbody = $('#clashTableBody');
+                tbody.empty();
+
+                if (report.length === 0) {
+                    tbody.html('<tr class="empty-state"><td colspan="8">No clashes detected! Everyone is safe.</td></tr>');
+                    return;
+                }
+
+                // Sort by Name
+                report.sort((a, b) => a.student.nama.localeCompare(b.student.nama));
+
+                report.forEach((item, idx) => {
+                    const s = item.student;
+
+                    // Build Clash Details HTML
+                    const detailsHtml = item.clashes.map(c => `
+                    <div class="clash-detail">
+                        <strong>${c.subject1}</strong> : <strong>${c.subject2}</strong> 
+                        <span style="color:#b91c1c;">(${c.time})</span>
+                    </div>
+                `).join("");
+
+                    // Build Suggestion Cell
+                    const suggCount = item.suggestions.length;
+                    const suggHtml = suggCount > 0
+                        ? `<a class="suggestion-link" data-idx="${idx}">${suggCount}</a>`
+                        : `<span class="suggestion-link zero">0</span>`;
+
+                    const row = `
+                    <tr>
+                        <td>${idx + 1}.</td>
+                        <td>
+                            <div style="font-weight:600;">${s.nama}</div>
+                            <div style="font-size:0.8rem; color:#6b7280;">${s.no_matrik}</div>
+                        </td>
+                        <td>${s.tahun_kursus} ${s.kod_kursus}</td>
+                        <td><span class="badge badge-faculty">${s.kod_fakulti}</span></td>
+                        <td style="text-align:center;">${item.subjectCount}</td>
+                        <td class="clash-row">${detailsHtml}</td>
+                        <td style="text-align:center;">${suggHtml}</td>
+                    </tr>
+                `;
+                    tbody.append(row);
+                });
+
+                // Bind Clicks
+                $('.suggestion-link:not(.zero)').click(function () {
+                    const idx = $(this).data('idx');
+                    showSuggestions(report[idx]);
+                });
+
+                $('#scanStatus').text(`Scan Complete. Found ${report.length} students with schedule conflicts.`);
+            }
+
+            function showSuggestions(item) {
+                $('#modalStudentName').text(`Suggested Plans for ${item.student.nama}`);
+                const list = $('#modalSuggestionsList');
+                list.empty();
+
+                if (!item.suggestions || item.suggestions.length === 0) {
+                    list.html('<p>No valid schedule combinations found.</p>');
+                } else {
+                    item.suggestions.forEach((sol, i) => {
+                        // sol.schedule is array of sections
+                        // Sort by code so it looks neat
+                        const sortedSched = [...sol.schedule].sort((a, b) => a.kod_subjek.localeCompare(b.kod_subjek));
+
+                        const str = sortedSched.map(sec => {
+                            // Highlight if this is the changed one
+                            const isChanged = sec.kod_subjek === sol.changedSubj && sec.key === sol.newSection.key;
+                            return `<span class="${isChanged ? 'sugg-change' : ''}">${sec.kod_subjek}-${sec.seksyen}</span>`;
+                        }).join(" ");
+
+                        list.append(`<div class="suggestion-item"><strong>Option ${i + 1}:</strong> ${str}</div>`);
+                    });
+                }
+                $('#suggestionModal').css('display', 'flex'); // Use flex to center with new CSS
+            }
+
+            function renderEmpty(msg) {
+                $('#clashTableBody').html(`<tr class="empty-state"><td colspan="8">${msg}</td></tr>`);
+                updateStatus("Completed", 100);
+            }
+
+            function updateStatus(msg, percent) {
+                $('#scanStatus').text(msg);
+                $('#scanPercent').text(percent + "%");
+                $('#scanFill').css('width', percent + "%");
+            }
+
+            // Auto-Start
+            $(document).ready(function () {
+                startClashAnalysis();
+            });
+
+        })();
+    </script>
+</body>
+
+</html>

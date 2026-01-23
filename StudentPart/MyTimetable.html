@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
+    <script src="../CacheUtil.js"></script>
     <link rel="stylesheet" href="Styles/MyTimetableStyle.css">
 </head>
 
@@ -178,8 +179,7 @@
             function fetchStudentSubjects(matric, sesi, semester) {
                 const url = `http://web.fc.utm.my/ttms/web_man_webservice_json.cgi?entity=pelajar_subjek&no_matrik=${matric}`;
 
-                fetch(url)
-                    .then(res => res.json())
+                cachedFetch(url)
                     .then(subjects => {
                         const current = subjects.filter(s => s.sesi === sesi && s.semester == semester);
                         displayCourseList(current);
@@ -203,7 +203,7 @@
 
             function fetchSubjectTimetable(subject) {
                 const url = `http://web.fc.utm.my/ttms/web_man_webservice_json.cgi?entity=jadual_subjek&sesi=${subject.sesi}&semester=${subject.semester}&kod_subjek=${subject.kod_subjek}&seksyen=${subject.seksyen}`;
-                return fetch(url).then(res => res.json()).then(times => {
+                return cachedFetch(url).then(times => {
                     if (Array.isArray(times)) {
                         times.forEach(slot => {
                             const day = slot.hari;
@@ -268,7 +268,7 @@
 
                 const url = `http://web.fc.utm.my/ttms/web_man_webservice_json.cgi?entity=pelajar_subjek&no_matrik=${friendMatric}`;
 
-                fetch(url).then(res => res.json()).then(subs => {
+                cachedFetch(url).then(subs => {
                     const current = subs.filter(s => s.sesi === currentSesi && s.semester == currentSemester);
                     if (current.length === 0) {
                         alert("No subjects found for this friend.");
@@ -278,7 +278,7 @@
 
                     let promises = current.map(subj => {
                         const ttUrl = `http://web.fc.utm.my/ttms/web_man_webservice_json.cgi?entity=jadual_subjek&sesi=${subj.sesi}&semester=${subj.semester}&kod_subjek=${subj.kod_subjek}&seksyen=${subj.seksyen}`;
-                        return fetch(ttUrl).then(res => res.json()).then(times => {
+                        return cachedFetch(ttUrl).then(times => {
                             if (Array.isArray(times)) {
                                 times.forEach(slot => friendOccupiedSlots.add(`${slot.hari}-${slot.masa - 1}`));
                             }

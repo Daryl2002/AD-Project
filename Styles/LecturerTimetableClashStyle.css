@@ -1,0 +1,338 @@
+/* LecturerTimetableClashStyle.css */
+/* Consistent styling with Student Timetable Clash Analyzer */
+
+:root {
+    --primary-mint: #aa841d;
+    --bg-light: #f8fafc;
+    --border-color: #e2e8f0;
+    --text-main: #1e293b;
+    --text-muted: #64748b;
+}
+
+body {
+    font-family: 'Inter', sans-serif;
+    background-color: transparent;
+    margin: 0;
+    padding: 0;
+    color: var(--text-main);
+}
+
+.timetable-wrapper {
+    animation: fadeIn 0.4s ease-out;
+    padding-bottom: 40px;
+}
+
+/* Header & Info Cards */
+.timetable-header h2 {
+    font-size: 1.5rem;
+    font-weight: 700;
+    margin-bottom: 1.25rem;
+}
+
+.info-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 0.75rem;
+    margin-bottom: 1.5rem;
+}
+
+.info-stat-card {
+    background: white;
+    padding: 1rem;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
+}
+
+.info-stat-card label {
+    font-size: 0.65rem;
+    font-weight: 700;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    display: block;
+    margin-bottom: 2px;
+}
+
+.info-stat-card span {
+    font-size: 0.95rem;
+    font-weight: 600;
+}
+
+/* Table Container */
+.table-container {
+    background: white;
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+    overflow-x: auto;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
+}
+
+/* Timetable Grid */
+.proto-table {
+    width: 100%;
+    border-collapse: collapse;
+    min-width: 850px;
+    table-layout: fixed;
+}
+
+.proto-table th {
+    background: var(--bg-light);
+    padding: 12px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: var(--text-muted);
+    border-bottom: 2px solid var(--border-color);
+    text-align: center;
+}
+
+.proto-table td {
+    padding: 4px;
+    border: 1px solid #f1f5f9;
+    vertical-align: top;
+    height: 65px;
+}
+
+.time-cell {
+    background: var(--bg-light) !important;
+    font-weight: 800;
+    font-size: 0.65rem;
+    color: var(--text-muted);
+    text-align: center !important;
+    vertical-align: middle !important;
+    width: 85px !important;
+}
+
+/* Slot Styling */
+.slot {
+    background: #ecfdf5;
+    border-left: 3px solid var(--primary-mint);
+    border-radius: 4px;
+    padding: 5px 8px;
+    font-size: 0.7rem;
+    color: #064e3b;
+    margin-bottom: 2px;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+    position: relative;
+}
+
+.slot strong {
+    display: block;
+    color: #111827;
+    font-size: 0.75rem;
+    margin-bottom: 1px;
+}
+
+.room-tag {
+    margin-top: 3px;
+    color: var(--primary-mint);
+    font-weight: 700;
+    font-size: 0.6rem;
+}
+
+/* Loading State */
+.loading {
+    text-align: center;
+    padding: 40px;
+    color: var(--text-muted);
+}
+
+/* Animation */
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* ======================================== */
+/* CLASH ANALYZER SPECIFIC STYLES           */
+/* ======================================== */
+
+/* Heatmap color styles */
+.slot-clash {
+    background-color: #fef2f2 !important;
+    border-left: 4px solid #ef4444 !important;
+}
+
+.slot-clash .slot {
+    background: #fee2e2;
+    border-left: 3px solid #ef4444;
+    color: #991b1b;
+}
+
+.slot-ok {
+    background-color: #f0fdf4 !important;
+    border-left: 4px solid #22c55e !important;
+}
+
+.slot-ok .slot {
+    background: #dcfce7;
+    border-left: 3px solid #22c55e;
+    color: #166534;
+}
+
+.slot-empty {
+    background-color: var(--bg-light) !important;
+}
+
+.clash-count {
+    position: absolute;
+    top: 4px;
+    right: 4px;
+    background-color: #ef4444;
+    color: white;
+    border-radius: 50%;
+    width: 18px;
+    height: 18px;
+    text-align: center;
+    line-height: 18px;
+    font-size: 0.65rem;
+    font-weight: 700;
+}
+
+/* Legend */
+.legend {
+    display: flex;
+    justify-content: center;
+    gap: 24px;
+    margin: 20px 0;
+    flex-wrap: wrap;
+}
+
+.legend-item {
+    display: flex;
+    align-items: center;
+    font-size: 0.8rem;
+    color: var(--text-muted);
+}
+
+.legend-color {
+    width: 16px;
+    height: 16px;
+    margin-right: 8px;
+    border-radius: 4px;
+    border: 1px solid var(--border-color);
+}
+
+/* Clash Results Section */
+.clash-results-section {
+    margin-top: 2rem;
+    background: white;
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+    padding: 20px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
+}
+
+.section-title {
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: var(--text-main);
+    margin: 0 0 20px 0;
+    padding-bottom: 12px;
+    border-bottom: 2px solid #ef4444;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+/* Clash Table */
+.clash-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.clash-table th {
+    background-color: #fef2f2;
+    color: #991b1b;
+    padding: 12px 16px;
+    text-align: left;
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    border-bottom: 2px solid #fecaca;
+}
+
+.clash-table td {
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--border-color);
+    font-size: 0.85rem;
+}
+
+.clash-table tr:nth-child(even) {
+    background-color: #fffbeb;
+}
+
+.clash-table tr:hover {
+    background-color: #fef2f2;
+}
+
+.day-cell {
+    font-weight: 700;
+    color: var(--text-main);
+}
+
+.time-cell-clash {
+    color: var(--text-muted);
+    font-weight: 600;
+}
+
+.clash-courses-cell {
+    color: #dc2626;
+    font-weight: 600;
+}
+
+/* No Clash Message */
+.no-clash-message {
+    text-align: center;
+    padding: 40px 20px;
+    background: #f0fdf4;
+    border-radius: 8px;
+    border: 1px solid #bbf7d0;
+}
+
+.no-clash-message h3 {
+    color: #166534;
+    font-size: 1.2rem;
+    margin: 0 0 8px 0;
+}
+
+.no-clash-message p {
+    color: #15803d;
+    margin: 0;
+    font-size: 0.9rem;
+}
+
+/* Empty Slot */
+.empty-slot {
+    height: 100%;
+    min-height: 50px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0.5;
+}
+
+/* Divider between courses in clash */
+.clash-course-item {
+    margin-bottom: 6px;
+    padding-bottom: 6px;
+    border-bottom: 1px dashed #fca5a5;
+}
+
+.clash-course-item:last-child {
+    border-bottom: none;
+    margin-bottom: 0;
+    padding-bottom: 0;
+}
+
+.clash-course-code {
+    color: #dc2626;
+    font-weight: 700;
+    font-size: 0.75rem;
+}

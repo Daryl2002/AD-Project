@@ -57,6 +57,7 @@
 </div>
 
 <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
+<script src="CacheUtil.js"></script>
 <script>
     const BASE_URL = "http://web.fc.utm.my/ttms/web_man_webservice_json.cgi?entity=";
     const AUTH_URL = "http://web.fc.utm.my/ttms/auth-admin.php?session_id=";
@@ -74,9 +75,18 @@
         }
     }
 
+    // Track currently loaded sub-page to avoid unnecessary reloads that reset state
+    let currentSubPageUrl = null;
+
     function handleMenuClick(targetId, url) {
+        // If user clicks the already-active page, do nothing (prevents state reset / flicker)
+        if (currentSubPageUrl === url && $(`#${targetId}`).hasClass('active')) {
+            return;
+        }
+
         $('.nav-link').removeClass('active'); 
         $(`#${targetId}`).addClass('active');
+        currentSubPageUrl = url;
         
         $('#mainContent').load(url, function() {
             updateSessionUI(); // Try to update text immediately after sub-page loads
@@ -88,13 +98,13 @@
     }
 
     function initDashboard() {
-        // Fetch Admin Session
+        // Fetch Admin Session (skip cache for auth - security sensitive)
         fetch(AUTH_URL + window.userSession.session_id)
             .then(res => res.json())
             .then(data => {
                 window.adminSessionID = data[0].session_id;
-                // Fetch Semester Info
-                return fetch(BASE_URL + "sesisemester").then(res => res.json());
+                // Fetch Semester Info - USE CACHE for faster loading
+                return cachedFetch(BASE_URL + "sesisemester");
             })
             .then(sesiData => {
                 const active = Array.isArray(sesiData) ? sesiData.find(s => s.sesi_semester_id) : sesiData;
