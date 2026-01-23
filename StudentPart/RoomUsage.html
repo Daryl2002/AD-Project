@@ -53,6 +53,8 @@
     </div>
 
     <div id="chart_div" style="width: 100%; height: 400px; display:none;"></div>
+
+
     <hr>
 
     <div class="pagination-container" id="paginationTop"></div>
@@ -110,10 +112,13 @@
             function initGoogleCharts() {
                 try {
                     if (typeof google !== 'undefined' && google.charts) {
-                        google.charts.load('current', { 'packages': ['bar', 'corechart', 'line'] });
+                        google.charts.load('current', { 'packages': ['bar', 'corechart', 'line', 'gauge'] });
                         google.charts.setOnLoadCallback(function () {
                             isChartLibLoaded = true;
-                            if (filteredRooms.length > 0) drawRoomUsageChart(filteredRooms);
+                            if (filteredRooms.length > 0) {
+                                drawRoomUsageChart(filteredRooms);
+
+                            }
                         });
                     } else {
                         chartRetryCount++;
@@ -222,6 +227,7 @@
                 renderPagination();
                 if (isChartLibLoaded) {
                     drawRoomUsageChart(filteredRooms);
+
                 }
             }
 
@@ -371,16 +377,16 @@
 
                 const options = {
                     title: 'Daily Room Usage (Hours per Day)',
-                    // curveType: 'function', // Removed to make lines straight
-                    legend: { position: 'bottom' },
+                    legend: { position: 'none' },
                     height: 400,
-                    pointSize: 5,
+                    animation: { startup: true, duration: 1000, easing: 'out' },
                     hAxis: { title: 'Day of Week' },
                     vAxis: { title: 'Hours Used', minValue: 0, format: '0' },
-                    colors: ['#e65100']
+                    colors: ['#1e88e5'],
+                    bar: { groupWidth: '60%' }
                 };
 
-                const chart = new google.visualization.LineChart(document.getElementById('daily_chart_div'));
+                const chart = new google.visualization.ColumnChart(document.getElementById('daily_chart_div'));
                 chart.draw(data, options);
             }
 
@@ -416,6 +422,8 @@
                     hAxis: { title: 'Hours Per Week' }
                 }));
             }
+
+
         });
     </script>
 </body>

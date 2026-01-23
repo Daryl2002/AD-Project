@@ -39,6 +39,7 @@
 
         <div class="chart-container">
             <div id="freeTimeChartDiv"></div>
+
         </div>
 
         <div class="loading" id="loadingMsg">
@@ -112,7 +113,7 @@
 
     <script>
         $(document).ready(function () {
-            const HOURS_PER_DAY = 10;
+            const HOURS_PER_DAY = 9;
             let occupiedSlots = new Set();
             let friendOccupiedSlots = new Set();
             const DAYS_OF_WEEK = { 2: 'Monday', 3: 'Tuesday', 4: 'Wednesday', 5: 'Thursday', 6: 'Friday' };
@@ -137,7 +138,7 @@
             function initCharts() {
                 try {
                     if (typeof google !== 'undefined' && google.charts) {
-                        google.charts.load('current', { 'packages': ['corechart'] });
+                        google.charts.load('current', { 'packages': ['corechart', 'calendar'] });
                         google.charts.setOnLoadCallback(function () {
                             isChartLibReady = true;
                             // If data is already there, draw chart now
@@ -166,7 +167,7 @@
 
             function buildEmptyTable() {
                 let body = "";
-                for (let hour = 0; hour <= 9; hour++) {
+                for (let hour = 0; hour <= 8; hour++) {
                     body += `<tr><td class="time-cell">${formatTime(hour)}</td>`;
                     for (let day = 2; day <= 6; day++) {
                         body += `<td data-day='${day}' data-time='${hour}'></td>`;
@@ -210,7 +211,7 @@
                             const timeIdx = slot.masa - 1;
                             occupiedSlots.add(`${day}-${timeIdx}`);
                             const room = slot.ruang ? (slot.ruang.nama_ruang_singkatan || 'N/A') : 'N/A';
-                            $(`td[data-day='${day}'][data-time='${timeIdx}']`).append(`
+                            $(`td[data-day='${day}'][data-time='${timeIdx - 1}']`).append(`
                         <div class="slot">
                             <strong>${subject.kod_subjek}</strong>
                             <span>Sec ${subject.seksyen}</span>
@@ -242,6 +243,7 @@
             function drawFreeTimeChart() {
                 if (!isChartLibReady || typeof google === 'undefined' || !google.visualization) return;
 
+                // Draw both: Column chart for overview and heatmap for detail
                 const dataArray = [['Day', 'Occupied', 'Free']];
                 for (let d = 2; d <= 6; d++) {
                     let occ = 0;
@@ -256,7 +258,11 @@
                     chartArea: { width: '90%', height: '70%' },
                     animation: { startup: true, duration: 800, easing: 'out' }
                 });
+
+
             }
+
+
 
             // Comparison Logic
             $('#compareBtn').click(function () {
@@ -287,7 +293,7 @@
 
                     Promise.all(promises).then(() => {
                         let body = "";
-                        for (let h = 0; h <= 9; h++) {
+                        for (let h = 0; h <= 8; h++) {
                             body += `<tr><td class="time-cell">${formatTime(h)}</td>`;
                             for (let d = 2; d <= 6; d++) {
                                 const busy = occupiedSlots.has(`${d}-${h}`) || friendOccupiedSlots.has(`${d}-${h}`);
