@@ -10,6 +10,8 @@
     <link rel="stylesheet" href="Styles/studentClash.css">
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
     <script src="Authenticate.js"></script>
+    <!-- CacheUtil is loaded by AdminMain, removing to avoid path errors -->
+    <script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
 </head>
 
 <body>
@@ -29,6 +31,20 @@
                 </div>
                 <div class="progress-track">
                     <div class="progress-fill" id="scanFill"></div>
+                </div>
+            </div>
+
+            <!-- Dashboard Charts Container -->
+            <div id="clash_charts_container" class="card-box" style="margin-top: 20px; display:none;">
+                <div style="display:flex; flex-wrap:wrap; gap:20px;">
+                    <div style="flex:1; min-width:300px;">
+                        <h4 style="margin-top:0;">Conflict Severity (Students)</h4>
+                        <div id="piechart_severity" style="width: 100%; height: 250px;"></div>
+                    </div>
+                    <div style="flex:1; min-width:300px;">
+                        <h4 style="margin-top:0;">Top 5 Clashing Subjects</h4>
+                        <div id="barchart_subjects" style="width: 100%; height: 250px;"></div>
+                    </div>
                 </div>
             </div>
 
@@ -97,20 +113,19 @@
 
                 // UI Reset
                 $('#scanProgress').show();
+                $('#clash_charts_container').hide();
                 $('#clashTableBody').html('<tr><td colspan="8" class="empty-state">Initializing...</td></tr>');
 
                 try {
                     // 1. Get Session
                     updateStatus("Fetching session info...", 5);
-                    const sesiRes = await fetch(`${API_BASE}?entity=sesisemester`);
-                    const sesiData = await sesiRes.json();
+                    const sesiData = await cachedFetch(`${API_BASE}?entity=sesisemester`);
                     currentSesi = sesiData[0].sesi;
                     currentSem = sesiData[0].semester;
 
                     // 2. Fetch Master Subject List
                     updateStatus(`Fetching all subjects & sections for ${currentSesi}...`, 10);
-                    const subRes = await fetch(`${API_BASE}?entity=subjek_seksyen&sesi=${currentSesi}&semester=${currentSem}`);
-                    const allSubjects = await subRes.json();
+                    const allSubjects = await cachedFetch(`${API_BASE}?entity=subjek_seksyen&sesi=${currentSesi}&semester=${currentSem}`);
 
                     let allSections = [];
                     // Map to quickly find all sections for a given subject code
@@ -146,8 +161,7 @@
                     // Attempt Bulk Fetch
                     let bulkTimetables = [];
                     try {
-                        const r = await fetch(`${API_BASE}?entity=jadual_subjek&sesi=${currentSesi}&semester=${currentSem}`);
-                        const d = await r.json();
+                        const d = await cachedFetch(`${API_BASE}?entity=jadual_subjek&sesi=${currentSesi}&semester=${currentSem}`);
                         if (Array.isArray(d) && d.length > 0) {
                             bulkTimetables = d;
                             console.log("Bulk timetable fetch successful: " + d.length + " slots.");
@@ -197,8 +211,7 @@
                         for (let i = 0; i < allSections.length; i += chunkSize) {
                             const chunk = allSections.slice(i, i + chunkSize);
                             const promises = chunk.map(sec =>
-                                fetch(`${API_BASE}?entity=jadual_subjek&sesi=${currentSesi}&semester=${currentSem}&kod_subjek=${sec.kod_subjek}&seksyen=${sec.seksyen}`)
-                                    .then(r => r.json())
+                                cachedFetch(`${API_BASE}?entity=jadual_subjek&sesi=${currentSesi}&semester=${currentSem}&kod_subjek=${sec.kod_subjek}&seksyen=${sec.seksyen}`)
                                     .then(data => ({ sec, data }))
                                     .catch(e => ({ sec, data: [] }))
                             );
@@ -253,7 +266,7 @@
                     const studentSchedules = new Map();
 
                     // Fallback: Individual Fetches
-                    const chunkSize = 10; // reduced from 100 to 10 to prevent hanging
+                    const chunkSize = 150; // Increased to 150 for MAX speed
                     let processed = 0;
 
                     const sleep = ms => new Promise(r => setTimeout(r, ms));
@@ -261,12 +274,11 @@
                     for (let i = 0; i < candidatesArray.length; i += chunkSize) {
                         const chunk = candidatesArray.slice(i, i + chunkSize);
 
-                        // Add small delay to prevent server choke
-                        if (i > 0) await sleep(100);
+                        // Minimized delay
+                        if (i > 0) await sleep(5);
 
                         const promises = chunk.map(sec =>
-                            fetch(`${API_BASE}?entity=subjek_pelajar&session_id=${localAdminSession.session_id}&sesi=${currentSesi}&semester=${currentSem}&kod_subjek=${sec.kod_subjek}&seksyen=${sec.seksyen}`)
-                                .then(r => r.json())
+                            cachedFetch(`${API_BASE}?entity=subjek_pelajar&session_id=${localAdminSession.session_id}&sesi=${currentSesi}&semester=${currentSem}&kod_subjek=${sec.kod_subjek}&seksyen=${sec.seksyen}`)
                                 .then(data => ({ sec, data }))
                                 .catch(e => ({ sec, data: [] }))
                         );
@@ -359,12 +371,126 @@
                     // 7. Render
                     updateStatus("Done!", 100);
                     renderTable(clashReport);
+                    drawClashCharts(clashReport);
 
                 } catch (err) {
                     console.error(err);
                     alert("Error during scan: " + err.message);
                     updateStatus("Error: " + err.message, 0);
                 }
+            }
+
+            // --- Google Charts Integration ---
+            let isGoogleChartsLoaded = false;
+            let pendingClashReport = null; // Store report if charts aren't ready
+
+            if (typeof google !== 'undefined') {
+                google.charts.load('current', { 'packages': ['corechart', 'bar'] });
+                google.charts.setOnLoadCallback(() => {
+                    isGoogleChartsLoaded = true;
+                    // If we have data waiting, draw it now
+                    if (pendingClashReport) {
+                        drawClashCharts(pendingClashReport);
+                    }
+                });
+            }
+
+            function drawClashCharts(report) {
+                // If lib not loaded yet, just save data for later
+                if (!isGoogleChartsLoaded) {
+                    console.log("Charts library not ready, queueing report...");
+                    pendingClashReport = report;
+                    return;
+                }
+
+                if (report.length === 0) return;
+
+                $('#clash_charts_container').show();
+
+                // 1. Data for Pie Chart (Severity)
+                // Buckets: 1 clash, 2 clashes, 3+ clashes
+                let s1 = 0, s2 = 0, s3 = 0;
+                report.forEach(r => {
+                    const c = r.clashes.length;
+                    if (c === 1) s1++;
+                    else if (c === 2) s2++;
+                    else if (c >= 3) s3++;
+                });
+
+                const pieData = google.visualization.arrayToDataTable([
+                    ['Severity', 'Count'],
+                    ['1 Conflict', s1],
+                    ['2 Conflicts', s2],
+                    ['3+ Conflicts', s3]
+                ]);
+
+                const pieOptions = {
+                    fontName: 'Inter',
+                    fontSize: 14,
+                    pieHole: 0.6, // Donut style
+                    colors: ['#fbc02d', '#f57c00', '#d32f2f'], // Vibrant Amber, Orange, Red
+                    chartArea: { width: '90%', height: '80%' },
+                    legend: { position: 'right', textStyle: { color: '#374151', fontSize: 13 } },
+                    animation: {
+                        startup: true,
+                        duration: 1000,
+                        easing: 'out'
+                    },
+                    tooltip: { showColorCode: true, textStyle: { fontName: 'Inter' } }
+                };
+
+                const pieChart = new google.visualization.PieChart(document.getElementById('piechart_severity'));
+                pieChart.draw(pieData, pieOptions);
+
+                // 2. Data for Bar Chart (Top Clashing Subjects)
+                const subjCount = {};
+                report.forEach(r => {
+                    r.clashes.forEach(c => {
+                        // clash.subject1 is "CODE-SEC"
+                        const code1 = c.subject1.split('-')[0];
+                        const code2 = c.subject2.split('-')[0];
+                        subjCount[code1] = (subjCount[code1] || 0) + 1;
+                        subjCount[code2] = (subjCount[code2] || 0) + 1;
+                    });
+                });
+
+                // Convert to array and sort
+                const sortedSubj = Object.entries(subjCount)
+                    .sort((a, b) => b[1] - a[1])
+                    .slice(0, 5); // Top 5
+
+                // Simplified Data Model for cleaner bars (Color handled by options)
+                const barArray = [['Subject', 'Conflicts']];
+                sortedSubj.forEach((item) => {
+                    barArray.push([item[0], item[1]]);
+                });
+
+                const barData = google.visualization.arrayToDataTable(barArray);
+                const barOptions = {
+                    fontName: 'Inter',
+                    fontSize: 13,
+                    legend: { position: "none" },
+                    chartArea: { width: '75%', height: '70%' },
+                    colors: ['#3b82f6'], // Modern Blue
+                    hAxis: {
+                        minValue: 0,
+                        format: '0',
+                        gridlines: { color: '#f3f4f6' },
+                        textStyle: { color: '#6b7280' }
+                    },
+                    vAxis: {
+                        textStyle: { color: '#374151', bold: true }
+                    },
+                    animation: {
+                        startup: true,
+                        duration: 1200,
+                        easing: 'out'
+                    },
+                    bar: { groupWidth: '65%' } // Sleeker bars
+                };
+
+                const barChart = new google.visualization.BarChart(document.getElementById('barchart_subjects'));
+                barChart.draw(barData, barOptions);
             }
 
             // --- Suggestion Algorithm (Refined: Swap One Strategy) ---
