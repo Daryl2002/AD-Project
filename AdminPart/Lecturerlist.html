@@ -1,0 +1,394 @@
+<html>
+<script src="../Authenticate.js"></script>
+<script src="../CacheUtil.js"></script>
+<link rel="stylesheet" href="Styles/lecturerList.css">
+
+<div class="page-container">
+    <div class="page-header">
+        <h1 class="page-title">Lecturer List</h1>
+        <div class="search-bar">
+            <i class="fa fa-search search-icon"></i>
+            <input type="text" id="lecturerSearch" class="search-input" placeholder="Search by name...">
+        </div>
+    </div>
+
+    <!-- Charts Section -->
+    <div class="chart-container"
+        style="background: white; padding: 20px; border-radius: 8px; border: 1px solid #e5e7eb; box-shadow: 0 1px 3px rgba(0,0,0,0.1); margin-bottom: 20px;">
+        <h3 style="margin-bottom: 15px; color: #1f2937; font-size: 1.1rem; font-weight: 600; text-align: center;">Top 10
+            Lecturers by Student Load</h3>
+        <div id="topLecturerChart" style="width: 100%; height: 350px;"></div>
+    </div>
+
+    <!-- Table Card -->
+    <div class="table-card">
+        <div class="table-responsive">
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th width="50">NO.</th>
+                        <th>NAME</th>
+                        <th width="150">NO. OF SUBJECTS</th>
+                        <th width="150">NO. OF SECTIONS</th>
+                        <th width="150">NO. OF STUDENTS</th>
+                    </tr>
+                </thead>
+                <tbody id="lecturerTableBody">
+                    <!-- Dynamic Content -->
+                    <tr>
+                        <td colspan="5" style="text-align: center; padding: 40px; color: #6b7280;">
+                            <i class="fa fa-spinner fa-spin" style="font-size: 24px; margin-bottom: 10px;"></i>
+                            <p>Loading lecturer database...</p>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <div class="pagination-footer">
+            <div class="page-info" id="pageInfo">Showing 0 to 0 of 0 entries</div>
+            <div class="pagination-numbers" id="paginationNumbers"></div>
+        </div>
+    </div>
+</div>
+
+<script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
+<script>
+    (function () {
+        const adminSession = JSON.parse(localStorage.getItem("TTMSFC_adminSession"));
+        let allLecturers = [];
+        let filteredLecturers = [];
+        let currentPage = 1;
+        const itemsPerPage = 20;
+
+        // --- Chart Initialization ---
+        let isChartLibReady = false;
+
+        function loadChartLib() {
+            if (typeof google === 'undefined' || !google.charts) {
+                // Library not loaded yet, retry shortly
+                setTimeout(loadChartLib, 200);
+                return;
+            }
+            google.charts.load('current', { 'packages': ['corechart'] });
+            google.charts.setOnLoadCallback(() => {
+                isChartLibReady = true;
+                if (allLecturers.length > 0) updateChart();
+            });
+        }
+        loadChartLib();
+
+        // --- Data Fetching ---
+        async function init() {
+            try {
+                // 1. Fetch Current Session/Semester
+                const sesiData = await cachedFetch("http://web.fc.utm.my/ttms/web_man_webservice_json.cgi?entity=sesisemester");
+                if (!sesiData || !sesiData[0]) throw new Error("Failed to fetch session info");
+
+                const currentSesi = sesiData[0].sesi;
+                const currentSem = sesiData[0].semester;
+
+                // 2. Fetch Data Strategy: History Scan + Schedule Overlay
+                // The API requires 'sesi'/'semester' and caps the list at 98 per session.
+                // To find "inactive" lecturers (0 subjects), we assume they were active in prior sessions.
+                // We scan the last 10 semesters.
+
+                $('#lecturerTableBody').html(`
+                    <tr>
+                        <td colspan="5" style="text-align: center; padding: 40px; color: #6b7280;">
+                            <i class="fa fa-spinner fa-spin" style="font-size: 24px; margin-bottom: 10px;"></i>
+                            <p id="loadingText">Loading lecturer database... (Scanning history & schedule)</p>
+                        </td>
+                    </tr>
+                `);
+
+                // A. Fetch Current Schedule (The Truth for stats)
+                const pSchedule = cachedFetch(`http://web.fc.utm.my/ttms/web_man_webservice_json.cgi?entity=subjek_seksyen&sesi=${currentSesi}&semester=${currentSem}`);
+
+                // 2. Fetch Data Strategy: History Scan + Schedule Overlay
+                // We set the scan to 15 semesters (~8 years).
+                // This is the calculated "Sweet Spot" to hit ~159 records w/o excessive loading.
+                const recentSessions = sesiData.slice(0, 20);
+
+                $('#loadingText').text(`Loading lecturer list for analysis...`);
+                $('#topLecturerChart').html('<p style="text-align:center; padding-top:150px; color:#888;">Generating Chart...</p>');
+
+                // B. Fetch History of Lecturers
+                const historyPromises = recentSessions.map(s =>
+                    cachedFetch(`http://web.fc.utm.my/ttms/web_man_webservice_json.cgi?entity=pensyarah&session_id=${adminSession.session_id}&sesi=${s.sesi}&semester=${s.semester}`)
+                        .catch(e => [])
+                );
+
+                // Execute
+                const [scheduleData, ...historyData] = await Promise.all([pSchedule, ...historyPromises]);
+
+                if (!Array.isArray(scheduleData)) throw new Error("Invalid schedule data");
+
+                // --- 3. Process Schedule Data (Current Stats) ---
+                const statsMap = new Map(); // Name -> Stats
+
+                scheduleData.forEach(sub => {
+                    const kodSubjek = sub.kod_subjek;
+                    if (sub.seksyen_list && Array.isArray(sub.seksyen_list)) {
+                        sub.seksyen_list.forEach(sec => {
+                            if (sec.pensyarah) {
+                                const rawName = sec.pensyarah.trim();
+                                const nameKey = rawName.toUpperCase();
+
+                                if (!statsMap.has(nameKey)) {
+                                    statsMap.set(nameKey, {
+                                        originalName: rawName,
+                                        subjects: new Set(),
+                                        sections: 0,
+                                        students: 0
+                                    });
+                                }
+                                const entry = statsMap.get(nameKey);
+                                entry.subjects.add(kodSubjek);
+                                entry.sections++;
+                                entry.students += (parseInt(sec.bil_pelajar) || 0);
+                            }
+                        });
+                    }
+                });
+
+                // --- 4. Merge Historical Data ---
+                allLecturers = [];
+                const mergedMap = new Map(); // no_pekerja -> Object
+
+                // Iterate through all fetched history lists (recent first usually)
+                historyData.forEach(list => {
+                    if (Array.isArray(list)) {
+                        list.forEach(l => {
+                            if (l.no_pekerja && !mergedMap.has(l.no_pekerja)) {
+                                mergedMap.set(l.no_pekerja, l);
+                            }
+                        });
+                    }
+                });
+
+                // Convert to distinct array
+                const distinctLecturers = Array.from(mergedMap.values());
+                const processedNames = new Set();
+
+                // Apply Current Stats to Distinct List
+                distinctLecturers.forEach(l => {
+                    if (l.nama) {
+                        const nameKey = l.nama.trim().toUpperCase();
+                        processedNames.add(nameKey);
+
+                        const stats = statsMap.get(nameKey);
+                        if (stats) {
+                            l.bil_subjek = stats.subjects.size;
+                            l.bil_seksyen = stats.sections;
+                            l.bil_pelajar = stats.students;
+                        } else {
+                            // Inactive in current semester
+                            l.bil_subjek = 0;
+                            l.bil_seksyen = 0;
+                            l.bil_pelajar = 0;
+                        }
+                        allLecturers.push(l);
+                    }
+                });
+
+                // Add any lecturers found in Schedule but NOT in History (New staff?)
+                statsMap.forEach((stats, nameKey) => {
+                    if (!processedNames.has(nameKey)) {
+                        allLecturers.push({
+                            nama: stats.originalName,
+                            no_pekerja: null,
+                            bil_subjek: stats.subjects.size,
+                            bil_seksyen: stats.sections,
+                            bil_pelajar: stats.students
+                        });
+                    }
+                });
+
+                // 5. Final Sort
+                allLecturers.sort((a, b) => {
+                    const nameA = (a.nama || "").trim();
+                    const nameB = (b.nama || "").trim();
+                    return nameA.localeCompare(nameB);
+                });
+
+                filteredLecturers = allLecturers;
+                renderCurrentPage();
+
+                // Draw Chart (Robust check)
+                if (isChartLibReady) {
+                    updateChart();
+                } else {
+                    // Poll for library
+                    const chartInterval = setInterval(() => {
+                        if (isChartLibReady) {
+                            updateChart();
+                            clearInterval(chartInterval);
+                        }
+                    }, 500);
+                }
+
+            } catch (err) {
+                console.error("Error fetching lecturers:", err);
+                $('#lecturerTableBody').html(`<tr><td colspan="5" style="text-align:center; color:red;">Error fetching data. Please try again.</td></tr>`);
+            }
+        }
+
+        // --- Chart Logic ---
+        function updateChart() {
+            if (!isChartLibReady || allLecturers.length === 0) return;
+
+            // 1. Get Top 10 by Student Count
+            // Clone first to avoid messing up main list order
+            const top10 = [...allLecturers]
+                .sort((a, b) => (b.bil_pelajar || 0) - (a.bil_pelajar || 0))
+                .slice(0, 10)
+                .map(l => [l.nama, l.bil_pelajar || 0]);
+
+            // Reverse for Bar Chart (Top item at top) logic in Charts is usually bottom-up or depends
+            // For BarChart, data row 0 is usually top bar.
+
+            // 2. Prepare Data Table
+            const data = new google.visualization.DataTable();
+            data.addColumn('string', 'Lecturer');
+            data.addColumn('number', 'Students');
+            data.addRows(top10);
+
+            // 3. Options
+            const options = {
+                title: 'Top 10 Lecturers by Student Load',
+                titleTextStyle: {
+                    color: '#374151',
+                    fontSize: 16,
+                    bold: true
+                },
+                chartArea: { width: '60%', height: '80%' },
+                hAxis: {
+                    title: 'Total Students',
+                    minValue: 0,
+                    textStyle: { color: '#6b7280' },
+                    gridlines: { color: '#f3f4f6' }
+                },
+                vAxis: {
+                    textStyle: { color: '#374151', fontSize: 11 }
+                },
+                colors: ['#4285F4'],
+                legend: { position: 'none' },
+                animation: {
+                    startup: true,
+                    duration: 1000,
+                    easing: 'out',
+                },
+                bars: 'horizontal'
+            };
+
+            const chart = new google.visualization.BarChart(document.getElementById('topLecturerChart'));
+            chart.draw(data, options);
+        }
+
+        // --- Rendering ---
+        function renderCurrentPage() {
+            const start = (currentPage - 1) * itemsPerPage;
+            const end = start + itemsPerPage;
+            const pageSlice = filteredLecturers.slice(start, end);
+
+            renderTable(pageSlice, start);
+            updatePagination();
+        }
+
+        function renderTable(data, startIndex) {
+            const tbody = $('#lecturerTableBody');
+            tbody.empty();
+
+            if (data.length === 0) {
+                tbody.html('<tr><td colspan="5" style="text-align:center; padding:20px;">No lecturers found.</td></tr>');
+                return;
+            }
+
+            data.forEach((lecturer, index) => {
+                const globalIndex = startIndex + index + 1;
+                const tr = `
+                    <tr>
+                        <td style="font-weight:600; color:#9ca3af;">${globalIndex}</td>
+                        <td style="font-weight:600; color:#111827;">${lecturer.nama || '-'}</td>
+                        <td>
+                             <span class="badge badge-gray">${lecturer.bil_subjek || 0}</span>
+                        </td>
+                        <td>
+                            <span class="badge badge-gray">${lecturer.bil_seksyen || 0}</span>
+                        </td>
+                         <td>
+                            <span class="badge badge-primary">${lecturer.bil_pelajar || 0} Students</span>
+                        </td>
+                    </tr>
+                `;
+                tbody.append(tr);
+            });
+
+            // Update Info Text
+            const total = filteredLecturers.length;
+            const startDisplay = total === 0 ? 0 : startIndex + 1;
+            const endDisplay = Math.min(startIndex + itemsPerPage, total);
+            $('#pageInfo').text(`Showing ${startDisplay} to ${endDisplay} of ${total} entries`);
+        }
+
+        function updatePagination() {
+            const container = $('#paginationNumbers');
+            container.empty();
+            const totalPages = Math.ceil(filteredLecturers.length / itemsPerPage);
+
+            if (totalPages <= 1) return;
+
+            // Simple Pagination: Prev, Next, and range around current
+            // Helper for button creation
+            const createBtn = (text, page, isActive = false, isDisabled = false) => {
+                const btn = $(`<button class="page-num ${isActive ? 'active' : ''}">${text}</button>`);
+                if (isDisabled) btn.prop('disabled', true);
+                else btn.click(() => { currentPage = page; renderCurrentPage(); });
+                return btn;
+            };
+
+            // Prev
+            container.append(createBtn('<', currentPage - 1, false, currentPage === 1));
+
+            // Logic for showing limited page numbers
+            let startPage = Math.max(1, currentPage - 2);
+            let endPage = Math.min(totalPages, currentPage + 2);
+
+            if (startPage > 1) {
+                container.append(createBtn('1', 1, currentPage === 1));
+                if (startPage > 2) container.append($('<span style="padding:0 4px;">...</span>'));
+            }
+
+            for (let i = startPage; i <= endPage; i++) {
+                container.append(createBtn(i, i, i === currentPage));
+            }
+
+            if (endPage < totalPages) {
+                if (endPage < totalPages - 1) container.append($('<span style="padding:0 4px;">...</span>'));
+                container.append(createBtn(totalPages, totalPages, currentPage === totalPages));
+            }
+
+            // Next
+            container.append(createBtn('>', currentPage + 1, false, currentPage === totalPages));
+        }
+
+        // --- Filtering ---
+        $('#lecturerSearch').on('input', function () {
+            const term = $(this).val().toLowerCase().trim();
+
+            filteredLecturers = allLecturers.filter(l =>
+                (l.nama && l.nama.toLowerCase().includes(term))
+            );
+
+            currentPage = 1;
+            renderCurrentPage();
+        });
+
+        // Start
+        init();
+
+    })();
+</script>
+
+</html>

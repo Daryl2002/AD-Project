@@ -1,0 +1,321 @@
+/* RoomAvailabilityStyle.css */
+:root {
+    --primary-gold: #aa841d;
+    --primary-gold-hover: #8e6d18;
+    --slate-dark: #1e293b;
+    --slate-light: #334155;
+    --bg-light: #f8fafc;
+    --border-color: #e2e8f0;
+    --white: #ffffff;
+    --text-main: #1e293b;
+    --text-muted: #64748b;
+}
+
+body {
+    background-color: var(--bg-light);
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    color: var(--text-main);
+    margin: 0;
+    padding: 20px;
+    line-height: 1.5;
+}
+
+/* --- Animated Loading Overlay (Timetable Style) --- */
+.loading-overlay {
+    position: fixed;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    background: rgba(255, 255, 255, 0.9);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    z-index: 9999;
+}
+
+.spinner {
+    width: 50px;
+    height: 50px;
+    border: 5px solid var(--border-color);
+    border-top: 5px solid var(--primary-gold);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    margin-bottom: 15px;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* --- Master Control Panel (Fixes Overlap) --- */
+.master-control-panel {
+    background: var(--white);
+    border-radius: 16px;
+    padding: 24px;
+    box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
+    margin-bottom: 24px;
+    border: 1px solid var(--border-color);
+}
+
+.control-grid {
+    display: grid;
+    /* This ensures items stack on mobile but stay side-by-side on desktop */
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 24px;
+    margin-bottom: 20px;
+}
+
+.control-group label {
+    font-size: 0.75rem;
+    font-weight: 800;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    display: block;
+    margin-bottom: 10px;
+}
+
+.search-box input, select {
+    width: 90%;
+    padding: 12px 16px;
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+    font-size: 0.95rem;
+    transition: all 0.2s;
+}
+
+.search-box input:focus, select:focus {
+    outline: none;
+    border-color: var(--primary-gold);
+    box-shadow: 0 0 0 3px rgba(170, 132, 29, 0.1);
+}
+
+/* --- Day & Filter Tags --- */
+.day-filter-container, .filter-tags-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.filter-tags-row {
+    padding-top: 20px;
+    border-top: 1px solid var(--border-color);
+}
+
+.day-filter-btn, .filter-tag {
+    padding: 10px 18px;
+    border: 1px solid var(--border-color);
+    background: white;
+    border-radius: 10px;
+    font-weight: 600;
+    font-size: 0.85rem;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.day-filter-btn.active, .filter-tag.active {
+    background: var(--primary-gold);
+    color: white;
+    border-color: var(--primary-gold);
+}
+
+/* --- Action Buttons --- */
+.action-buttons {
+    display: flex;
+    justify-content: flex-end;
+    gap: 12px;
+    margin-top: 24px;
+}
+
+.btn-primary { background: var(--primary-gold); color: white; border: none; }
+.btn-secondary { background: #f1f5f9; color: var(--slate-dark); border: 1px solid var(--border-color); }
+.btn-primary, .btn-secondary {
+    padding: 12px 24px;
+    border-radius: 10px;
+    font-weight: 700;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+/* --- Table Design (Fixes Messy Look) --- */
+.table-container {
+    background: var(--white);
+    border-radius: 16px;
+    overflow: hidden;
+    box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1);
+    border: 1px solid var(--border-color);
+}
+
+.scroll-wrapper {
+    overflow-x: auto; /* Enable horizontal scrolling on small screens */
+}
+
+.custom-table {
+    width: 100%;
+    border-collapse: collapse;
+    min-width: 1000px; /* Prevents columns from squishing */
+}
+
+.custom-table th {
+    background: var(--slate-dark);
+    color: white;
+    padding: 16px;
+    text-align: left;
+    font-size: 0.8rem;
+    text-transform: uppercase;
+}
+
+.custom-table td {
+    padding: 16px;
+    border-bottom: 1px solid var(--border-color);
+    font-size: 0.95rem;
+}
+
+/* Status Badges */
+.status-tag {
+    padding: 6px 14px;
+    border-radius: 8px;
+    font-weight: 800;
+    font-size: 0.75rem;
+    text-transform: uppercase;
+}
+
+.w3-green { background: #dcfce7; color: #166534; }
+.w3-red { background: #fee2e2; color: #991b1b; }
+
+/* --- Pagination Redesign --- */
+.pagination-container {
+    background: var(--white);
+    border-radius: 12px;
+    padding: 24px;
+    margin-top: 24px;
+    box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
+    border: 1px solid var(--border-color);
+    text-align: center;
+}
+
+#pageInfo {
+    color: var(--text-muted);
+    font-size: 0.9rem;
+    margin-bottom: 15px;
+    font-weight: 600;
+}
+
+.pagination {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+/* Base Page Button Style */
+.page-btn {
+    min-width: 40px;
+    height: 40px;
+    padding: 0 12px;
+    border-radius: 8px;
+    border: 1px solid var(--border-color);
+    background: var(--white);
+    color: var(--slate-dark);
+    font-weight: 700;
+    font-size: 0.85rem;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+}
+
+.page-btn:hover:not(.disabled) {
+    border-color: var(--primary-gold);
+    color: var(--primary-gold);
+    background: #fffbeb; /* Very light gold tint */
+    transform: translateY(-2px);
+}
+
+/* Active Page Style */
+.page-btn.active {
+    background: var(--primary-gold);
+    color: white;
+    border-color: var(--primary-gold);
+    box-shadow: 0 4px 6px rgba(170, 132, 29, 0.2);
+}
+
+/* Disabled State (Prev/Next) */
+.page-btn.disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    background: #f1f5f9;
+}
+
+.page-dots {
+    color: var(--text-muted);
+    font-weight: bold;
+    padding: 0 5px;
+}
+
+/* Mobile Responsive Pagination */
+@media (max-width: 480px) {
+    .page-btn {
+        min-width: 35px;
+        height: 35px;
+        font-size: 0.75rem;
+    }
+}
+
+/* No Results Message */
+.no-results {
+    text-align: center;
+    padding: 40px 20px;
+    background: var(--white);
+    border-radius: 16px;
+    box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
+    border: 1px solid var(--border-color);
+    margin-top: 24px;
+}
+
+.no-results h4 {
+    color: var(--text-main);
+    margin: 10px 0;
+    font-weight: 700;
+}
+
+.no-results p {
+    color: var(--text-muted);
+    margin: 0;
+}
+
+/* Error Panel */
+.error-panel {
+    background: var(--white);
+    border-radius: 16px;
+    padding: 24px;
+    box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
+    border-left: 4px solid #dc2626;
+    margin-top: 24px;
+}
+
+.error-panel h3 {
+    color: #dc2626;
+    margin: 0 0 10px 0;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.error-panel p {
+    color: var(--text-muted);
+    margin: 0 0 15px 0;
+}
+
+/* Responsive Adjustments */
+@media (max-width: 640px) {
+    .action-buttons { flex-direction: column; }
+    .btn-primary, .btn-secondary { width: 100%; justify-content: center; }
+    .day-filter-btn { flex: 1; min-width: 70px; }
+}

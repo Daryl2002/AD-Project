@@ -1,63 +1,204 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
+
 <head>
     <title>TTMS - Login</title>
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    
-    <link rel="stylesheet" href="Styles/loginStyle.css"> 
+
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="Styles/loginStyle.css">
 </head>
+
 <body>
 
-    <div class="welcome-text">WELCOME!</div>
+    <div class="main-wrapper">
 
-    <div class="faculty-text">
-        Fakulti Komputeran<br>
-        Universiti Teknologi<br>
-        Malaysia
-    </div>
+        <header class="top-bar">
+            <div class="welcome-text">WELCOME!</div>
+            <div class="faculty-text">Fakulti Komputeran</div>
+        </header>
 
-    <div class="logo-container">
-        <img id="utm-logo" src="Logo/UTM-LOGO.png" alt="UTM Logo">
-        </div>
+        <main class="login-container">
 
-    <div class="login-box">
-        <div class="input-group">
-            <label for="login">UserID</label>
-            <input type="text" id="login" class="input-field" value="">
-        </div>
-        
-        <div class="input-group">
-            <label for="password">Password</label>
-            <input type="password" id="password" class="input-field" value="">
-        </div>
-        
-        <button class="login-button" id="btnLogin">LOGIN</button>
+            <div class="logo-container">
+                <img id="utm-logo" src="Logo/UTM-LOGO.png" alt="UTM Logo">
+            </div>
+
+            <div class="login-box">
+                <h2>Sign in to TTMS</h2>
+                <p class="subtitle">Enter your credentials to access the system</p>
+
+                <div class="input-group">
+                    <label for="login">User ID</label>
+                    <input type="text" id="login" class="input-field" placeholder="Student / Staff ID">
+                </div>
+
+                <div class="input-group">
+                    <label for="password">Password</label>
+                    <input type="password" id="password" class="input-field" placeholder="••••••••">
+                </div>
+
+                <!-- 🔁 MODE SWITCH -->
+                <div class="admin-switch">
+                    <span class="switch-label">Switch</span>
+                    <label class="switch">
+                        <input type="checkbox" id="loginAsAdmin">
+                        <span class="slider"></span>
+                    </label>
+
+                    <span class="mode-text" id="modeText">
+                        Staff / Lecturer
+                    </span>
+                </div>
+
+                <button class="login-button" id="btnLogin">
+                    LOGIN
+                </button>
+            </div>
+
+        </main>
     </div>
 
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
+    <script src="CacheUtil.js"></script>
+
     <script>
-        $("#btnLogin").click(function()  {
-            console.log($("#login").val());
-            console.log($("#password").val());
+        const BASE_URL =
+            "http://web.fc.utm.my/ttms/web_man_webservice_json.cgi";
 
-            var url = "http://web.fc.utm.my/ttms/web_man_webservice_json.cgi?entity=authentication&login=" + $("#login").val() + "&password=" + $("#password").val();
-
-            console.log(url);
-            fetch(url)
-            .then(res => res.json())
-            .then(jsonInst => { 
-                alert("Success login to the system!"); 
-                console.log(jsonInst);
-                console.log(JSON.stringify(jsonInst[0]));
-
-                localStorage.setItem("TTMSFC_userSession", JSON.stringify(jsonInst[0]));
-                window.location.replace("Main.html");
-            })
-            .catch(err => {
-                alert("Invalid credential!"); 
-                console.log(err);
-            });
+        // ===============================
+        // MODE SWITCH TEXT UPDATE
+        // ===============================
+        $("#loginAsAdmin").change(function () {
+            $("#modeText").text(
+                this.checked ? "Admin Mode" : "Lecturer / Staff"
+            );
         });
+
+        // ===============================
+        // LOGIN HANDLER
+        // ===============================
+        $("#btnLogin").click(function () {
+
+            const loginId = $("#login").val().trim();
+            const password = $("#password").val().trim();
+            const loginAsAdmin = $("#loginAsAdmin").is(":checked");
+
+            if (!loginId || !password) {
+                alert("Please enter both User ID and Password.");
+                return;
+            }
+
+            const authUrl =
+                `${BASE_URL}?entity=authentication&login=${loginId}&password=${password}`;
+
+            // 1️⃣ Authenticate - DO NOT CACHE (security sensitive)
+            fetch(authUrl)
+                .then(res => res.json())
+                .then(data => {
+
+                    if (!Array.isArray(data) || !data[0]?.session_id) {
+                        throw new Error("Invalid credentials");
+                    }
+
+                    const userSession = data[0];
+
+                    // Save normal user session
+                    localStorage.setItem(
+                        "TTMSFC_userSession",
+                        JSON.stringify(userSession)
+                    );
+
+                    // 2️⃣ Admin mode requested?
+                    if (loginAsAdmin) {
+                        // Check if user is a student first - USE CACHE for faster role detection
+                        const checkStudentUrl = `${BASE_URL}?entity=pelajar_subjek&no_matrik=${userSession.login_name}`;
+
+                        cachedFetch(checkStudentUrl)
+                            .then(sData => {
+                                if (Array.isArray(sData) && sData.length > 0) {
+                                    // It IS a student
+                                    alert("Access denied. Students cannot access Admin mode.");
+                                } else {
+                                    // Not a student (Lecturer/Staff), try admin login
+                                    attemptAdminLogin(userSession);
+                                }
+                            })
+                            .catch(e => {
+                                console.error("Error checking student role:", e);
+                                alert("System error verifying role.");
+                            });
+                    } else {
+                        detectStudentOrLecturer(userSession);
+                    }
+                })
+                .catch(err => {
+                    // Unified error message for all users
+                    alert("Invalid Id or password");
+                    console.warn("Login attempt failed:", err);
+                });
+        });
+
+        // ===============================
+        // ADMIN ESCALATION
+        // ===============================
+        function attemptAdminLogin(userSession) {
+
+            const adminUrl =
+                `http://web.fc.utm.my/ttms/auth-admin.php?session_id=${userSession.session_id}`;
+
+            // DO NOT CACHE admin auth (security sensitive)
+            fetch(adminUrl)
+                .then(res => res.json())
+                .then(adminData => {
+
+                    if (Array.isArray(adminData) && adminData[0]?.session_id) {
+
+                        // ✅ Admin granted
+                        localStorage.setItem(
+                            "TTMSFC_adminSession",
+                            JSON.stringify(adminData[0])
+                        );
+
+                        window.location.replace("AdminMain.html");
+                    } else {
+                        alert("Admin access denied. Staff only.");
+                        detectStudentOrLecturer(userSession);
+                    }
+                })
+                .catch(() => {
+                    alert("Admin authorization failed.");
+                    detectStudentOrLecturer(userSession);
+                });
+        }
+
+        // ===============================
+        // STUDENT / LECTURER DETECTION
+        // ===============================
+        function detectStudentOrLecturer(userSession) {
+
+            const loginName = userSession.login_name;
+            const studentUrl =
+                `${BASE_URL}?entity=pelajar_subjek&no_matrik=${loginName}`;
+
+            // USE CACHE for role detection - this data doesn't change frequently
+            cachedFetch(studentUrl)
+                .then(data => {
+
+                    if (Array.isArray(data) && data.length > 0) {
+                        // 🎓 Student
+                        window.location.replace("Main.html");
+                    } else {
+                        // 👨‍🏫 Lecturer
+                        window.location.replace("MainLecturer.html");
+                    }
+                })
+                .catch(() => {
+                    window.location.replace("Main.html");
+                });
+        }
     </script>
+
 </body>
+
 </html>

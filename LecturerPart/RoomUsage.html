@@ -9,6 +9,7 @@
     <script src="../Authenticate.js"></script>
     <script src="../CacheUtil.js"></script>
     <script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
+    <!-- CSS Path: Relative to MainLecturer.html since it's loaded dynamically -->
     <link rel="stylesheet" href="Styles/RoomUsageAnalysisStyle.css">
 </head>
 
@@ -371,16 +372,15 @@
 
                 const options = {
                     title: 'Daily Room Usage (Hours per Day)',
-                    // curveType: 'function', // Removed to make lines straight
-                    legend: { position: 'bottom' },
+                    legend: { position: 'none' }, // No legend needed for single series
                     height: 400,
-                    pointSize: 5,
                     hAxis: { title: 'Day of Week' },
                     vAxis: { title: 'Hours Used', minValue: 0, format: '0' },
-                    colors: ['#e65100']
+                    colors: ['#e65100'],
+                    bar: { groupWidth: "50%" }
                 };
 
-                const chart = new google.visualization.LineChart(document.getElementById('daily_chart_div'));
+                const chart = new google.visualization.ColumnChart(document.getElementById('daily_chart_div'));
                 chart.draw(data, options);
             }
 

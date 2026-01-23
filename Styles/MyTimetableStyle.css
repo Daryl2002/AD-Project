@@ -1,0 +1,307 @@
+/* MyTimetableStyle.css */
+
+:root {
+    --primary-mint: #aa841d;
+    --bg-light: #f8fafc;
+    --border-color: #e2e8f0;
+    --text-main: #1e293b;
+    --text-muted: #64748b;
+}
+
+.comparison-bar {
+    background: white;
+    padding: 1rem;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    margin-bottom: 1.5rem;
+}
+
+.search-box {
+    display: flex;
+    gap: 10px;
+}
+
+.search-box input {
+    flex: 1;
+    padding: 10px;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    outline: none;
+}
+
+.search-box button {
+    background: var(--primary-mint);
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-weight: bold;
+}
+
+/* Modal Styling */
+.modal {
+    display: none;
+    position: fixed;
+    z-index: 99999; /* Ensure it stays above everything */
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0,0,0,0.6);
+    backdrop-filter: blur(4px);
+    overflow-y: auto; /* Allows scrolling the whole modal if screen is very short */
+}
+
+.modal-content {
+    background: white;
+    margin: 20px auto; /* Margin for top/bottom spacing */
+    width: 95%; /* Responsive width */
+    max-width: 850px; /* Maximum width for desktop */
+    border-radius: 12px;
+    position: relative;
+    box-shadow: 0 20px 40px rgba(0,0,0,0.4);
+    box-sizing: border-box;
+}
+
+.modal-header {
+    padding: 15px 20px;
+    border-bottom: 1px solid var(--border-color);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: #fff;
+    border-radius: 12px 12px 0 0;
+}
+
+.modal-body {
+    padding: 15px;
+    max-height: 80vh; /* Limits height on small screens */
+    overflow-y: auto;
+}
+
+/* Ensure the table inside the modal can scroll horizontally */
+.modal-body .table-container {
+    overflow-x: auto;
+    width: 100%;
+    -webkit-overflow-scrolling: touch;
+}
+
+.modal-matrix {
+    min-width: 600px; /* Keeps table readable on mobile */
+}
+
+.close-modal { font-size: 24px; cursor: pointer; color: var(--text-muted); }
+/* Mobile Adjustments */
+@media (max-width: 600px) {
+    .modal-content {
+        margin: 10px auto;
+        width: 98%;
+    }
+    .modal-header h3 {
+        font-size: 1rem;
+    }
+    .legend {
+        flex-direction: column;
+        gap: 5px;
+    }
+}
+/* Matrix Inside Modal */
+.both-free {
+    background: #dcfce7 !important;
+    color: #166534;
+    text-align: center;
+    font-weight: bold;
+    font-size: 0.7rem;
+}
+
+.someone-busy {
+    background: #f1f5f9 !important;
+    color: #cbd5e1;
+    text-align: center;
+    font-size: 0.7rem;
+}
+
+.legend { margin-top: 15px; display: flex; gap: 20px; font-size: 0.8rem; }
+.box { width: 15px; height: 15px; display: inline-block; vertical-align: middle; margin-right: 5px; border-radius: 3px; }
+.box.free { background: #dcfce7; border: 1px solid #10b981; }
+.box.busy { background: #f1f5f9; }
+
+body {
+    font-family: 'Inter', sans-serif;
+    background-color: transparent; /* Allows dashboard bg to show */
+    margin: 0;
+    padding: 0;
+    color: var(--text-main);
+}
+
+.timetable-wrapper {
+    animation: fadeIn 0.4s ease-out;
+    padding-bottom: 40px;
+}
+
+/* Header & Info Cards */
+.timetable-header h2 {
+    font-size: 1.5rem;
+    font-weight: 700;
+    margin-bottom: 1.25rem;
+}
+
+.info-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 0.75rem;
+    margin-bottom: 1.5rem;
+}
+
+.info-stat-card {
+    background: white;
+    padding: 1rem;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.03);
+}
+
+.info-stat-card label {
+    font-size: 0.65rem;
+    font-weight: 700;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    display: block;
+    margin-bottom: 2px;
+}
+
+.info-stat-card span {
+    font-size: 0.95rem;
+    font-weight: 600;
+}
+
+/* Chart Area */
+.chart-container {
+    background: white;
+    padding: 15px;
+    border-radius: 10px;
+    border: 1px solid var(--border-color);
+    margin-bottom: 1.5rem;
+}
+
+/* Timetable Grid */
+.table-container {
+    background: white;
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+    overflow-x: auto;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.02);
+}
+
+.proto-table {
+    width: 100%;
+    border-collapse: collapse;
+    min-width: 850px;
+    table-layout: fixed;
+}
+
+.proto-table th {
+    background: var(--bg-light);
+    padding: 12px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: var(--text-muted);
+    border-bottom: 2px solid var(--border-color);
+    text-align: center;
+}
+
+.proto-table td {
+    padding: 4px;
+    border: 1px solid #f1f5f9;
+    vertical-align: top;
+    height: 65px; /* Compact height */
+}
+
+.time-cell {
+    background: var(--bg-light) !important;
+    font-weight: 800;
+    font-size: 0.65rem;
+    color: var(--text-muted);
+    text-align: center !important;
+    vertical-align: middle !important;
+    width: 85px !important;
+}
+
+/* High Contrast Subject Slots */
+.slot {
+    background: #ecfdf5; /* Light mint */
+    border-left: 3px solid var(--primary-mint);
+    border-radius: 4px;
+    padding: 5px 8px;
+    font-size: 0.7rem;
+    color: #064e3b;
+    margin-bottom: 2px;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+}
+
+.slot strong {
+    display: block;
+    color: #111827;
+    font-size: 0.75rem;
+    margin-bottom: 1px;
+}
+
+.room-tag {
+    margin-top: 3px;
+    color: var(--primary-mint);
+    font-weight: 700;
+    font-size: 0.6rem;
+}
+
+/* Course Table Styling */
+.course-section { margin-top: 2.5rem; }
+.course-section h3 { font-size: 1.1rem; margin-bottom: 1rem; }
+
+.course-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.course-table th {
+    text-align: left;
+    padding: 12px 15px;
+    background: var(--bg-light);
+    font-size: 0.7rem;
+    color: var(--text-muted);
+    text-transform: uppercase;
+}
+
+.course-table td {
+    padding: 14px 15px;
+    border-bottom: 1px solid #f1f5f9;
+}
+
+.course-table tr:nth-child(even) {
+    background: #fbfcfe;
+}
+
+.course-code { font-weight: 700; color: var(--primary-mint); }
+.course-name { font-weight: 500; }
+
+.center { text-align: center; }
+
+.badge-active {
+    background: #dcfce7;
+    color: #166534;
+    padding: 4px 10px;
+    border-radius: 20px;
+    font-size: 0.65rem;
+    font-weight: 800;
+}
+
+.loading {
+    text-align: center;
+    padding: 40px;
+    color: var(--text-muted);
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}

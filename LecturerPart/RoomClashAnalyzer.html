@@ -1,0 +1,380 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <title>Room Clash Analyzer</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <link rel="stylesheet" href="https://www.w3schools.com/w3css/4/w3.css">
+  <script src="../Authenticate.js"></script>
+  <script src="../CacheUtil.js"></script>
+  <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
+
+  <style>
+    body {
+      font-size: 14px;
+    }
+
+    table {
+      border-collapse: collapse;
+      width: 100%;
+    }
+
+    th {
+      background: #fff3a0;
+      position: sticky;
+      top: 0;
+      z-index: 10;
+    }
+
+    .clash-row {
+      background-color: #ffe1e1;
+    }
+
+    td,
+    th {
+      border: 1px solid #ccc;
+      padding: 6px;
+      text-align: left;
+      white-space: nowrap;
+    }
+  </style>
+</head>
+
+<body class="w3-container">
+
+  <h3 class="w3-center w3-text-blue">
+    Room Clash Analyzer – Ruang & Masa
+  </h3>
+
+  <div class="w3-panel w3-light-grey w3-round">
+    <b>Sesi / Semester:</b>
+    <span id="sessionSem">Loading…</span>
+  </div>
+
+  <div class="w3-responsive">
+    <table class="w3-table-all">
+      <thead>
+        <tr>
+          <th>No.</th>
+          <th>Room Code</th>
+          <th>Room Name</th>
+          <th>Abbr.</th>
+          <th>Faculty/Dept</th>
+          <th>Day</th>
+          <th>Time</th>
+          <th>Subject</th>
+        </tr>
+      </thead>
+      <tbody id="resultBody">
+        <tr>
+          <td colspan="8" class="w3-center">Loading data…</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <script>
+    (function () {
+      /* ================= STATE (Scoped) ================= */
+      const state = {
+        sesi: window.parent.currentSesi,
+        semester: window.parent.currentSemester,
+        lecturerCache: {}
+      };
+
+      // Day Mapping
+      const dayMap = {
+        1: "AHAD", 2: "ISNIN", 3: "SELASA", 4: "RABU",
+        5: "KHAMIS", 6: "JUMAAT", 7: "SABTU"
+      };
+
+      // Time Mapping (Masa 1 = 08:00 AM, etc.)
+      function formatTime(masa) {
+        const m = parseInt(masa, 10);
+        if (isNaN(m)) return masa; // Fallback if not a number
+
+        // Start hour: 8:00 + (m-1) hours
+        let startHour = 8 + (m - 1);
+        let endHour = startHour;
+        let startMin = "00";
+        let endMin = "50";
+
+        // Format AM/PM
+        const format12 = (h) => {
+          const ampm = h >= 12 ? "PM" : "AM";
+          const h12 = h % 12 || 12;
+          return `${h12 < 10 ? '0' : ''}${h12}:${startMin} ${ampm}`;
+        };
+
+        const format12End = (h) => {
+          const ampm = h >= 12 ? "PM" : "AM";
+          const h12 = h % 12 || 12;
+          return `${h12 < 10 ? '0' : ''}${h12}:${endMin} ${ampm}`;
+        };
+
+        return `${format12(startHour)} - ${format12End(endHour)}`;
+      }
+
+      $("#sessionSem").text(`${state.sesi} | Semester ${state.semester}`);
+
+      /* ================= INIT ================= */
+      $(document).ready(loadRooms);
+
+      /* ================= LOAD ROOMS ================= */
+      async function loadRooms() {
+        try {
+          // Multi-strategy fetch to ensure we find ALL N28* rooms
+          const urls = [
+            "http://web.fc.utm.my/ttms/web_man_webservice_json.cgi?entity=ruang&kod_ruang_like=N28&limit=2000",
+            "http://web.fc.utm.my/ttms/web_man_webservice_json.cgi?entity=ruang&kod_ruang_like=N28A&limit=2000"
+          ];
+
+          const results = await Promise.all(
+            urls.map(url => cachedFetch(url).catch(e => []))
+          );
+
+          const allRaw = results.flat();
+
+          // Deduplicate and Filter (Strict: Classrooms/Labs only)
+          const seen = new Set();
+          const targetRooms = [];
+          const validFaculties = ["FSKSM", "PPS", "FC", "FSKSM / PPS"];
+          const validTypes = ["Bilik Kuliah", "Makmal", "Dewan Seminar"];
+
+          allRaw.forEach(r => {
+            if (!r.kod_ruang) return;
+            const faculty = (r.kod_fakulti || "").trim().toUpperCase();
+            const type = (r.jenis || "").trim();
+            const code = r.kod_ruang.trim();
+
+            if (code.startsWith("N28")) {
+              // Only rooms likely to be in the "178" list (Classrooms)
+              const isTargetFaculty = validFaculties.some(f => faculty.includes(f));
+              const isTargetType = validTypes.some(t => type.includes(t));
+
+              if (isTargetFaculty && isTargetType && !seen.has(code)) {
+                seen.add(code);
+                targetRooms.push(r);
+              }
+            }
+          });
+
+          targetRooms.sort((a, b) => a.kod_ruang.localeCompare(b.kod_ruang));
+
+          const BATCH_SIZE = 5;
+          let allSchedules = [];
+
+          for (let i = 0; i < targetRooms.length; i += BATCH_SIZE) {
+            const chunk = targetRooms.slice(i, i + BATCH_SIZE);
+            // Use .catch() on schedule load to prevent batch failure
+            const chunkResults = await Promise.all(
+              chunk.map(r => loadRoomSchedule(r).catch(e => []))
+            );
+            allSchedules = allSchedules.concat(chunkResults);
+          }
+
+          detectClashes(allSchedules.flat());
+
+        } catch (e) {
+          showError(e);
+        }
+      }
+
+      /* ================= LOAD ROOM SCHEDULE ================= */
+      function loadRoomSchedule(room) {
+        return cachedFetch(
+          `http://web.fc.utm.my/ttms/web_man_webservice_json.cgi?entity=jadual_ruang&sesi=${state.sesi}&semester=${state.semester}&kod_ruang=${room.kod_ruang}`
+        )
+          .then(list => {
+            if (!Array.isArray(list)) return [];
+
+            // Deduplicate: Filter out identical subjects/sections in the same slot
+            const uniqueEntries = [];
+            const keyMap = new Set();
+
+            list.forEach(j => {
+              const subjek = j.subjek?.kod_subjek || "";
+              const seksyen = j.subjek?.seksyen || "";
+              const key = `${j.hari}|${j.masa}|${subjek}|${seksyen}`;
+
+              if (!keyMap.has(key)) {
+                keyMap.add(key);
+                uniqueEntries.push({
+                  room,
+                  hari: j.hari,
+                  masa: j.masa,
+                  kod_subjek: subjek,
+                  seksyen: seksyen
+                });
+              }
+            });
+
+            return uniqueEntries;
+          });
+      }
+
+      /* ================= CLASH DETECTION ================= */
+      async function detectClashes(rows) {
+        // 1. Group rows by unique Time Slot (Room + Day + Time)
+        const map = {};
+
+        rows.forEach(r => {
+          if (!r.hari || !r.masa || !r.room?.kod_ruang) return;
+          const key = `${r.room.kod_ruang}|${r.hari}|${r.masa}`;
+          if (!map[key]) map[key] = [];
+          map[key].push(r);
+        });
+
+        // 2. Filter groups that have > 1 entry (Candidates for Clash)
+        let candidateGroupsList = Object.values(map).filter(g => g.length > 1);
+
+        // 3. Analyze each group: Fetch Lecturer to distinguish Real Clash vs Merged Class
+        await Promise.all(candidateGroupsList.map(async (group) => {
+          // Fetch lecturers for all items in this group
+          await Promise.all(group.map(async (item) => {
+            item.lecturerName = await getLecturer(item.kod_subjek, item.seksyen);
+          }));
+
+          // Check distinct lecturers
+          const distinctLecturers = new Set(
+            group.map(i => (i.lecturerName || "").toLowerCase().trim())
+          );
+
+          // Logic: 
+          // > 1 Distinct Lecturer = Real Clash (Conflict)
+          // 1 Distinct Lecturer   = Merged Class (Safe)
+          const isRealClash = distinctLecturers.size > 1;
+
+          group.forEach(item => {
+            item.isRealClash = isRealClash;
+          });
+        }));
+
+        // 4. Sort Groups by Abbreviation (Numerical) -> Day -> Time
+        candidateGroupsList.sort((groupA, groupB) => {
+          const rA = groupA[0]; const rB = groupB[0];
+          const abbrA = (rA.room.nama_ruang_singkatan || "").trim();
+          const abbrB = (rB.room.nama_ruang_singkatan || "").trim();
+
+          if (abbrA !== abbrB) {
+            return abbrA.localeCompare(abbrB, undefined, { numeric: true });
+          }
+          if (rA.hari !== rB.hari) return rA.hari - rB.hari;
+          const timeA = String(rA.masa || ""); const timeB = String(rB.masa || "");
+          return timeA.localeCompare(timeB, undefined, { numeric: true });
+        });
+
+        // 5. Flatten with Indexing for Display Styles
+        const displayList = [];
+        let currentRoomCode = "";
+        let roomGroupCounter = 0;
+
+        candidateGroupsList.forEach((group) => {
+          const rCode = group[0].room.kod_ruang;
+          if (rCode !== currentRoomCode) {
+            currentRoomCode = rCode;
+            roomGroupCounter = 0; // Reset counter for new room
+          }
+
+          group.forEach((item, innerIndex) => {
+            item.groupIndex = roomGroupCounter;
+            item.innerIndex = innerIndex; // 0 = Actual (Red), 1+ = Updated (Black)
+            displayList.push(item);
+          });
+
+          roomGroupCounter++;
+        });
+
+        renderTable(displayList);
+      }
+
+      /* ================= RENDER TABLE ================= */
+      function renderTable(rows) {
+        const body = $("#resultBody");
+        body.empty();
+
+        if (rows.length === 0) {
+          body.append(`<tr><td colspan="8" class="w3-center">No room clashes found.</td></tr>`);
+          return;
+        }
+
+        let bil = 1;
+
+        rows.forEach(r => {
+          const dayName = dayMap[r.hari] || r.hari;
+          const timeDisplay = formatTime(r.masa);
+
+          // 1. Background Color
+          let bgColor = "";
+          if (r.isRealClash) {
+            bgColor = "#ffe1e1"; // Pink (Real Clash)
+          } else {
+            // Safe/Merged: Alternate White vs Green (Reset per room)
+            bgColor = (r.groupIndex % 2 === 0) ? "#ffffff" : "#e6ffe6";
+          }
+
+          // 2. Font Color (Simulating "Actual" vs "Updated")
+          // Red for first row in group, Black for subsequent
+          let textColor = (r.innerIndex === 0) ? "#cc0000" : "#000000";
+
+          const rowStyle = `background-color: ${bgColor}; color: ${textColor};`;
+
+          body.append(`
+            <tr style="${rowStyle}">
+              <td>${bil++}</td>
+              <td style="color:${textColor}">${r.room.kod_ruang}</td>
+              <td style="color:${textColor}">${r.room.nama_ruang || "-"}</td>
+              <td style="color:${textColor}">${r.room.nama_ruang_singkatan || "-"}</td>
+              <td style="color:${textColor}">${r.room.kod_fakulti || "-"}</td>
+              <td style="color:${textColor}">${dayName}</td>
+              <td style="color:${textColor}">${timeDisplay}</td>
+              <td style="color:${textColor}">
+                ${r.kod_subjek} - ${r.seksyen} - <br>
+                <small>${r.lecturerName}</small>
+              </td>
+            </tr>
+          `);
+        });
+      }
+
+      /* ================= LECTURER LOOKUP ================= */
+      function getLecturer(kod, seksyen) {
+        return new Promise(resolve => {
+          const key = `${kod}-${seksyen}`;
+          if (state.lecturerCache[key]) {
+            resolve(state.lecturerCache[key]);
+            return;
+          }
+
+          const url = `http://web.fc.utm.my/ttms/web_man_webservice_json.cgi?entity=subjek_pensyarah&kod_subjek=${kod}&sesi=${state.sesi}&semester=${state.semester}&seksyen=${seksyen}`;
+
+          cachedFetch(url)
+            .then(d => {
+              const name = (d && d.length > 0 && d[0].nama)
+                ? d[0].nama.toLowerCase()
+                : "unknown";
+              state.lecturerCache[key] = name;
+              resolve(name);
+            })
+            .catch(() => {
+              state.lecturerCache[key] = "unknown";
+              resolve("unknown");
+            });
+        });
+      }
+
+      /* ================= ERROR ================= */
+      function showError(e) {
+        console.error(e);
+        $("#resultBody").html(
+          `<tr><td colspan="8" class="w3-center w3-red">Error loading data</td></tr>`
+        );
+      }
+    })();
+  </script>
+
+</body>
+
+</html>

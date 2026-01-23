@@ -2,26 +2,27 @@
 <html lang="en">
 
 <head>
-    <title>Timetable Analyzer - Clash Detection</title>
+    <title>Timetable Analyzer - Lecturer Clash Detection</title>
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <script src="../Authenticate.js"></script>
     <script src="../CacheUtil.js"></script>
-    <link rel="stylesheet" href="Styles/TimetableClashAnalyzerStyle.css">
+    <!-- CSS Path: Relative to MainLecturer.html since it's loaded dynamically -->
+    <link rel="stylesheet" href="Styles/LecturerTimetableClashStyle.css">
 </head>
 
 <body>
 
     <div class="timetable-wrapper">
         <div class="timetable-header">
-            <h2>Timetable Clash Analyzer</h2>
+            <h2>Lecturer Timetable Clash Analyzer</h2>
             <div class="info-grid">
                 <div class="info-stat-card">
-                    <label>Student</label>
-                    <span id="studentName">Loading...</span>
+                    <label>Lecturer</label>
+                    <span id="lecturerName">Loading...</span>
                 </div>
                 <div class="info-stat-card">
-                    <label>ID No.</label>
-                    <span id="matricNo">Loading...</span>
+                    <label>Staff No.</label>
+                    <span id="staffNo">Loading...</span>
                 </div>
                 <div class="info-stat-card">
                     <label>Current Term</label>
@@ -31,7 +32,7 @@
         </div>
 
         <div class="loading" id="loadingMsg">
-            🔄 Analyzing timetable for clashes...
+            🔄 Analyzing teaching schedule for clashes...
         </div>
 
         <!-- Color Indicators -->
@@ -92,7 +93,7 @@
             <!-- No Clash Message -->
             <div id="noClashMessage" class="no-clash-message" style="display:none;">
                 <h3>No Clashes Detected!</h3>
-                <p>Your timetable is perfectly scheduled with no overlapping courses.</p>
+                <p>Your teaching schedule is perfectly scheduled with no overlapping classes.</p>
             </div>
         </div>
     </div>
@@ -125,7 +126,7 @@
                 clashedSlots = 0;
                 maxClashesInSlot = 0;
 
-                // Initialize all time slots
+                // Initialize all time slots (1-10 to match student version, table shows 1-9)
                 for (let day = 2; day <= 6; day++) {
                     for (let time = 1; time <= 10; time++) {
                         const key = `${day}-${time}`;
@@ -135,42 +136,43 @@
             }
 
             // ==========================================
-            // 1. AUTO-GET MATRIC FROM localStorage
+            // 1. AUTO-GET LECTURER INFO FROM localStorage
             // ==========================================
-            const userSession = JSON.parse(localStorage.getItem("TTMSFC_userSession"));
+            const userSession = window.parent?.userSession || JSON.parse(localStorage.getItem("TTMSFC_userSession"));
+
+            let staffNo, fullName, apiStaffNo;
 
             if (!userSession) {
-                // For demo/testing purposes
-                const matric = 'A123456';
-                const fullName = 'Demo Student';
-                $("#studentName").text(fullName);
-                $("#matricNo").text(matric);
+                // Fallback for testing
+                staffNo = '12085';
+                apiStaffNo = '23970';
+                fullName = 'Demo Lecturer';
+                $("#lecturerName").text(fullName);
+                $("#staffNo").text(staffNo);
             } else {
-                const matric = userSession.login_name;
-                const fullName = userSession.full_name;
-                $("#studentName").text(fullName);
-                $("#matricNo").text(matric);
+                staffNo = userSession.login_name; // Display ID
+                apiStaffNo = userSession.no_pekerja || userSession.login_name; // Internal API ID
+                fullName = userSession.full_name;
+                $("#lecturerName").text(fullName);
+                $("#staffNo").text(staffNo);
             }
 
-            const matric = $("#matricNo").text();
-            const fullName = $("#studentName").text();
-
-            console.log("✅ Auto-detected Matric:", matric);
-            console.log("✅ Student Name:", fullName);
+            console.log("✅ Auto-detected Display Staff No:", staffNo);
+            console.log("✅ API Internal Staff No:", apiStaffNo);
 
             // ==========================================
-            // 2. GET CURRENT SESSION/SEMESTER
+            // 2. GET CURRENT SESSION/SEMESTER & START
             // ==========================================
             let currentSesi = window.parent?.currentSesi;
             let currentSemester = window.parent?.currentSemester;
 
             if (!currentSesi || !currentSemester) {
                 fetchCurrentSession().then(() => {
-                    loadTimetableForAnalysis(matric, currentSesi, currentSemester);
+                    loadTimetableForAnalysis(apiStaffNo, currentSesi, currentSemester);
                 });
             } else {
                 $("#sessionSem").text(`Sesi ${currentSesi} (Sem ${currentSemester})`);
-                loadTimetableForAnalysis(matric, currentSesi, currentSemester);
+                loadTimetableForAnalysis(apiStaffNo, currentSesi, currentSemester);
             }
 
             // ==========================================
@@ -194,10 +196,10 @@
                     });
             }
 
-            function loadTimetableForAnalysis(matric, sesi, semester) {
+            function loadTimetableForAnalysis(apiStaffNo, sesi, semester) {
                 initializeTimetableData();
                 buildEmptyTable();
-                fetchStudentSubjectsForAnalysis(matric, sesi, semester);
+                fetchLecturerSubjectsForAnalysis(apiStaffNo, sesi, semester);
             }
 
             // ==========================================
@@ -219,19 +221,23 @@
             }
 
             // ==========================================
-            // 4. FETCH STUDENT'S SUBJECTS FOR ANALYSIS
+            // 4. FETCH LECTURER'S SUBJECTS FOR ANALYSIS
             // ==========================================
-            function fetchStudentSubjectsForAnalysis(matric, sesi, semester) {
-                const url = `http://web.fc.utm.my/ttms/web_man_webservice_json.cgi?entity=pelajar_subjek&no_matrik=${matric}`;
+            function fetchLecturerSubjectsForAnalysis(apiStaffNo, sesi, semester) {
+                const url = `http://web.fc.utm.my/ttms/web_man_webservice_json.cgi?entity=pensyarah_subjek&no_pekerja=${apiStaffNo}`;
+
+                console.log("📡 Fetching lecturer subjects from:", url);
 
                 cachedFetch(url)
                     .then(subjects => {
+                        console.log("📦 All subjects received:", subjects);
+
                         const currentSubjects = subjects.filter(s =>
                             s.sesi === sesi && s.semester == semester
                         );
 
                         if (currentSubjects.length === 0) {
-                            $("#loadingMsg").html("⚠️ No subjects found for current semester.");
+                            $("#loadingMsg").html("⚠️ No teaching subjects found for current semester.");
                             applyHeatmapColors(); // Apply colors even if no subjects
                             return;
                         }
@@ -280,6 +286,11 @@
             function addCourseToTimetable(subject, slot) {
                 const day = slot.hari;
                 const time = slot.masa;
+                // API masa values: masa 1 = 8am, masa 2 = 9am, masa 3 = 10am, etc.
+                // Table hours: hour 1 = 8am, hour 2 = 9am, hour 3 = 10am, etc.
+                // So masa directly maps to hour (masa 3 -> hour 3 -> 10am-11am)
+                // But student version uses time - 1, so masa 3 -> hour 2
+                // Let's match student version exactly: masa - 1
                 const key = `${day}-${time - 1}`;
 
                 // Add course to this time slot
@@ -287,10 +298,14 @@
                     kod_subjek: subject.kod_subjek,
                     nama_subjek: subject.nama_subjek,
                     seksyen: subject.seksyen,
-                    room: slot.ruang.nama_ruang_singkatan || slot.ruang.kod_ruang || 'N/A'
+                    room: slot.ruang ? (slot.ruang.nama_ruang_singkatan || slot.ruang.kod_ruang || 'N/A') : 'N/A'
                 };
 
-                timetableData[key].push(courseData);
+                if (timetableData[key]) {
+                    timetableData[key].push(courseData);
+                } else {
+                    console.warn(`⚠️ Slot ${key} not found in timetable data. Masa: ${time}, Day: ${day}`);
+                }
             }
 
             // ==========================================
@@ -359,7 +374,7 @@
                         courses.forEach(course => {
                             slotHTML += `
                                 <div class="clash-course-item">
-                                    <span class="clash-course-code">${course.kod_subjek} (${course.seksyen})</span><br>
+                                    <span class="clash-course-code">${course.kod_subjek} (Sec ${course.seksyen})</span><br>
                                     <small>${course.nama_subjek}</small><br>
                                     <span class="room-tag">📍 ${course.room}</span>
                                 </div>
@@ -424,8 +439,9 @@
             // ==========================================
             // 10. TIME FORMATTING
             // ==========================================
-            function formatTime(masa) {
-                const start = 7 + masa;
+            function formatTime(hour) {
+                // hour is 1-9, representing 8am-5pm
+                const start = 7 + hour;
                 const end = start + 1;
                 return `${start}:00 - ${end}:00`;
             }

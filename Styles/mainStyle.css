@@ -1,84 +1,160 @@
-/* Define UTM colors */
 :root {
-    --utm-pink-header: #B5001C; /* Deep Red/Pink from Login page */
-    --utm-blue-dark: #0A2D6E; /* Deep UTM Blue for text/accents */
-    --sidebar-width: 250px;
+    --primary-mint: #aa841d;
+    --text-main: #111827;
+    --text-muted: #6b7280;
+    --border-color: #e5e7eb;
+    --sidebar-width: 260px;
+    --header-height: 64px;
 }
 
-/* Full Page Layout */
 body {
-    font-family: Arial, sans-serif;
+    font-family: 'Inter', sans-serif;
     margin: 0;
-    background-color: #F0F4F7; /* Light gray dashboard background */
+    background-color: #fff;
+    color: var(--text-main);
+    overflow-x: hidden;
 }
 
-/* 1. Top Header Bar (UTM Themed) */
-.utm-header {
-    background-color: var(--utm-pink-header);
-    color: white;
-    padding: 10px 20px;
-    box-shadow: 0 2px 5px rgba(0,0,0,0.2);
-    position: fixed;
-    width: 100%;
-    top: 0;
-    left: 0;
-    z-index: 1000;
-    height: 60px;
+.app-header {
+    height: var(--header-height);
+    background: white;
+    border-bottom: 1px solid var(--border-color);
     display: flex;
     align-items: center;
-}
-
-.header-title {
-    font-size: 1.5em;
-    font-weight: bold;
-    flex-grow: 1; 
-    color: white;
-}
-
-/* User Info / Logout Links */
-.user-links a {
-    color: white;
-    text-decoration: none;
-    margin-left: 15px;
-    font-weight: 500;
-    transition: color 0.3s;
-}
-.user-links a:hover {
-    color: #FFD700; /* Yellow hover */
-}
-
-/* 2. Sidebar Menu */
-.w3-sidebar {
-    height: 100%;
-    width: var(--sidebar-width);
-    background-color: white;
+    justify-content: space-between;
+    padding: 0 15px; /*side padding*/
     position: fixed;
-    z-index: 1;
-    overflow: auto;
-    padding-top: 60px; /* Space below the fixed header */
-    box-shadow: 2px 0 5px rgba(0,0,0,0.1);
+    top: 0;
+    width: 100%;
+    z-index: 2000;
+    box-sizing: border-box; 
 }
 
-/* 3. Main Content Area */
-#mainContent {
-    margin-left: var(--sidebar-width); /* Space for the sidebar */
-    padding: 20px;
-    padding-top: 80px; /* Space below the fixed header */
+.header-left { display: flex; align-items: center; }
+.nav-logo { height: 32px; }
+.brand-text { font-weight: 700; margin-left: 10px; font-size: 1.1rem; }
+.brand-sub { color: var(--primary-mint); }
+
+.header-right {
+    display: flex;
+    align-items: center;
+    flex-shrink: 0; 
+    margin-left: 10px;
 }
 
-/* Sidebar Menu Items */
-.w3-bar-item {
-    color: var(--utm-blue-dark) !important;
-    font-weight: 500;
-    padding: 12px 16px;
+.menu-toggle {
+    display: none; /* Hidden on desktop */
+    background: none;
+    border: none;
+    font-size: 1.4rem;
+    margin-right: 15px;
     cursor: pointer;
-    text-align: left;
+    color: var(--text-main);
 }
-.w3-bar-item:hover {
-    background-color: #E0E0E0 !important;
+
+.user-pill {
+    display: flex;
+    align-items: center;
+    background: #f9fafb;
+    padding: 4px 12px; /* Reduced padding */
+    border-radius: 20px;
+    border: 1px solid var(--border-color);
+    white-space: nowrap; /* Prevents name from wrapping to a second line */
 }
-/* Highlight the active link */
-.w3-bar-item.w3-blue-dark {
-    background-color: var(--utm-blue-dark) !important;
-    color: white !important;
+
+.welcome-msg { 
+    font-size: 0.8rem; /* Slightly smaller font */
+    max-width: 150px; /* Limits width of name */
+    overflow: hidden;
+    text-overflow: ellipsis; 
+    /* Adds "..." if name is too long */
+}
+
+.divider { 
+    width: 1px; 
+    height: 14px; 
+    background: #ddd; 
+    margin: 0 8px; /* Tighter margins */
+}
+
+.btn-logout { background: none; border: none; color: #ef4444; font-weight: 600; cursor: pointer; font-size: 0.85rem; }
+
+/* Sidebar */
+.sidebar {
+    width: var(--sidebar-width);
+    height: calc(100vh - var(--header-height));
+    background: white;
+    border-right: 1px solid var(--border-color);
+    position: fixed;
+    top: var(--header-height);
+    z-index: 1500;
+    transition: transform 0.3s ease;
+}
+
+.nav-container { padding: 24px 16px; }
+.nav-group { margin-bottom: 24px; }
+.nav-label {
+    font-size: 0.7rem;
+    font-weight: 700;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    margin-bottom: 10px;
+    padding-left: 12px;
+}
+
+.nav-link {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 12px;
+    color: var(--text-muted);
+    text-decoration: none;
+    font-size: 0.95rem;
+    font-weight: 500;
+    border-radius: 8px;
+    margin-bottom: 4px;
+}
+
+.nav-link.active {
+    background: rgba(16, 185, 129, 0.1);
+    color: var(--primary-mint);
+    font-weight: 600;
+}
+
+/* Content Area */
+.content-area {
+    margin-left: var(--sidebar-width);
+    margin-top: var(--header-height);
+    padding: 30px;
+    transition: margin-left 0.3s ease;
+}
+
+/* Mobile Responsiveness */
+@media (max-width: 992px) {
+    .menu-toggle { display: block; }
+    
+    .sidebar {
+        transform: translateX(-100%); /* Hide sidebar */
+        top: var(--header-height);
+    }
+    
+    .sidebar.open {
+        transform: translateX(0); /* Slide in */
+    }
+
+    .content-area {
+        margin-left: 0;
+        padding: 20px;
+    }
+
+    .overlay {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0,0,0,0.4);
+        z-index: 1400;
+    }
 }

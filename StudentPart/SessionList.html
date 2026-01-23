@@ -1,54 +1,58 @@
 <html>
+
 <head>
   <title>SessionList</title>
-  <link rel="stylesheet" href="https://www.w3schools.com/w3css/5/w3.css"> 
+  <link rel="stylesheet" href="https://www.w3schools.com/w3css/5/w3.css">
+  <script src="../Authenticate.js"></script>
+  <script src="../CacheUtil.js"></script>
 </head>
-<body>
-<table class="w3-table-all w3-hoverable">
-  <tr>
-    <th>Session-Semester</th>
-    <th>Start Date</th>
-    <th>End Date</th>
-  </tr>
 
-</table>
-<p></p>
+<body>
+  <table class="w3-table-all w3-hoverable">
+    <tr>
+      <th>Session-Semester</th>
+      <th>Start Date</th>
+      <th>End Date</th>
+    </tr>
+
+  </table>
+  <p></p>
 
 </body>
+
 </html>
 
 <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
 <script src="PageCtrl.js"></script>
 <script>
-var url = "http://web.fc.utm.my/ttms/web_man_webservice_json.cgi?entity=sesisemester";
+  var url = "http://web.fc.utm.my/ttms/web_man_webservice_json.cgi?entity=sesisemester";
 
-if (!localStorage.getItem("TTMSFC_sessionList")) {
-  alert("Access TTMS-AJAX service");
-  fetch(url)
-  .then(res => res.json())
-  .then(jsonInst => { 
-    //alert("Success convert to JSON instance!"); 
-    //console.log(jsonInst);
+  if (!localStorage.getItem("TTMSFC_sessionList")) {
+    alert("Access TTMS-AJAX service");
+    cachedFetch(url)
+      .then(jsonInst => {
+        //alert("Success convert to JSON instance!"); 
+        //console.log(jsonInst);
+        listSession(jsonInst);
+
+        localStorage.setItem("TTMSFC_sessionList", JSON.stringify(jsonInst));
+      }).catch(err => console.log(err));
+
+  } else {
+    jsonInst = JSON.parse(localStorage.getItem("TTMSFC_sessionList"));
     listSession(jsonInst);
-    
-    localStorage.setItem("TTMSFC_sessionList", JSON.stringify(jsonInst));
-  }).catch(err => console.log(err));
-  
-} else {
-  jsonInst = JSON.parse(localStorage.getItem("TTMSFC_sessionList"));
-  listSession(jsonInst);
-}
-
-function listSession(jsonInst) {
-  for (var i = 0; i < jsonInst.length; i++) {
-    //console.log(jsonInst[i].sesi + "-" + jsonInst[i].semester);
-    
-    var row = $('<tr></tr>');
-    row.append('<td>' + jsonInst[i].sesi + "-" + jsonInst[i].semester + '</td>');
-    row.append('<td>' + jsonInst[i].tarikh_mula + '</td>');
-    row.append('<td>' + jsonInst[i].tarikh_tamat + '</td>');
-    
-    $('table').append(row);
   }
-}
+
+  function listSession(jsonInst) {
+    for (var i = 0; i < jsonInst.length; i++) {
+      //console.log(jsonInst[i].sesi + "-" + jsonInst[i].semester);
+
+      var row = $('<tr></tr>');
+      row.append('<td>' + jsonInst[i].sesi + "-" + jsonInst[i].semester + '</td>');
+      row.append('<td>' + jsonInst[i].tarikh_mula + '</td>');
+      row.append('<td>' + jsonInst[i].tarikh_tamat + '</td>');
+
+      $('table').append(row);
+    }
+  }
 </script>
