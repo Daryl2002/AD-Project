@@ -205,19 +205,16 @@ const CacheUtil = (function () {
                         localStorage.setItem(cacheKey, JSON.stringify(cacheEntry));
                     } catch (e) {
                         if (e.name === 'QuotaExceededError' || e.code === 22) {
-                            // localStorage is full - try to clear old entries
-                            console.warn('Cache write error (Quota Exceeded), clearing old entries...');
-                            const cleared = clearOldCache();
+                            // localStorage is full - try aggressive cleanup
+                            clearOldCache(true); // aggressive mode
 
-                            // If we couldn't clear anything or it's still full, give up for this session
+                            // Try again after cleanup
                             try {
                                 localStorage.setItem(cacheKey, JSON.stringify(cacheEntry));
                             } catch (e2) {
-                                console.warn('Cache write still failed after cleanup. Disabling persistent cache for this session to improve performance.');
+                                // Give up on persistent storage for this session (silently)
                                 storageQuotaExceeded = true;
                             }
-                        } else {
-                            console.warn('Cache write error:', e);
                         }
                     }
                 }
@@ -300,24 +297,48 @@ const CacheUtil = (function () {
 
     /**
      * Clear old/expired cache entries to free up space
+     * @param {boolean} aggressive - If true, clears more aggressively to make room
      */
-    function clearOldCache() {
+    function clearOldCache(aggressive = false) {
         const now = Date.now();
-        const keysToRemove = [];
+        const cacheEntries = [];
 
+        // Collect all cache entries with their metadata
         for (let i = 0; i < localStorage.length; i++) {
             const key = localStorage.key(i);
             if (key && key.startsWith(CACHE_PREFIX)) {
                 try {
                     const entry = JSON.parse(localStorage.getItem(key));
-                    // Remove entries older than 24 hours
-                    if (now - entry.timestamp > 24 * 60 * 60 * 1000) {
-                        keysToRemove.push(key);
-                    }
+                    cacheEntries.push({
+                        key: key,
+                        timestamp: entry.timestamp || 0,
+                        size: localStorage.getItem(key).length
+                    });
                 } catch (e) {
-                    keysToRemove.push(key);
+                    // Corrupted entry - mark for removal
+                    localStorage.removeItem(key);
                 }
             }
+        }
+
+        // Sort by timestamp (oldest first)
+        cacheEntries.sort((a, b) => a.timestamp - b.timestamp);
+
+        const keysToRemove = [];
+        const threshold = aggressive ? 1 * 60 * 60 * 1000 : 24 * 60 * 60 * 1000; // 1 hour if aggressive, 24 hours otherwise
+
+        // Remove old entries first
+        cacheEntries.forEach(entry => {
+            if (now - entry.timestamp > threshold) {
+                keysToRemove.push(entry.key);
+            }
+        });
+
+        // If aggressive and still not enough cleared, remove oldest 50%
+        if (aggressive && keysToRemove.length < cacheEntries.length / 2) {
+            const remaining = cacheEntries.filter(e => !keysToRemove.includes(e.key));
+            const toRemove = remaining.slice(0, Math.ceil(remaining.length / 2));
+            toRemove.forEach(entry => keysToRemove.push(entry.key));
         }
 
         keysToRemove.forEach(key => localStorage.removeItem(key));
