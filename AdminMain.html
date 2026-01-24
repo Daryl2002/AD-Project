@@ -110,6 +110,9 @@
                     <a href="#" class="nav-link" id="clash-room">
                         <i class="fa fa-search"></i> Room Clashes
                     </a>
+                    <a href="#" class="nav-link" id="room-usage">
+                        <i class="fa fa-pie-chart"></i> Room Usage
+                    </a>
                 </div>
 
             </nav>
@@ -128,13 +131,14 @@
     </div>
 
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
+    <script src="https://www.gstatic.com/charts/loader.js"></script>
     <script src="CacheUtil.js"></script>
 
     <script>
         const BASE_URL =
             "http://web.fc.utm.my/ttms/web_man_webservice_json.cgi?entity=";
 
-        // 🔐 Admin session validation (Handled by Authenticate.js)
+        // 🔐 Admin session validation
         const adminSession = JSON.parse(localStorage.getItem("TTMSFC_adminSession"));
 
         // Display admin name
@@ -153,40 +157,49 @@
             $("#sidebar-overlay").fadeToggle();
         });
 
-        // Helper for loading sub-pages
-        function loadAdminPage(id, url) {
+        // --- Page Loading Logic ---
+        window.clearAdminCache = function () {
+            if (window.CacheUtil) window.CacheUtil.clearCache();
+            loadAdminPage("admin-dashboard", "AdminPart/Dashboard.html", true);
+        };
+
+        // Helper for loading sub-pages with centralized CacheUtil
+        async function loadAdminPage(id, url, forceRefresh = false) {
             $(".nav-link").removeClass("active");
             $("#" + id).addClass("active");
 
-            $("#mainContent").load(url, () => {
-                if ($(window).width() <= 992) {
-                    $("#sidebarMenu").removeClass("open");
-                    $("#sidebar-overlay").fadeOut();
-                }
-            });
+            // Close mobile sidebar
+            if ($(window).width() <= 992) {
+                $("#sidebarMenu").removeClass("open");
+                $("#sidebar-overlay").fadeOut();
+            }
+
+            try {
+                // Use CacheUtil for robust, persistent caching
+                const html = await window.CacheUtil.fetch(url, {
+                    dataType: 'text',
+                    forceRefresh: forceRefresh,
+                    staleWhileRevalidate: true // Fast switching + background update
+                });
+
+                $("#mainContent").html(html);
+            } catch (e) {
+                console.error("Page Load Error:", e);
+                $("#mainContent").html("<div class='error-msg'>Failed to load section. Please try again.</div>");
+            }
         }
 
         // Menu bindings
-        $("#admin-dashboard").click(() =>
-            loadAdminPage("admin-dashboard", "AdminPart/Dashboard.html"));
+        $("#admin-dashboard").click(() => loadAdminPage("admin-dashboard", "AdminPart/Dashboard.html", true));
+        $("#admin-students").click(() => loadAdminPage("admin-students", "AdminPart/Studentlist.html"));
+        $("#admin-lecturers").click(() => loadAdminPage("admin-lecturers", "AdminPart/Lecturerlist.html"));
+        $("#clash-student").click(() => loadAdminPage("clash-student", "AdminPart/StudentClash.html"));
+        $("#clash-lecturer").click(() => loadAdminPage("clash-lecturer", "AdminPart/LecturerClash.html"));
+        $("#clash-room").click(() => loadAdminPage("clash-room", "AdminPart/RoomClash.html"));
+        $("#room-usage").click(() => loadAdminPage("room-usage", "AdminPart/RoomUsage.html"));
 
-        $("#admin-students").click(() =>
-            loadAdminPage("admin-students", "AdminPart/Studentlist.html"));
-
-        $("#admin-lecturers").click(() =>
-            loadAdminPage("admin-lecturers", "AdminPart/Lecturerlist.html"));
-
-        $("#clash-student").click(() =>
-            loadAdminPage("clash-student", "AdminPart/StudentClash.html"));
-
-        $("#clash-lecturer").click(() =>
-            loadAdminPage("clash-lecturer", "AdminPart/LecturerClash.html"));
-
-        $("#clash-room").click(() =>
-            loadAdminPage("clash-room", "AdminPart/ClashRoom.html"));
-
-        // Default page
-        loadAdminPage("admin-dashboard", "AdminPart/Dashboard.html");
+        // Default page initialization - FORCE REFRESH Dashboard to ensure new changes are visible
+        loadAdminPage("admin-dashboard", "AdminPart/Dashboard.html", true);
     </script>
 
 </body>

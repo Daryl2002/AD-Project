@@ -54,6 +54,8 @@
     </div>
 
     <div id="chart_div" style="width: 100%; height: 400px; display:none;"></div>
+
+
     <hr>
 
     <div class="pagination-container" id="paginationTop"></div>
@@ -111,10 +113,13 @@
             function initGoogleCharts() {
                 try {
                     if (typeof google !== 'undefined' && google.charts) {
-                        google.charts.load('current', { 'packages': ['bar', 'corechart', 'line'] });
+                        google.charts.load('current', { 'packages': ['bar', 'corechart', 'line', 'gauge'] });
                         google.charts.setOnLoadCallback(function () {
                             isChartLibLoaded = true;
-                            if (filteredRooms.length > 0) drawRoomUsageChart(filteredRooms);
+                            if (filteredRooms.length > 0) {
+                                drawRoomUsageChart(filteredRooms);
+
+                            }
                         });
                     } else {
                         chartRetryCount++;
@@ -223,6 +228,7 @@
                 renderPagination();
                 if (isChartLibLoaded) {
                     drawRoomUsageChart(filteredRooms);
+
                 }
             }
 
@@ -415,6 +421,83 @@
                     chartArea: { width: '50%' },
                     hAxis: { title: 'Hours Per Week' }
                 }));
+            }
+
+            function drawUtilizationGauges(rooms) {
+                if (!isChartLibLoaded || typeof google === 'undefined' || !google.visualization) return;
+                if (rooms.length === 0) {
+                    $('#gaugeContainer').hide();
+                    return;
+                }
+
+                // Calculate utilization by room type
+                const MAX_HOURS_PER_WEEK = 50; // 5 days * 10 hours
+                const typeStats = {};
+
+                rooms.forEach(room => {
+                    const type = (room.jenis || 'Unknown').toUpperCase();
+                    if (!typeStats[type]) {
+                        typeStats[type] = { totalHours: 0, roomCount: 0 };
+                    }
+                    typeStats[type].totalHours += room.usageHours || 0;
+                    typeStats[type].roomCount += 1;
+                });
+
+                // Calculate average utilization percentage per type
+                const gaugeData = [];
+                Object.keys(typeStats).forEach(type => {
+                    const avgHours = typeStats[type].totalHours / typeStats[type].roomCount;
+                    const utilizationPercent = Math.round((avgHours / MAX_HOURS_PER_WEEK) * 100);
+                    gaugeData.push({ type, utilization: utilizationPercent, rooms: typeStats[type].roomCount });
+                });
+
+                if (gaugeData.length === 0) {
+                    $('#gaugeContainer').hide();
+                    return;
+                }
+
+                $('#gaugeContainer').show();
+                let gaugeHTML = '';
+
+                gaugeData.forEach((item, index) => {
+                    const colSize = gaugeData.length <= 3 ? 4 : 3; // 3 columns if 3 or less, else 4
+                    gaugeHTML += `
+                        <div class="w3-col m${colSize} s12" style="padding: 10px;">
+                            <div class="w3-card-4 w3-padding" style="text-align: center;">
+                                <h4 style="color: #64748b; margin: 10px 0;">${item.type}</h4>
+                                <div id="gauge_${index}" style="width: 100%; height: 200px;"></div>
+                                <p style="font-size: 0.9em; color: #94a3b8; margin-top: 10px;">${item.rooms} room(s)</p>
+                            </div>
+                        </div>
+                    `;
+                });
+
+                $('#gaugeChartsRow').html(gaugeHTML);
+
+                // Draw each gauge
+                gaugeData.forEach((item, index) => {
+                    const data = google.visualization.arrayToDataTable([
+                        ['Label', 'Value'],
+                        ['Utilization', item.utilization]
+                    ]);
+
+                    const options = {
+                        width: '100%',
+                        height: 200,
+                        redFrom: 80,
+                        redTo: 100,
+                        yellowFrom: 50,
+                        yellowTo: 80,
+                        greenFrom: 0,
+                        greenTo: 50,
+                        minorTicks: 5,
+                        min: 0,
+                        max: 100
+                    };
+
+                    const chart = new google.visualization.Gauge(document.getElementById(`gauge_${index}`));
+                    chart.draw(data, options);
+                });
             }
         });
     </script>

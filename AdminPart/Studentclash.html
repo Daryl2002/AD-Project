@@ -38,11 +38,11 @@
             <div id="clash_charts_container" class="card-box" style="margin-top: 20px; display:none;">
                 <div style="display:flex; flex-wrap:wrap; gap:20px;">
                     <div style="flex:1; min-width:300px;">
-                        <h4 style="margin-top:0;">Conflict Severity (Students)</h4>
+                        <h4 style="margin-top:0; text-align: center;">Conflict Severity (Students)</h4>
                         <div id="piechart_severity" style="width: 100%; height: 250px;"></div>
                     </div>
                     <div style="flex:1; min-width:300px;">
-                        <h4 style="margin-top:0;">Top 5 Clashing Subjects</h4>
+                        <h4 style="margin-top:0; text-align: center;">Top 5 Clashing Subjects</h4>
                         <div id="barchart_subjects" style="width: 100%; height: 250px;"></div>
                     </div>
                 </div>
@@ -79,7 +79,7 @@
         <div class="modal-content">
             <div class="modal-header">
                 <h3>Schedule Suggestions</h3>
-                <button class="close-btn" onclick="$('#suggestionModal').hide()">&times;</button>
+                <button class="close-btn" onclick="closeModal()">&times;</button>
             </div>
             <div class="modal-body">
                 <p id="modalStudentName" style="font-weight:bold; margin-bottom:10px;"></p>
@@ -175,17 +175,12 @@
                         bulkTimetables.forEach(slot => {
                             if (!slot.hari || !slot.masa || !slot.kod_subjek || !slot.seksyen) return;
 
-                            // Find matching section in allSections (optional verification, but helps consistency)
-                            // Or just build map directly.
                             const secKey = `${slot.kod_subjek}-${slot.seksyen}`;
                             if (!sectionTimeMap.has(secKey)) sectionTimeMap.set(secKey, []);
 
                             const timeKey = `${slot.hari}-${slot.masa}`;
                             if (!timetableMap.has(timeKey)) timetableMap.set(timeKey, []);
 
-                            // We need the full section object. Since bulk data might not have nama_subjek, 
-                            // we lookup from our master list or reconstruct minimally.
-                            // Optimization: Create a lightweight ref.
                             const secObj = {
                                 kod_subjek: slot.kod_subjek,
                                 seksyen: slot.seksyen,
@@ -205,7 +200,7 @@
                         updateStatus(`Processed ${bulkTimetables.length} timetable slots.`, 30);
                     } else {
                         // Fallback: Individual Fetches
-                        const chunkSize = 100; // Increased from 50
+                        const chunkSize = 100;
                         let processed = 0;
 
                         for (let i = 0; i < allSections.length; i += chunkSize) {
@@ -247,7 +242,7 @@
                     const candidateSections = new Set();
                     timetableMap.forEach((sectionList, timeKey) => {
                         if (sectionList.length > 1) {
-                            sectionList.forEach(s => candidateSections.add(JSON.stringify(s))); // Use string for Set uniqueness of objects
+                            sectionList.forEach(s => candidateSections.add(JSON.stringify(s)));
                         }
                     });
 
@@ -256,59 +251,57 @@
                         return;
                     }
 
-                    // Parse back to objects
                     const candidatesArray = Array.from(candidateSections).map(s => JSON.parse(s));
 
                     updateStatus(`Checking student lists for ${candidatesArray.length} potential clashes...`, 50);
 
-                    // 5. Fetch Students (Safe Mode: small chunks, no bulk)
+                    // 5. Fetch Students
                     const studentMap = new Map();
                     const studentSchedules = new Map();
+                    const clashReport = [];
 
-                    // Fallback: Individual Fetches
-                    const chunkSize = 150; // Increased to 150 for MAX speed
+                    const chunkSize = 300;
                     let processed = 0;
+                    const maxConcurrentBatches = 3;
 
-                    const sleep = ms => new Promise(r => setTimeout(r, ms));
+                    for (let batchStart = 0; batchStart < candidatesArray.length; batchStart += chunkSize * maxConcurrentBatches) {
+                        const batchChunks = [];
+                        for (let i = batchStart; i < Math.min(batchStart + (chunkSize * maxConcurrentBatches), candidatesArray.length); i += chunkSize) {
+                            const chunk = candidatesArray.slice(i, i + chunkSize);
+                            batchChunks.push(
+                                Promise.all(chunk.map(sec =>
+                                    cachedFetch(`${API_BASE}?entity=subjek_pelajar&session_id=${localAdminSession.session_id}&sesi=${currentSesi}&semester=${currentSem}&kod_subjek=${sec.kod_subjek}&seksyen=${sec.seksyen}`)
+                                        .then(data => ({ sec, data }))
+                                        .catch(e => ({ sec, data: [] }))
+                                )).then(resChunk => {
+                                    resChunk.forEach(({ sec, data }) => {
+                                        if (Array.isArray(data)) {
+                                            data.forEach(stud => {
+                                                if (!stud.no_matrik) return;
+                                                if (!studentMap.has(stud.no_matrik)) {
+                                                    studentMap.set(stud.no_matrik, stud);
+                                                    studentSchedules.set(stud.no_matrik, []);
+                                                }
+                                                studentSchedules.get(stud.no_matrik).push(sec);
+                                            });
+                                        }
+                                    });
+                                    processed += chunk.length;
+                                    return { processed, total: candidatesArray.length };
+                                })
+                            );
+                        }
 
-                    for (let i = 0; i < candidatesArray.length; i += chunkSize) {
-                        const chunk = candidatesArray.slice(i, i + chunkSize);
+                        await Promise.all(batchChunks);
 
-                        // Minimized delay
-                        if (i > 0) await sleep(5);
-
-                        const promises = chunk.map(sec =>
-                            cachedFetch(`${API_BASE}?entity=subjek_pelajar&session_id=${localAdminSession.session_id}&sesi=${currentSesi}&semester=${currentSem}&kod_subjek=${sec.kod_subjek}&seksyen=${sec.seksyen}`)
-                                .then(data => ({ sec, data }))
-                                .catch(e => ({ sec, data: [] }))
-                        );
-
-                        const resChunk = await Promise.all(promises);
-
-                        resChunk.forEach(({ sec, data }) => {
-                            if (Array.isArray(data)) {
-                                data.forEach(stud => {
-                                    if (!stud.no_matrik) return;
-                                    if (!studentMap.has(stud.no_matrik)) {
-                                        studentMap.set(stud.no_matrik, stud);
-                                        studentSchedules.set(stud.no_matrik, []);
-                                    }
-                                    studentSchedules.get(stud.no_matrik).push(sec);
-                                });
-                            }
-                        });
-
-                        processed += chunk.length;
                         const pct = 50 + Math.round((processed / candidatesArray.length) * 40);
                         updateStatus(`Analyzing student enrollments... (${processed}/${candidatesArray.length})`, pct);
                     }
 
-                    // 6. Compute Clashes & Suggestions
+                    // 6. Process Clashes
                     updateStatus("Finalizing clash report...", 95);
-                    const clashReport = [];
 
                     studentSchedules.forEach((rawSections, matrik) => {
-                        // Deduplicate sections (handle if student appears twice in same section list)
                         const uniqueSectionKeys = new Set();
                         const sections = [];
                         rawSections.forEach(s => {
@@ -318,18 +311,16 @@
                             }
                         });
 
-                        if (sections.length < 2) return; // No chance of clash
+                        if (sections.length < 2) return;
 
                         const uniqueClashes = new Set();
                         const studentClashes = [];
-                        const clashingSubjects = new Set(); // Codes of subjects involved in clashes
 
                         for (let a = 0; a < sections.length; a++) {
                             for (let b = a + 1; b < sections.length; b++) {
                                 const secA = sections[a];
                                 const secB = sections[b];
 
-                                // Prevent self-clash (redundant with dedup but safe)
                                 if (secA.key === secB.key) continue;
 
                                 const timesA = sectionTimeMap.get(secA.key) || [];
@@ -346,8 +337,6 @@
                                                     subject2: `${secB.kod_subjek}-${secB.seksyen}`,
                                                     time: tA.prettyTime
                                                 });
-                                                clashingSubjects.add(secA.kod_subjek);
-                                                clashingSubjects.add(secB.kod_subjek);
                                             }
                                         }
                                     });
@@ -356,21 +345,35 @@
                         }
 
                         if (studentClashes.length > 0) {
-                            // Generate Suggestions
-                            const suggestions = generateSuggestions(sections, clashingSubjects, subjectSectionsMap, sectionTimeMap);
-
                             clashReport.push({
                                 student: studentMap.get(matrik),
                                 clashes: studentClashes,
                                 subjectCount: sections.length,
-                                suggestions: suggestions
+                                rawSections: sections,
+                                suggestions: []
                             });
                         }
                     });
 
-                    // 7. Render
+                    // Generate suggestions
+                    updateStatus("Generating suggestions...", 97);
+                    clashReport.forEach(item => {
+                        const clashingSubjects = new Set();
+                        item.clashes.forEach(c => {
+                            clashingSubjects.add(c.subject1.split('-')[0]);
+                            clashingSubjects.add(c.subject2.split('-')[0]);
+                        });
+                        item.suggestions = generateSuggestions(
+                            item.rawSections,
+                            clashingSubjects,
+                            subjectSectionsMap,
+                            sectionTimeMap
+                        );
+                    });
+
+                    // 7. Final Render
                     updateStatus("Done!", 100);
-                    renderTable(clashReport);
+                    renderTable(clashReport, false);
                     drawClashCharts(clashReport);
 
                 } catch (err) {
@@ -429,7 +432,7 @@
                     fontSize: 14,
                     pieHole: 0.6, // Donut style
                     colors: ['#fbc02d', '#f57c00', '#d32f2f'], // Vibrant Amber, Orange, Red
-                    chartArea: { width: '90%', height: '80%' },
+                    chartArea: { left: 20, width: '100%', height: '80%' },
                     legend: { position: 'right', textStyle: { color: '#374151', fontSize: 13 } },
                     animation: {
                         startup: true,
@@ -470,7 +473,7 @@
                     fontName: 'Inter',
                     fontSize: 13,
                     legend: { position: "none" },
-                    chartArea: { width: '75%', height: '70%' },
+                    chartArea: { width: '60%', height: '70%', left: '30%' },
                     colors: ['#3b82f6'], // Modern Blue
                     hAxis: {
                         minValue: 0,
@@ -552,7 +555,8 @@
                                 solutions.push({
                                     schedule: trialSchedule,
                                     changedSubj: pCode, // Mark which one changed
-                                    newSection: altSec
+                                    newSection: altSec,
+                                    oldSection: originalSec
                                 });
                             }
                         }
@@ -562,19 +566,33 @@
                 return solutions;
             }
 
-            function renderTable(report) {
+            function renderTable(report, appendMode = false) {
                 const tbody = $('#clashTableBody');
-                tbody.empty();
+
+                // Clear only if not in append mode
+                if (!appendMode) {
+                    tbody.empty();
+                }
 
                 if (report.length === 0) {
-                    tbody.html('<tr class="empty-state"><td colspan="8">No clashes detected! Everyone is safe.</td></tr>');
+                    if (!appendMode) {
+                        tbody.html('<tr class="empty-state"><td colspan="8">No clashes detected! Everyone is safe.</td></tr>');
+                    }
                     return;
                 }
 
-                // Sort by Name
-                report.sort((a, b) => a.student.nama.localeCompare(b.student.nama));
+                // Remove empty state if present
+                tbody.find('.empty-state').remove();
 
-                report.forEach((item, idx) => {
+                // Sort by Name (create copy to avoid mutating original)
+                const sortedReport = [...report].sort((a, b) => a.student.nama.localeCompare(b.student.nama));
+
+                // In append mode, only render new items
+                const startIdx = appendMode ? tbody.find('tr').length : 0;
+                const itemsToRender = appendMode ? sortedReport.slice(startIdx) : sortedReport;
+
+                itemsToRender.forEach((item, localIdx) => {
+                    const idx = startIdx + localIdx;
                     const s = item.student;
 
                     // Build Clash Details HTML
@@ -585,10 +603,11 @@
                     </div>
                 `).join("");
 
-                    // Build Suggestion Cell
-                    const suggCount = item.suggestions.length;
+                    // Build Suggestion Cell (use index from sortedReport)
+                    const originalIdx = sortedReport.indexOf(item);
+                    const suggCount = item.suggestions ? item.suggestions.length : 0;
                     const suggHtml = suggCount > 0
-                        ? `<a class="suggestion-link" data-idx="${idx}">${suggCount}</a>`
+                        ? `<a class="suggestion-link" data-idx="${originalIdx}">${suggCount}</a>`
                         : `<span class="suggestion-link zero">0</span>`;
 
                     const row = `
@@ -608,13 +627,16 @@
                     tbody.append(row);
                 });
 
-                // Bind Clicks
-                $('.suggestion-link:not(.zero)').click(function () {
+                // Bind Clicks (use off/on to prevent duplicate handlers)
+                $('.suggestion-link:not(.zero)').off('click').on('click', function () {
                     const idx = $(this).data('idx');
-                    showSuggestions(report[idx]);
+                    showSuggestions(sortedReport[idx]);
                 });
 
-                $('#scanStatus').text(`Scan Complete. Found ${report.length} students with schedule conflicts.`);
+                // Update status message (only on final render, not during progressive updates)
+                if (!appendMode) {
+                    $('#scanStatus').text(`Scan Complete. Found ${report.length} students with schedule conflicts.`);
+                }
             }
 
             function showSuggestions(item) {
@@ -626,20 +648,25 @@
                     list.html('<p>No valid schedule combinations found.</p>');
                 } else {
                     item.suggestions.forEach((sol, i) => {
-                        // sol.schedule is array of sections
-                        // Sort by code so it looks neat
-                        const sortedSched = [...sol.schedule].sort((a, b) => a.kod_subjek.localeCompare(b.kod_subjek));
+                        const oldSec = sol.oldSection ? sol.oldSection.seksyen : '?';
+                        const newSec = sol.newSection.seksyen;
+                        const code = sol.changedSubj;
 
-                        const str = sortedSched.map(sec => {
-                            // Highlight if this is the changed one
-                            const isChanged = sec.kod_subjek === sol.changedSubj && sec.key === sol.newSection.key;
-                            return `<span class="${isChanged ? 'sugg-change' : ''}">${sec.kod_subjek}-${sec.seksyen}</span>`;
-                        }).join(" ");
-
-                        list.append(`<div class="suggestion-item"><strong>Option ${i + 1}:</strong> ${str}</div>`);
+                        list.append(`
+                            <div class="suggestion-item">
+                                <strong>Option ${i + 1}:</strong> 
+                                <span>Switch <strong style="color:#b91c1c;">${code}-${oldSec}</strong> to <strong style="color:#15803d;">${code}-${newSec}</strong></span>
+                            </div>
+                        `);
                     });
                 }
                 $('#suggestionModal').css('display', 'flex'); // Use flex to center with new CSS
+                $('body').addClass('modal-open');
+            }
+
+            window.closeModal = function () {
+                $('#suggestionModal').hide();
+                $('body').removeClass('modal-open');
             }
 
             function renderEmpty(msg) {

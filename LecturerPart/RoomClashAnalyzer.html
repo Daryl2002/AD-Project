@@ -3,375 +3,603 @@
 
 <head>
   <meta charset="UTF-8">
-  <title>Room Clash Analyzer</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Room Clash Analysis</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
+  <!-- Adjusted path for LecturerPart -->
+  <link rel="stylesheet" href="Styles/roomClash.css">
 
-  <link rel="stylesheet" href="https://www.w3schools.com/w3css/4/w3.css">
-  <script src="../Authenticate.js"></script>
-  <script src="../CacheUtil.js"></script>
+  <!-- Required Scripts -->
+  <script src="CacheUtil.js"></script>
   <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
-
-  <style>
-    body {
-      font-size: 14px;
-    }
-
-    table {
-      border-collapse: collapse;
-      width: 100%;
-    }
-
-    th {
-      background: #fff3a0;
-      position: sticky;
-      top: 0;
-      z-index: 10;
-    }
-
-    .clash-row {
-      background-color: #ffe1e1;
-    }
-
-    td,
-    th {
-      border: 1px solid #ccc;
-      padding: 6px;
-      text-align: left;
-      white-space: nowrap;
-    }
-  </style>
+  <script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
 </head>
 
-<body class="w3-container">
+<body>
 
-  <h3 class="w3-center w3-text-blue">
-    Room Clash Analyzer – Ruang & Masa
-  </h3>
+  <div class="page-container">
+    <div class="header-section">
+      <h1 class="page-title">Room Clash Analysis</h1>
+    </div>
 
-  <div class="w3-panel w3-light-grey w3-round">
-    <b>Sesi / Semester:</b>
-    <span id="sessionSem">Loading…</span>
+    <!-- Progress Card -->
+    <div class="card-box status-bar" id="scanProgress" style="margin-bottom: 24px;">
+      <div class="status-text">
+        <span id="scanStatus">Initializing...</span>
+        <span id="scanPercent">0%</span>
+      </div>
+      <div class="progress-track">
+        <div class="progress-fill" id="scanFill"></div>
+      </div>
+    </div>
+
+    <!-- KPI Cards -->
+    <div class="grid-stats" id="statsContainer"
+      style="display:none; grid-template-columns: repeat(2, 1fr); gap: 24px; margin-bottom: 24px;">
+      <div class="card-box kpi-card">
+        <div class="kpi-label">Total Venues</div>
+        <div class="kpi-value" id="statVenues">-</div>
+      </div>
+      <div class="card-box kpi-card alert">
+        <div class="kpi-label">Venue Conflicts</div>
+        <div class="kpi-value" id="statConflicts">-</div>
+      </div>
+    </div>
+
+    <!-- Dashboard Charts -->
+    <div id="room_charts_container" class="card-box"
+      style="margin-top: 5px; margin-bottom: 24px; padding: 20px; display:none;">
+      <h4 style="margin-top:0; text-align: left; font-size: 1.1rem; color: #1f2937; font-weight: 700;">Conflict
+        Intensity Heatmap</h4>
+      <p style="font-size: 0.85rem; color: #6b7280; margin-bottom: 16px;">Comprehensive view of concurrent room
+        clashes across the faculty timeline (Mon - Fri, 8am - 5pm).</p>
+      <div id="heatmap_chart_div" style="width: 100%;"></div>
+    </div>
+
+
+
+    <!-- Results Card -->
+    <div class="card-box" style="margin-top: 24px;">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th style="width: 50px;">No.</th>
+            <th style="width: 100px;">Room Code</th>
+            <th style="width: 250px;">Room Name</th>
+            <th style="width: 80px;">Shorthand</th>
+            <th style="width: 120px;">Faculty/Dept</th>
+            <th style="width: 80px;">Day</th>
+            <th style="width: 120px;">Time</th>
+            <th style="width: 140px;">Subject</th>
+            <th style="width: 220px;">Lect</th>
+          </tr>
+        </thead>
+        <tbody id="clashTableBody">
+          <tr class="empty-state">
+            <td colspan="9">
+              <div class="empty-icon"><i class="fa fa-search"></i></div>
+              Ready to analyze room conflicts. Click Start.
+            </td>
+          </tr>
+        </tbody>
+      </table>
+      <div class="pagination-footer">
+        <div class="page-info" id="pageInfo">Showing 0 to 0 of 0 entries</div>
+        <div class="pagination-numbers" id="paginationNumbers"></div>
+      </div>
+    </div>
   </div>
 
-  <div class="w3-responsive">
-    <table class="w3-table-all">
-      <thead>
-        <tr>
-          <th>No.</th>
-          <th>Room Code</th>
-          <th>Room Name</th>
-          <th>Abbr.</th>
-          <th>Faculty/Dept</th>
-          <th>Day</th>
-          <th>Time</th>
-          <th>Subject</th>
-        </tr>
-      </thead>
-      <tbody id="resultBody">
-        <tr>
-          <td colspan="8" class="w3-center">Loading data…</td>
-        </tr>
-      </tbody>
-    </table>
+  <!-- Suggestions Modal -->
+  <div id="suggestionModal" class="modal-overlay">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 id="modalTitle">Available Rooms</h3>
+        <button class="modal-close" onclick="closeModal()">&times;</button>
+      </div>
+      <div class="modal-body">
+        <p id="modalDescription" style="margin-bottom: 20px; font-size: 0.9rem; color: #6b7280;"></p>
+        <div id="suggestionsList">
+          <!-- Alternative rooms injected here -->
+        </div>
+      </div>
+    </div>
   </div>
 
   <script>
     (function () {
-      /* ================= STATE (Scoped) ================= */
-      const state = {
-        sesi: window.parent.currentSesi,
-        semester: window.parent.currentSemester,
-        lecturerCache: {}
-      };
+      const API_BASE = "http://web.fc.utm.my/ttms/web_man_webservice_json.cgi";
 
-      // Day Mapping
-      const dayMap = {
-        1: "AHAD", 2: "ISNIN", 3: "SELASA", 4: "RABU",
-        5: "KHAMIS", 6: "JUMAAT", 7: "SABTU"
-      };
+      // ADAPTATION: Try to find a valid session (Admin or User)
+      // Note: 'TTMSFC_userSession' is used for Lecturers/Staff
+      const sessionData = JSON.parse(localStorage.getItem("TTMSFC_adminSession")) ||
+        JSON.parse(localStorage.getItem("TTMSFC_userSession"));
 
-      // Time Mapping (Masa 1 = 08:00 AM, etc.)
-      function formatTime(masa) {
-        const m = parseInt(masa, 10);
-        if (isNaN(m)) return masa; // Fallback if not a number
+      const sessionId = sessionData ? sessionData.session_id : "";
 
-        // Start hour: 8:00 + (m-1) hours
-        let startHour = 8 + (m - 1);
-        let endHour = startHour;
-        let startMin = "00";
-        let endMin = "50";
+      let currentSesi = "";
+      let currentSem = "";
+      let allClashEntries = [];
+      let currentPage = 1;
+      const itemsPerPage = 20;
 
-        // Format AM/PM
-        const format12 = (h) => {
-          const ampm = h >= 12 ? "PM" : "AM";
-          const h12 = h % 12 || 12;
-          return `${h12 < 10 ? '0' : ''}${h12}:${startMin} ${ampm}`;
-        };
-
-        const format12End = (h) => {
-          const ampm = h >= 12 ? "PM" : "AM";
-          const h12 = h % 12 || 12;
-          return `${h12 < 10 ? '0' : ''}${h12}:${endMin} ${ampm}`;
-        };
-
-        return `${format12(startHour)} - ${format12End(endHour)}`;
+      // Day/Time Helpers
+      const dayMap = { 1: "Sun", 2: "Mon", 3: "Tue", 4: "Wed", 5: "Thu", 6: "Fri", 7: "Sat" };
+      function formatTime(masaCode) {
+        const startHour = 7 + parseInt(masaCode);
+        const ampm = h => h >= 12 ? (h > 12 ? h - 12 : h) + "pm" : h + "am";
+        return `${ampm(startHour)} - ${ampm(startHour + 1)}`;
       }
 
-      $("#sessionSem").text(`${state.sesi} | Semester ${state.semester}`);
-
-      /* ================= INIT ================= */
-      $(document).ready(loadRooms);
-
-      /* ================= LOAD ROOMS ================= */
-      async function loadRooms() {
+      // Safe fetch helper
+      async function safeFetch(url, defaultValue) {
         try {
-          // Multi-strategy fetch to ensure we find ALL N28* rooms
-          const urls = [
-            "http://web.fc.utm.my/ttms/web_man_webservice_json.cgi?entity=ruang&kod_ruang_like=N28&limit=2000",
-            "http://web.fc.utm.my/ttms/web_man_webservice_json.cgi?entity=ruang&kod_ruang_like=N28A&limit=2000"
-          ];
-
-          const results = await Promise.all(
-            urls.map(url => cachedFetch(url).catch(e => []))
-          );
-
-          const allRaw = results.flat();
-
-          // Deduplicate and Filter (Strict: Classrooms/Labs only)
-          const seen = new Set();
-          const targetRooms = [];
-          const validFaculties = ["FSKSM", "PPS", "FC", "FSKSM / PPS"];
-          const validTypes = ["Bilik Kuliah", "Makmal", "Dewan Seminar"];
-
-          allRaw.forEach(r => {
-            if (!r.kod_ruang) return;
-            const faculty = (r.kod_fakulti || "").trim().toUpperCase();
-            const type = (r.jenis || "").trim();
-            const code = r.kod_ruang.trim();
-
-            if (code.startsWith("N28")) {
-              // Only rooms likely to be in the "178" list (Classrooms)
-              const isTargetFaculty = validFaculties.some(f => faculty.includes(f));
-              const isTargetType = validTypes.some(t => type.includes(t));
-
-              if (isTargetFaculty && isTargetType && !seen.has(code)) {
-                seen.add(code);
-                targetRooms.push(r);
-              }
-            }
-          });
-
-          targetRooms.sort((a, b) => a.kod_ruang.localeCompare(b.kod_ruang));
-
-          const BATCH_SIZE = 5;
-          let allSchedules = [];
-
-          for (let i = 0; i < targetRooms.length; i += BATCH_SIZE) {
-            const chunk = targetRooms.slice(i, i + BATCH_SIZE);
-            // Use .catch() on schedule load to prevent batch failure
-            const chunkResults = await Promise.all(
-              chunk.map(r => loadRoomSchedule(r).catch(e => []))
-            );
-            allSchedules = allSchedules.concat(chunkResults);
-          }
-
-          detectClashes(allSchedules.flat());
-
+          const res = await cachedFetch(url);
+          // Ensure valid response (not null/undefined)
+          if (!res) return defaultValue;
+          // If it looks like HTML (string starting with <), reject it 
+          // (though cachedFetch usually parses JSON, if it throws inside cachedFetch, we catch it here)
+          return res;
         } catch (e) {
-          showError(e);
+          console.warn(`Soft fail fetching ${url}:`, e);
+          return defaultValue; // Return empty structure to keep app running
         }
       }
 
-      /* ================= LOAD ROOM SCHEDULE ================= */
-      function loadRoomSchedule(room) {
-        return cachedFetch(
-          `http://web.fc.utm.my/ttms/web_man_webservice_json.cgi?entity=jadual_ruang&sesi=${state.sesi}&semester=${state.semester}&kod_ruang=${room.kod_ruang}`
-        )
-          .then(list => {
-            if (!Array.isArray(list)) return [];
+      async function startAnalysis() {
+        $('#scanProgress').show();
+        $("#clashTableBody").html('<tr><td colspan="4" class="empty-state">Initializing scan...</td></tr>');
+        $("#room_charts_container").hide();
 
-            // Deduplicate: Filter out identical subjects/sections in the same slot
-            const uniqueEntries = [];
-            const keyMap = new Set();
+        try {
+          // 1. Get Session & Basic Metadata
+          updateStatus("Fetching session context...", 5);
 
-            list.forEach(j => {
-              const subjek = j.subjek?.kod_subjek || "";
-              const seksyen = j.subjek?.seksyen || "";
-              const key = `${j.hari}|${j.masa}|${subjek}|${seksyen}`;
+          // Prefer parent window session if available for consistency
+          if (window.parent && window.parent.currentSesi && window.parent.currentSemester) {
+            currentSesi = window.parent.currentSesi;
+            currentSem = window.parent.currentSemester;
+          } else {
+            const sesiData = await safeFetch(`${API_BASE}?entity=sesisemester`, []);
+            if (sesiData.length > 0) {
+              currentSesi = sesiData[0].sesi;
+              currentSem = sesiData[0].semester;
+            }
+          }
 
-              if (!keyMap.has(key)) {
-                keyMap.add(key);
-                uniqueEntries.push({
-                  room,
-                  hari: j.hari,
-                  masa: j.masa,
-                  kod_subjek: subjek,
-                  seksyen: seksyen
+          if (!currentSesi || !currentSem) {
+            console.error("Session/Semester not found.");
+            // Try to continue? No, likely fatal for data.
+            // But let's let the SafeFetch calls handle empty params if needed.
+          }
+
+          // Use safeFetch for bulk data. 
+          // Lecturers likely cannot access 'pensyarah' or 'pelajar' bulk lists (Access Denied -> HTML -> Json Error).
+          // We default to [] to prevent crash.
+          const [roomsList, lecturersList, studentsList, subjekList, subjekSeksyenData] = await Promise.all([
+            safeFetch(`${API_BASE}?entity=ruang&kod_fakulti=FSKSM`, []),
+            safeFetch(`${API_BASE}?entity=pensyarah&session_id=${sessionId}&sesi=${currentSesi}&semester=${currentSem}`, []),
+            safeFetch(`${API_BASE}?entity=pelajar&session_id=${sessionId}&sesi=${currentSesi}&semester=${currentSem}`, []),
+            safeFetch(`${API_BASE}?entity=subjek&sesi=${currentSesi}&semester=${currentSem}`, []),
+            safeFetch(`${API_BASE}?entity=subjek_seksyen&sesi=${currentSesi}&semester=${currentSem}`, [])
+          ]);
+
+          // Build Lookup Maps: [code][section] -> Lecturer Name / Student Count
+          const lecturerLookup = {};
+          const studentCountLookup = {};
+          if (Array.isArray(subjekSeksyenData)) {
+            subjekSeksyenData.forEach(s => {
+              if (!lecturerLookup[s.kod_subjek]) {
+                lecturerLookup[s.kod_subjek] = {};
+                studentCountLookup[s.kod_subjek] = {};
+              }
+              if (Array.isArray(s.seksyen_list)) {
+                s.seksyen_list.forEach(sec => {
+                  lecturerLookup[s.kod_subjek][sec.seksyen] = sec.pensyarah || "Unknown";
+                  studentCountLookup[s.kod_subjek][sec.seksyen] = parseInt(sec.bil_pelajar) || 0;
                 });
               }
             });
+          }
+          window.lecturerLookup = lecturerLookup;
+          window.studentCountLookup = studentCountLookup;
 
-            return uniqueEntries;
-          });
-      }
+          $("#statVenues").text(roomsList.length);
+          $("#statsContainer").show();
 
-      /* ================= CLASH DETECTION ================= */
-      async function detectClashes(rows) {
-        // 1. Group rows by unique Time Slot (Room + Day + Time)
-        const map = {};
-
-        rows.forEach(r => {
-          if (!r.hari || !r.masa || !r.room?.kod_ruang) return;
-          const key = `${r.room.kod_ruang}|${r.hari}|${r.masa}`;
-          if (!map[key]) map[key] = [];
-          map[key].push(r);
-        });
-
-        // 2. Filter groups that have > 1 entry (Candidates for Clash)
-        let candidateGroupsList = Object.values(map).filter(g => g.length > 1);
-
-        // 3. Analyze each group: Fetch Lecturer to distinguish Real Clash vs Merged Class
-        await Promise.all(candidateGroupsList.map(async (group) => {
-          // Fetch lecturers for all items in this group
-          await Promise.all(group.map(async (item) => {
-            item.lecturerName = await getLecturer(item.kod_subjek, item.seksyen);
+          const roomMetaMap = new Map();
+          roomsList.forEach(r => roomMetaMap.set(r.kod_ruang, {
+            kod_ruang: r.kod_ruang,
+            nama: r.nama_ruang,
+            nama_singkat: r.nama_ruang_singkatan || r.kod_ruang,
+            fakulti: r.kod_fakulti,
+            jabatan: r.kod_jabatan || '-',
+            kapasiti: parseInt(r.kapasiti) || 0,
+            jenis: r.jenis
           }));
 
-          // Check distinct lecturers
-          const distinctLecturers = new Set(
-            group.map(i => (i.lecturerName || "").toLowerCase().trim())
-          );
+          // 2. Fetch Timetable PER ROOM (jadual_ruang)
+          // Bulk jadual_subjek often lacks room info.
+          updateStatus("Scanning all rooms...", 30);
 
-          // Logic: 
-          // > 1 Distinct Lecturer = Real Clash (Conflict)
-          // 1 Distinct Lecturer   = Merged Class (Safe)
-          const isRealClash = distinctLecturers.size > 1;
+          const roomUsage = {};
+          const allSlots = [];
+          const BATCH_SIZE = 20;
 
-          group.forEach(item => {
-            item.isRealClash = isRealClash;
-          });
-        }));
+          for (let i = 0; i < roomsList.length; i += BATCH_SIZE) {
+            const batch = roomsList.slice(i, i + BATCH_SIZE);
+            updateStatus(`Scanning rooms (${i + 1} - ${Math.min(i + BATCH_SIZE, roomsList.length)} of ${roomsList.length})...`, 30 + Math.floor((i / roomsList.length) * 50));
 
-        // 4. Sort Groups by Abbreviation (Numerical) -> Day -> Time
-        candidateGroupsList.sort((groupA, groupB) => {
-          const rA = groupA[0]; const rB = groupB[0];
-          const abbrA = (rA.room.nama_ruang_singkatan || "").trim();
-          const abbrB = (rB.room.nama_ruang_singkatan || "").trim();
+            await Promise.all(batch.map(async (room) => {
+              try {
+                const timetable = await cachedFetch(`${API_BASE}?entity=jadual_ruang&sesi=${currentSesi}&semester=${currentSem}&kod_ruang=${room.kod_ruang}`);
+                if (!Array.isArray(timetable)) return;
 
-          if (abbrA !== abbrB) {
-            return abbrA.localeCompare(abbrB, undefined, { numeric: true });
+                const rCode = room.kod_ruang;
+                roomUsage[rCode] = {};
+
+                timetable.forEach(slot => {
+                  if (!slot.hari || slot.masa == null) return;
+
+                  // Use date in key to handle week-based overlaps (per Vue ref)
+                  const dateKey = slot.tarikh_mula || 'ALL';
+                  if (!roomUsage[rCode][dateKey]) roomUsage[rCode][dateKey] = {};
+                  if (!roomUsage[rCode][dateKey][slot.hari]) roomUsage[rCode][dateKey][slot.hari] = {};
+                  if (!roomUsage[rCode][dateKey][slot.hari][slot.masa]) roomUsage[rCode][dateKey][slot.hari][slot.masa] = [];
+
+                  const currentGroup = roomUsage[rCode][dateKey][slot.hari][slot.masa];
+                  const sub = slot.subjek || {};
+
+                  // Duplicate protection
+                  const isDuplicate = currentGroup.some(existing => {
+                    return (sub.kod_subjek === existing.code && sub.seksyen === existing.section) ||
+                      (slot.kod_perkara && slot.kod_perkara === existing.perkara);
+                  });
+
+                  if (!isDuplicate) {
+                    const lecturerName = (window.lecturerLookup[sub.kod_subjek] || {})[sub.seksyen] ||
+                      (window.lecturerLookup[slot.kod_subjek] || {})[slot.seksyen] || "-";
+                    const stdCount = (window.studentCountLookup[sub.kod_subjek] || {})[sub.seksyen] ||
+                      (window.studentCountLookup[slot.kod_subjek] || {})[slot.seksyen] || 0;
+
+                    const slotObj = {
+                      code: sub.kod_subjek || slot.kod_subjek || 'N/A',
+                      section: sub.seksyen || slot.seksyen || '-',
+                      lecturer: lecturerName,
+                      students: stdCount,
+                      perkara: slot.kod_perkara,
+                      id: slot.id_jws,
+                      hari: slot.hari,
+                      masa: slot.masa
+                    };
+                    currentGroup.push(slotObj);
+                    allSlots.push(slotObj);
+                  }
+                });
+              } catch (e) {
+                console.warn(`Failed to fetch timetable for room ${room.kod_ruang}`, e);
+              }
+            }));
           }
-          if (rA.hari !== rB.hari) return rA.hari - rB.hari;
-          const timeA = String(rA.masa || ""); const timeB = String(rB.masa || "");
-          return timeA.localeCompare(timeB, undefined, { numeric: true });
-        });
 
-        // 5. Flatten with Indexing for Display Styles
-        const displayList = [];
-        let currentRoomCode = "";
-        let roomGroupCounter = 0;
+          // 3. Compile Full Utilization Report
+          updateStatus("Compiling full utilization report...", 85);
+          const fullReport = [];
+          let conflictCount = 0;
 
-        candidateGroupsList.forEach((group) => {
-          const rCode = group[0].room.kod_ruang;
-          if (rCode !== currentRoomCode) {
-            currentRoomCode = rCode;
-            roomGroupCounter = 0; // Reset counter for new room
+          for (const rCode in roomUsage) {
+            const dates = roomUsage[rCode];
+            for (const date in dates) {
+              for (const day in dates[date]) {
+                for (const masa in dates[date][day]) {
+                  const slots = dates[date][day][masa];
+                  const isClash = slots.length > 1;
+                  if (isClash) conflictCount += slots.length;
+
+                  fullReport.push({
+                    kod_ruang: rCode,
+                    dateInfo: date === 'ALL' ? '' : ` (${date})`,
+                    hari: day,
+                    masa: masa,
+                    dayName: dayMap[day] || "Day " + day,
+                    timeSlot: formatTime(masa),
+                    sections: slots,
+                    isClash: isClash,
+                    meta: roomMetaMap.get(rCode)
+                  });
+                }
+              }
+            }
           }
 
-          group.forEach((item, innerIndex) => {
-            item.groupIndex = roomGroupCounter;
-            item.innerIndex = innerIndex; // 0 = Actual (Red), 1+ = Updated (Black)
-            displayList.push(item);
+          // Sort & Filter Clashes
+          const report = fullReport.filter(e => e.isClash);
+          report.sort((a, b) => {
+            if (a.kod_ruang !== b.kod_ruang) return a.kod_ruang.localeCompare(b.kod_ruang);
+            if (a.hari !== b.hari) return a.hari - b.hari;
+            return a.masa - b.masa;
           });
 
-          roomGroupCounter++;
-        });
+          $("#statConflicts").text(conflictCount);
 
-        renderTable(displayList);
+          allClashEntries = [];
+          report.forEach(entry => {
+            // Sort sections numerically within the clash group
+            entry.sections.sort((a, b) => {
+              if (a.code !== b.code) return a.code.localeCompare(b.code);
+              return a.section.localeCompare(b.section, undefined, { numeric: true, sensitivity: 'base' });
+            });
+
+            entry.sections.forEach(s => {
+              allClashEntries.push({ ...entry, ...s, originalEntry: entry });
+            });
+          });
+
+          updateStatus("Generating visualizations...", 95);
+          drawRoomCharts(allSlots);
+
+          window.currentRoomUsage = roomUsage;
+          window.allRoomsMeta = Array.from(roomMetaMap.values());
+
+          currentPage = 1;
+          renderCurrentPage();
+          updateStatus("Analysis Complete", 100);
+
+        } catch (err) {
+          console.error("Room Clash Error:", err);
+          updateStatus("Error detected.", 0);
+          $("#clashTableBody").html(`<tr><td colspan="4" class="empty-state">Failed to load data: ${err.message}</td></tr>`);
+        }
       }
 
-      /* ================= RENDER TABLE ================= */
-      function renderTable(rows) {
-        const body = $("#resultBody");
-        body.empty();
+      function renderCurrentPage() {
+        const start = (currentPage - 1) * itemsPerPage;
+        const end = start + itemsPerPage;
+        const pageSlice = allClashEntries.slice(start, end);
 
-        if (rows.length === 0) {
-          body.append(`<tr><td colspan="8" class="w3-center">No room clashes found.</td></tr>`);
+        const tbody = $("#clashTableBody");
+        tbody.empty();
+
+        if (allClashEntries.length === 0) {
+          tbody.html('<tr class="empty-state"><td colspan="9"><div class="empty-icon"><i class="fa fa-info-circle" style="color:#6366f1;"></i></div>No room utilization records found.</td></tr>');
+          $("#pageInfo").text("Showing 0 to 0 of 0 entries");
+          $("#paginationNumbers").empty();
           return;
         }
 
-        let bil = 1;
+        pageSlice.forEach((s, index) => {
+          const globalIdx = start + index + 1;
+          const entry = s.originalEntry;
+          const m = entry.meta || { nama: entry.kod_ruang, nama_singkat: '-', fakulti: '-', jabatan: '-' };
 
-        rows.forEach(r => {
-          const dayName = dayMap[r.hari] || r.hari;
-          const timeDisplay = formatTime(r.masa);
-
-          // 1. Background Color
-          let bgColor = "";
-          if (r.isRealClash) {
-            bgColor = "#ffe1e1"; // Pink (Real Clash)
-          } else {
-            // Safe/Merged: Alternate White vs Green (Reset per room)
-            bgColor = (r.groupIndex % 2 === 0) ? "#ffffff" : "#e6ffe6";
-          }
-
-          // 2. Font Color (Simulating "Actual" vs "Updated")
-          // Red for first row in group, Black for subsequent
-          let textColor = (r.innerIndex === 0) ? "#cc0000" : "#000000";
-
-          const rowStyle = `background-color: ${bgColor}; color: ${textColor};`;
-
-          body.append(`
-            <tr style="${rowStyle}">
-              <td>${bil++}</td>
-              <td style="color:${textColor}">${r.room.kod_ruang}</td>
-              <td style="color:${textColor}">${r.room.nama_ruang || "-"}</td>
-              <td style="color:${textColor}">${r.room.nama_ruang_singkatan || "-"}</td>
-              <td style="color:${textColor}">${r.room.kod_fakulti || "-"}</td>
-              <td style="color:${textColor}">${dayName}</td>
-              <td style="color:${textColor}">${timeDisplay}</td>
-              <td style="color:${textColor}">
-                ${r.kod_subjek} - ${r.seksyen} - <br>
-                <small>${r.lecturerName}</small>
-              </td>
-            </tr>
-          `);
+          const row = `
+                        <tr>
+                            <td style="font-weight:bold;">${globalIdx}.</td>
+                            <td style="color:#2563eb; font-weight:500;">${entry.kod_ruang}</td>
+                            <td>${m.nama}</td>
+                            <td>${m.nama_singkat}</td>
+                            <td>${m.fakulti} / ${m.jabatan}</td>
+                            <td style="text-transform: uppercase;">${entry.dayName}</td>
+                            <td style="white-space:nowrap;">${entry.timeSlot}</td>
+                            <td style="white-space:nowrap; font-weight:700; color:#b91c1c;">
+                                ${s.code} - ${s.section}
+                            </td>
+                            <td>
+                                <div style="display:flex; justify-content:space-between; align-items:center;">
+                                    <small style="color:#6b7280; padding-right:10px;">${s.lecturer}</small>
+                                    <button class="suggestion-btn" title="Show Suggestions"
+                                      onclick='findAlternatives("${entry.kod_ruang}", "${entry.dateInfo ? entry.dateInfo.replace(" (", "").replace(")", "") : "ALL"}", ${entry.hari}, ${entry.masa}, ${s.students})'>
+                                        <i class="fa fa-lightbulb-o"></i>
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                    `;
+          tbody.append(row);
         });
+
+        // Update Pagination UI
+        const total = allClashEntries.length;
+        const startDisplay = total === 0 ? 0 : start + 1;
+        const endDisplay = Math.min(start + itemsPerPage, total);
+        $('#pageInfo').text(`Showing ${startDisplay} to ${endDisplay} of ${total} entries`);
+        updatePaginationControls();
       }
 
-      /* ================= LECTURER LOOKUP ================= */
-      function getLecturer(kod, seksyen) {
-        return new Promise(resolve => {
-          const key = `${kod}-${seksyen}`;
-          if (state.lecturerCache[key]) {
-            resolve(state.lecturerCache[key]);
-            return;
-          }
+      function updatePaginationControls() {
+        const container = $('#paginationNumbers');
+        container.empty();
+        const totalPages = Math.ceil(allClashEntries.length / itemsPerPage);
 
-          const url = `http://web.fc.utm.my/ttms/web_man_webservice_json.cgi?entity=subjek_pensyarah&kod_subjek=${kod}&sesi=${state.sesi}&semester=${state.semester}&seksyen=${seksyen}`;
+        if (totalPages <= 1) return;
 
-          cachedFetch(url)
-            .then(d => {
-              const name = (d && d.length > 0 && d[0].nama)
-                ? d[0].nama.toLowerCase()
-                : "unknown";
-              state.lecturerCache[key] = name;
-              resolve(name);
-            })
-            .catch(() => {
-              state.lecturerCache[key] = "unknown";
-              resolve("unknown");
-            });
+        const createBtn = (text, page, isActive = false, isDisabled = false) => {
+          const btn = $(`<button class="page-num ${isActive ? 'active' : ''}">${text}</button>`);
+          if (isDisabled) btn.prop('disabled', true);
+          else btn.click(() => { currentPage = page; renderCurrentPage(); });
+          return btn;
+        };
+
+        container.append(createBtn('<', currentPage - 1, false, currentPage === 1));
+
+        let startPage = Math.max(1, currentPage - 2);
+        let endPage = Math.min(totalPages, currentPage + 2);
+
+        if (startPage > 1) {
+          container.append(createBtn('1', 1, currentPage === 1));
+          if (startPage > 2) container.append($('<span style="padding:0 4px;">...</span>'));
+        }
+
+        for (let i = startPage; i <= endPage; i++) {
+          container.append(createBtn(i, i, i === currentPage));
+        }
+
+        if (endPage < totalPages) {
+          if (endPage < totalPages - 1) container.append($('<span style="padding:0 4px;">...</span>'));
+          container.append(createBtn(totalPages, totalPages, currentPage === totalPages));
+        }
+
+        container.append(createBtn('>', currentPage + 1, false, currentPage === totalPages));
+      }
+
+      window.findAlternatives = function (rCode, dateKey, hari, masa, requiredCap) {
+        const usage = window.currentRoomUsage;
+        const allRooms = window.allRoomsMeta;
+
+        const modalTitle = `Alternatives for ${rCode}`;
+        const displayDate = dateKey === 'ALL' ? '' : ` (${dateKey})`;
+        const modalDesc = `Finding free rooms for ${dayMap[hari]}${displayDate} at ${formatTime(masa)}. Need capacity for ~${requiredCap || 0} students.`;
+
+        $("#modalTitle").text(modalTitle);
+        $("#modalDescription").text(modalDesc);
+
+        const listContainer = $("#suggestionsList");
+        listContainer.empty();
+
+        const alternatives = allRooms.filter(r => {
+          if (r.kod_ruang === rCode) return false;
+
+          // Check if room is free on this specific date/day/time
+          const isOccupied = (usage[r.kod_ruang]) && (
+            (usage[r.kod_ruang][dateKey] && usage[r.kod_ruang][dateKey][hari] && usage[r.kod_ruang][dateKey][hari][masa]) ||
+            (usage[r.kod_ruang]['ALL'] && usage[r.kod_ruang]['ALL'][hari] && usage[r.kod_ruang]['ALL'][hari][masa])
+          );
+
+          return !isOccupied;
         });
+
+        // Sort: Best fit capacity first (larger but close to requiredCap)
+        const targetCap = requiredCap || 0;
+        alternatives.sort((a, b) => {
+          const aDiff = a.kapasiti - targetCap;
+          const bDiff = b.kapasiti - targetCap;
+
+          // Prioritize rooms that can fit the students
+          if (aDiff >= 0 && bDiff < 0) return -1;
+          if (bDiff >= 0 && aDiff < 0) return 1;
+
+          return Math.abs(aDiff) - Math.abs(bDiff);
+        });
+
+        const top10 = alternatives.slice(0, 10);
+
+        if (top10.length === 0) {
+          listContainer.html("<p style='text-align:center; color:#9ca3af;'>No empty rooms found for this slot.</p>");
+        } else {
+          top10.forEach(r => {
+            const card = `
+                            <div class="alt-room-card">
+                                <div class="room-info-box">
+                                    <div class="room-name">${r.nama || r.kod_ruang}</div>
+                                    <div class="room-meta">
+                                        <span>${r.kod_ruang}</span>
+                                        <span>${r.jenis || 'Venue'}</span>
+                                        <span>${r.nama_singkat}</span>
+                                    </div>
+                                </div>
+                                <div class="alt-status-box">
+                                    <span class="badge badge-capacity">${r.kapasiti} Seats</span>
+                                    <div style="font-size:0.7rem; color:#10b981; font-weight:700;">AVAILABLE</div>
+                                </div>
+                            </div>
+                        `;
+            listContainer.append(card);
+          });
+        }
+        $("#suggestionModal").css('display', 'flex');
+        $("body").addClass("modal-open");
+      };
+
+      function drawRoomCharts(allTimetableSlots) {
+        if (typeof google === 'undefined' || !google.visualization) return;
+        $("#room_charts_container").show();
+
+        const stats = {};
+        // Count total conflicting sections per hour
+        allClashEntries.forEach(s => {
+          const key = `${s.hari}-${s.masa}`;
+          stats[key] = (stats[key] || 0) + 1;
+        });
+
+        renderHeatmap(stats);
       }
 
-      /* ================= ERROR ================= */
-      function showError(e) {
-        console.error(e);
-        $("#resultBody").html(
-          `<tr><td colspan="8" class="w3-center w3-red">Error loading data</td></tr>`
-        );
+      function renderHeatmap(stats) {
+        const container = $("#heatmap_chart_div");
+        container.empty();
+
+        const hours = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]; // 8am - 5pm (10 slots)
+        const days = [2, 3, 4, 5, 6]; // Mon-Fri
+
+        const html = $(`<div class="heatmap-container"></div>`);
+        const grid = $(`<div class="heatmap-grid"></div>`);
+
+        // Header
+        grid.append(`<div class="heatmap-label"></div>`);
+        hours.forEach(h => {
+          let hourNum = 7 + h;
+          let label = "";
+          if (hourNum === 12) label = "12pm";
+          else if (hourNum > 12) label = (hourNum - 12) + "pm";
+          else label = hourNum + "am";
+
+          grid.append(`<div class="heatmap-header">${label}</div>`);
+        });
+
+        // Rows
+        days.forEach(d => {
+          grid.append(`<div class="heatmap-label">${dayMap[d]}</div>`);
+          hours.forEach(h => {
+            const count = stats[`${d}-${h}`] || 0;
+            let color = "#f9fafb";
+            let textColor = "#9ca3af";
+
+            if (count > 0) {
+              textColor = "#fff";
+              if (count < 3) color = "#fecaca"; // Light red
+              else if (count < 6) color = "#ef4444"; // Medium red
+              else color = "#b91c1c"; // Dark red
+            }
+
+            grid.append(`<div class="heatmap-cell" style="background:${color}; color:${textColor};" title="${count} clashes">${count || ''}</div>`);
+          });
+        });
+
+        html.append(grid);
+
+        // Legend
+        html.append(`
+                    <div class="heatmap-legend">
+                        <div style="display:flex; align-items:center; gap:4px;"><div class="legend-box" style="background:#fff; border:1px solid #ddd;"></div> 0 Clashes</div>
+                        <div style="display:flex; align-items:center; gap:4px;"><div class="legend-box" style="background:#fecaca;"></div> 1-2</div>
+                        <div style="display:flex; align-items:center; gap:4px;"><div class="legend-box" style="background:#ef4444;"></div> 3-5</div>
+                        <div style="display:flex; align-items:center; gap:4px;"><div class="legend-box" style="background:#b91c1c;"></div> 6+ Clashes</div>
+                    </div>
+                `);
+
+        container.append(html);
       }
+
+      window.closeModal = function () {
+        $("#suggestionModal").hide();
+        $("body").removeClass("modal-open");
+      };
+
+      function updateStatus(msg, percent) {
+        $("#scanStatus").text(msg);
+        $("#scanPercent").text(percent + "%");
+        $("#scanFill").css("width", percent + "%");
+      }
+
+      $(document).ready(() => {
+        if (typeof google !== 'undefined') {
+          google.charts.load('current', { 'packages': ['corechart'] });
+          google.charts.setOnLoadCallback(startAnalysis);
+        } else {
+          startAnalysis();
+        }
+      });
     })();
   </script>
 

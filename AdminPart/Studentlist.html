@@ -1,6 +1,22 @@
 <html>
-<script src="../Authenticate.js"></script>
-<script src="../CacheUtil.js"></script>
+<script>
+    // Load scripts with correct paths (fixes path issues when loaded via jQuery .load())
+    // When loaded into AdminMain.html, window.location points to AdminMain.html (in root)
+    (function() {
+        // Get root directory - remove filename from AdminMain.html's URL
+        const rootUrl = window.location.href.substring(0, window.location.href.lastIndexOf('/'));
+        
+        if (typeof cachedFetch === 'undefined') {
+            const script1 = document.createElement('script');
+            script1.src = rootUrl + '/CacheUtil.js';
+            document.head.appendChild(script1);
+        }
+        // Authenticate.js runs immediately on load, so we load it
+        const script2 = document.createElement('script');
+        script2.src = rootUrl + '/Authenticate.js';
+        document.head.appendChild(script2);
+    })();
+</script>
 <script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
 <link rel="stylesheet" href="Styles/studentList.css">
 
