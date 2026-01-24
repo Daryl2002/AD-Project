@@ -104,10 +104,7 @@
                     const userSession = data[0];
 
                     // Save normal user session
-                    localStorage.setItem(
-                        "TTMSFC_userSession",
-                        JSON.stringify(userSession)
-                    );
+                    safeSetItem("TTMSFC_userSession", JSON.stringify(userSession));
 
                     // 2️⃣ Admin mode requested?
                     if (loginAsAdmin) {
@@ -140,6 +137,25 @@
         });
 
         // ===============================
+        // SAFE STORAGE HELPER
+        // ===============================
+        function safeSetItem(key, value) {
+            try {
+                localStorage.setItem(key, value);
+            } catch (e) {
+                if (e.name === 'QuotaExceededError') {
+                    console.warn("Storage full, clearing cache and retrying...");
+                    localStorage.clear();
+                    try {
+                        localStorage.setItem(key, value);
+                    } catch (e2) {
+                        alert("Storage is full and cannot be cleared. Please free up space.");
+                    }
+                }
+            }
+        }
+
+        // ===============================
         // ADMIN ESCALATION
         // ===============================
         function attemptAdminLogin(userSession) {
@@ -155,10 +171,7 @@
                     if (Array.isArray(adminData) && adminData[0]?.session_id) {
 
                         // ✅ Admin granted
-                        localStorage.setItem(
-                            "TTMSFC_adminSession",
-                            JSON.stringify(adminData[0])
-                        );
+                        safeSetItem("TTMSFC_adminSession", JSON.stringify(adminData[0]));
 
                         window.location.replace("AdminMain.html");
                     } else {

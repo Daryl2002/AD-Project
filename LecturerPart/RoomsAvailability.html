@@ -167,6 +167,11 @@
     </div>
 </div>
 
+<div id="availabilityTrendsContainer" style="display: none; margin: 30px 0; padding: 20px; background: #f8fafc; border-radius: 8px;">
+    <h3 style="color: #aa841d; font-weight: 600; margin-bottom: 20px; text-align: center;">Availability Trends by Time Slot</h3>
+    <div id="availabilityTrendsChart" style="width: 100%; height: 400px;"></div>
+</div>
+
 <!-- No Results Message -->
 <div id="noResults" style="display: none;" class="no-results">
     <i class="fas fa-search fa-2x" style="color: #ccc; margin-bottom: 10px;"></i>
@@ -288,7 +293,12 @@ function getDayShort(day) {
 $(document).ready(function() {
     // Load Charts
     google.charts.load('current', { 'packages': ['corechart'] });
-    google.charts.setOnLoadCallback(function () { isChartLibLoaded = true; });
+    google.charts.setOnLoadCallback(function () { 
+        isChartLibLoaded = true;
+        if (filteredRooms.length > 0 && Object.keys(roomSchedules).length > 0) {
+            drawAvailabilityTrends();
+        }
+    });
 
     // Set up search input event listener
     $("#searchInput").on("keyup", function() {
@@ -785,6 +795,9 @@ function calculateAndDrawCharts() {
     drawPieChart('chart_BK', 'Bilik Kuliah', stats['BK']);
     drawPieChart('chart_MAK', 'Makmal', stats['MAK']);
     drawPieChart('chart_OTH', 'Others', stats['OTH']);
+    
+    // Draw availability trends chart
+    drawAvailabilityTrends();
 }
 
 function drawPieChart(elemId, title, data) {
@@ -812,6 +825,59 @@ function drawPieChart(elemId, title, data) {
     
     const chart = new google.visualization.PieChart(document.getElementById(elemId));
     chart.draw(dataTable, options);
+}
+
+function drawAvailabilityTrends() {
+    if (!isChartLibLoaded || typeof google === 'undefined' || !google.visualization) return;
+    if (filteredRooms.length === 0 || Object.keys(roomSchedules).length === 0) {
+        $('#availabilityTrendsContainer').hide();
+        return;
+    }
+
+    // Calculate availability percentage for each time slot (8:00 to 17:00)
+    const availabilityData = [['Time Slot', 'Availability %']];
+    
+    for (let hour = 8; hour <= 17; hour++) {
+        let availableCount = 0;
+        let totalCount = 0;
+        
+        filteredRooms.forEach(room => {
+            const schedule = roomSchedules[room.kod_ruang] || [];
+            const isAvailable = isRoomAvailable(schedule, selectedDay, hour, hour + 1);
+            totalCount++;
+            if (isAvailable) availableCount++;
+        });
+        
+        const availabilityPercent = totalCount > 0 ? Math.round((availableCount / totalCount) * 100) : 0;
+        const timeLabel = `${hour}:00`;
+        availabilityData.push([timeLabel, availabilityPercent]);
+    }
+
+    const data = google.visualization.arrayToDataTable(availabilityData);
+
+    const options = {
+        title: `Room Availability Trends - ${getDayName(selectedDay)}`,
+        hAxis: {
+            title: 'Time Slot',
+            titleTextStyle: { color: '#333' }
+        },
+        vAxis: {
+            title: 'Availability Percentage (%)',
+            minValue: 0,
+            maxValue: 100,
+            format: '#\'%\''
+        },
+        legend: { position: 'none' },
+        colors: ['#10b981'],
+        lineWidth: 3,
+        pointSize: 6,
+        chartArea: { width: '85%', height: '70%' },
+        animation: { startup: true, duration: 800, easing: 'out' }
+    };
+
+    const chart = new google.visualization.LineChart(document.getElementById('availabilityTrendsChart'));
+    chart.draw(data, options);
+    $('#availabilityTrendsContainer').show();
 }
 
 function showError(message) {
