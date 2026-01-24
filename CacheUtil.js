@@ -25,6 +25,7 @@ const CacheUtil = (function () {
         'pensyarah': 6 * 60 * 60 * 1000,           // 6 hours - lecturer list
         'pelajar': 30 * 60 * 1000,                 // 30 minutes - student list
         'subjek_pelajar': 30 * 60 * 1000,          // 30 minutes - students per subject
+        'html': 60 * 60 * 1000,                   // 1 hour - HTML fragments
         'default': 30 * 60 * 1000                  // 30 minutes - default TTL
     };
 
@@ -95,7 +96,8 @@ const CacheUtil = (function () {
             forceRefresh = false,    // Force network fetch
             skipCache = false,       // Don't use or store cache
             customTTL = null,        // Override default TTL
-            staleWhileRevalidate = false // If cache is stale, return it immediately and refresh in background
+            staleWhileRevalidate = false, // If cache is stale, return it immediately and refresh in background
+            dataType = 'json'        // 'json' or 'text'
         } = options;
 
         // If skipCache, just do normal fetch
@@ -105,7 +107,7 @@ const CacheUtil = (function () {
         }
 
         const cacheKey = getCacheKey(url);
-        const entity = getEntityFromUrl(url);
+        const entity = (dataType === 'text') ? 'html' : getEntityFromUrl(url);
         const ttl = customTTL || getTTL(entity);
 
         // If we already have an identical request in-flight, reuse it
@@ -150,7 +152,7 @@ const CacheUtil = (function () {
                                 try {
                                     const response = await fetch(url);
                                     const text = await response.text();
-                                    const data = JSON.parse(text);
+                                    const data = (dataType === 'json') ? JSON.parse(text) : text;
                                     const newEntry = { timestamp: Date.now(), data };
                                     memoryCache.set(cacheKey, newEntry);
                                     try { localStorage.setItem(cacheKey, JSON.stringify(newEntry)); } catch (e) { /* ignore */ }
@@ -181,13 +183,15 @@ const CacheUtil = (function () {
                 const text = await response.text();
 
                 let data;
-                try {
-                    data = JSON.parse(text);
-                } catch (parseError) {
-                    console.error(`❌ Failed to parse JSON from ${url}:`, text.substring(0, 200));
-                    // If it's not JSON, we might want to return the raw text or throw
-                    // For TTMS, most entities should be JSON.
-                    throw new Error("Invalid JSON response from TTMS");
+                if (dataType === 'json') {
+                    try {
+                        data = JSON.parse(text);
+                    } catch (parseError) {
+                        console.error(`❌ Failed to parse JSON from ${url}:`, text.substring(0, 200));
+                        throw new Error("Invalid JSON response from TTMS");
+                    }
+                } else {
+                    data = text;
                 }
 
                 // Store in cache
