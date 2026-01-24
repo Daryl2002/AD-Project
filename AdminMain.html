@@ -190,7 +190,7 @@
         }
 
         // Menu bindings
-        $("#admin-dashboard").click(() => loadAdminPage("admin-dashboard", "AdminPart/Dashboard.html"));
+        $("#admin-dashboard").click(() => loadAdminPage("admin-dashboard", "AdminPart/Dashboard.html", true));
         $("#admin-students").click(() => loadAdminPage("admin-students", "AdminPart/Studentlist.html"));
         $("#admin-lecturers").click(() => loadAdminPage("admin-lecturers", "AdminPart/Lecturerlist.html"));
         $("#clash-student").click(() => loadAdminPage("clash-student", "AdminPart/StudentClash.html"));
@@ -198,8 +198,8 @@
         $("#clash-room").click(() => loadAdminPage("clash-room", "AdminPart/RoomClash.html"));
         $("#room-usage").click(() => loadAdminPage("room-usage", "AdminPart/RoomUsage.html"));
 
-        // Default page initialization
-        loadAdminPage("admin-dashboard", "AdminPart/Dashboard.html");
+        // Default page initialization - FORCE REFRESH Dashboard to ensure new changes are visible
+        loadAdminPage("admin-dashboard", "AdminPart/Dashboard.html", true);
     </script>
 
 </body>
