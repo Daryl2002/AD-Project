@@ -1,148 +1,150 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <title>TTMS - Dashboard</title>
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
-    <link rel="stylesheet" href="Styles/mainStyle.css"> 
+    <link rel="stylesheet" href="Styles/mainStyle.css">
 </head>
+
 <body>
 
-<header class="app-header">
-    <div class="header-left">
-        <button id="mobile-menu-btn" class="menu-toggle"><i class="fa fa-bars"></i></button>
-        <img src="Logo/UTM-LOGO.png" alt="UTM Logo" class="nav-logo">
-        <span class="brand-text">TTMS <span class="brand-sub">Support</span></span>
-    </div>
-    <div class="header-right">
-        <div class="user-pill">
-            <span class="welcome-msg">Hi, <strong id="user">User</strong></span>
-            <div class="divider"></div>
-            <button id="logout" class="btn-logout">Logout</button>
+    <header class="app-header">
+        <div class="header-left">
+            <button id="mobile-menu-btn" class="menu-toggle"><i class="fa fa-bars"></i></button>
+            <img src="Logo/UTM-LOGO.png" alt="UTM Logo" class="nav-logo">
+            <span class="brand-text">TTMS <span class="brand-sub">Support</span></span>
         </div>
-    </div>
-</header>
-
-<div class="dashboard-container">
-    <aside class="sidebar" id="sidebarMenu">
-        <nav class="nav-container">
-            <div class="nav-group">
-                <a href="#" class="nav-link active" id="announcement-dashboard">
-                    <i class="fa fa-bullhorn"></i> Announcements
-                </a>
+        <div class="header-right">
+            <div class="user-pill">
+                <span class="welcome-msg">Hi, <strong id="user">User</strong></span>
+                <div class="divider"></div>
+                <button id="logout" class="btn-logout">Logout</button>
             </div>
-            <div class="nav-group">
-                <div class="nav-label">Timetable</div>
-                <a href="#" class="nav-link" id="my-timetable"><i class="fa fa-calendar"></i> My Timetable</a>
-                <a href="#" class="nav-link" id="room-availability"><i class="fa fa-building"></i> Room Availability</a>
-            </div>
-            <div class="nav-group">
-                <div class="nav-label">Analysis</div>
-                <a href="#" class="nav-link" id="clash-analyzer"><i class="fa fa-search"></i> Clash Analyzer</a>
-                <a href="#" class="nav-link" id="room-usage"><i class="fa fa-line-chart"></i> Room Usage</a>
-                <a href="#" class="nav-link" id="course-list"><i class="fa fa-book"></i> Courses</a>
-            </div>
-        </nav>
-    </aside>
-
-    <div id="sidebar-overlay" class="overlay"></div>
-
-    <main id="mainContent" class="content-area">
-        <div class="loader-container">
-            <i class="fa fa-spinner fa-spin"></i>
-            <h2>Initializing System...</h2>
         </div>
-    </main>
-</div>
+    </header>
 
-<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
-<script src="CacheUtil.js"></script>
-<script>
-    const BASE_URL = "http://web.fc.utm.my/ttms/web_man_webservice_json.cgi?entity=";
-    const AUTH_URL = "http://web.fc.utm.my/ttms/auth-admin.php?session_id=";
-    
-    window.userSession = JSON.parse(localStorage.getItem("TTMSFC_userSession"));
-    window.currentSesi = null;
-    window.currentSemester = null;
+    <div class="dashboard-container">
+        <aside class="sidebar" id="sidebarMenu">
+            <nav class="nav-container">
+                <div class="nav-group">
+                    <a href="#" class="nav-link active" id="announcement-dashboard">
+                        <i class="fa fa-bullhorn"></i> Announcements
+                    </a>
+                </div>
+                <div class="nav-group">
+                    <div class="nav-label">Timetable</div>
+                    <a href="#" class="nav-link" id="my-timetable"><i class="fa fa-calendar"></i> My Timetable</a>
+                    <a href="#" class="nav-link" id="room-availability"><i class="fa fa-building"></i> Room
+                        Availability</a>
+                </div>
+                <div class="nav-group">
+                    <div class="nav-label">Analysis</div>
+                    <a href="#" class="nav-link" id="clash-analyzer"><i class="fa fa-search"></i> Clash Analyzer</a>
+                    <a href="#" class="nav-link" id="room-usage"><i class="fa fa-line-chart"></i> Room Usage</a>
+                </div>
+            </nav>
+        </aside>
 
-    if (!window.userSession) window.location.replace("Login.html");
+        <div id="sidebar-overlay" class="overlay"></div>
 
-    // This helper function injects data into the announcement page whenever it's ready
-    function updateSessionUI() {
-        if (window.currentSesi && window.currentSemester) {
-            $('#current-sesi-info').text(`Sesi ${window.currentSesi} - Semester ${window.currentSemester}`);
-        }
-    }
+        <main id="mainContent" class="content-area">
+            <div class="loader-container">
+                <i class="fa fa-spinner fa-spin"></i>
+                <h2>Initializing System...</h2>
+            </div>
+        </main>
+    </div>
 
-    // Track currently loaded sub-page to avoid unnecessary reloads that reset state
-    let currentSubPageUrl = null;
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
+    <script src="CacheUtil.js"></script>
+    <script>
+        const BASE_URL = "http://web.fc.utm.my/ttms/web_man_webservice_json.cgi?entity=";
+        const AUTH_URL = "http://web.fc.utm.my/ttms/auth-admin.php?session_id=";
 
-    function handleMenuClick(targetId, url) {
-        // If user clicks the already-active page, do nothing (prevents state reset / flicker)
-        if (currentSubPageUrl === url && $(`#${targetId}`).hasClass('active')) {
-            return;
-        }
+        window.userSession = JSON.parse(localStorage.getItem("TTMSFC_userSession"));
+        window.currentSesi = null;
+        window.currentSemester = null;
 
-        $('.nav-link').removeClass('active'); 
-        $(`#${targetId}`).addClass('active');
-        currentSubPageUrl = url;
-        
-        $('#mainContent').load(url, function() {
-            updateSessionUI(); // Try to update text immediately after sub-page loads
-            if ($(window).width() <= 992) {
-                $('#sidebarMenu').removeClass('open');
-                $('#sidebar-overlay').fadeOut();
+        if (!window.userSession) window.location.replace("Login.html");
+
+        // This helper function injects data into the announcement page whenever it's ready
+        function updateSessionUI() {
+            if (window.currentSesi && window.currentSemester) {
+                $('#current-sesi-info').text(`Sesi ${window.currentSesi} - Semester ${window.currentSemester}`);
             }
-        });
-    }
+        }
 
-    function initDashboard() {
-        // Fetch Admin Session (skip cache for auth - security sensitive)
-        fetch(AUTH_URL + window.userSession.session_id)
-            .then(res => res.json())
-            .then(data => {
-                window.adminSessionID = data[0].session_id;
-                // Fetch Semester Info - USE CACHE for faster loading
-                return cachedFetch(BASE_URL + "sesisemester");
-            })
-            .then(sesiData => {
-                const active = Array.isArray(sesiData) ? sesiData.find(s => s.sesi_semester_id) : sesiData;
-                if (active) {
-                    window.currentSesi = active.sesi;
-                    window.currentSemester = active.semester;
+        // Track currently loaded sub-page to avoid unnecessary reloads that reset state
+        let currentSubPageUrl = null;
+
+        function handleMenuClick(targetId, url) {
+            // If user clicks the already-active page, do nothing (prevents state reset / flicker)
+            if (currentSubPageUrl === url && $(`#${targetId}`).hasClass('active')) {
+                return;
+            }
+
+            $('.nav-link').removeClass('active');
+            $(`#${targetId}`).addClass('active');
+            currentSubPageUrl = url;
+
+            $('#mainContent').load(url, function () {
+                updateSessionUI(); // Try to update text immediately after sub-page loads
+                if ($(window).width() <= 992) {
+                    $('#sidebarMenu').removeClass('open');
+                    $('#sidebar-overlay').fadeOut();
                 }
-                // Now load the announcement page
-                handleMenuClick('announcement-dashboard', 'Announcement.html');
-            })
-            .catch(err => {
-                console.error("Initialization Error:", err);
-                handleMenuClick('announcement-dashboard', 'Announcement.html'); // Load anyway
             });
-    }
+        }
 
-    $(document).ready(function() {
-        $('#user').text(window.userSession.full_name.split(' ')[0]);
-        initDashboard();
+        function initDashboard() {
+            // Fetch Admin Session (skip cache for auth - security sensitive)
+            fetch(AUTH_URL + window.userSession.session_id)
+                .then(res => res.json())
+                .then(data => {
+                    window.adminSessionID = data[0].session_id;
+                    // Fetch Semester Info - USE CACHE for faster loading
+                    return cachedFetch(BASE_URL + "sesisemester");
+                })
+                .then(sesiData => {
+                    const active = Array.isArray(sesiData) ? sesiData.find(s => s.sesi_semester_id) : sesiData;
+                    if (active) {
+                        window.currentSesi = active.sesi;
+                        window.currentSemester = active.semester;
+                    }
+                    // Now load the announcement page
+                    handleMenuClick('announcement-dashboard', 'Announcement.html');
+                })
+                .catch(err => {
+                    console.error("Initialization Error:", err);
+                    handleMenuClick('announcement-dashboard', 'Announcement.html'); // Load anyway
+                });
+        }
 
-        $('#mobile-menu-btn').click(() => {
-            $('#sidebarMenu').toggleClass('open');
-            $('#sidebar-overlay').fadeToggle();
+        $(document).ready(function () {
+            $('#user').text(window.userSession.full_name.split(' ')[0]);
+            initDashboard();
+
+            $('#mobile-menu-btn').click(() => {
+                $('#sidebarMenu').toggleClass('open');
+                $('#sidebar-overlay').fadeToggle();
+            });
+
+            $('#logout').click(() => {
+                localStorage.removeItem("TTMSFC_userSession");
+                window.location.replace("Login.html");
+            });
+
+            // Menu Listeners
+            $('#announcement-dashboard').click(() => handleMenuClick('announcement-dashboard', 'Announcement.html'));
+            $('#my-timetable').click(() => handleMenuClick('my-timetable', 'StudentPart/MyTimetable.html'));
+            $('#room-availability').click(() => handleMenuClick('room-availability', 'StudentPart/RoomAvailability.html'));
+            $('#clash-analyzer').click(() => handleMenuClick('clash-analyzer', 'StudentPart/TimetableClashAnalyzer.html'));
+            $('#room-usage').click(() => handleMenuClick('room-usage', 'StudentPart/RoomUsage.html'));
         });
-
-        $('#logout').click(() => {
-            localStorage.removeItem("TTMSFC_userSession");
-            window.location.replace("Login.html");
-        });
-
-        // Menu Listeners
-        $('#announcement-dashboard').click(() => handleMenuClick('announcement-dashboard', 'Announcement.html'));
-        $('#my-timetable').click(() => handleMenuClick('my-timetable', 'StudentPart/MyTimetable.html'));
-        $('#room-availability').click(() => handleMenuClick('room-availability', 'StudentPart/RoomAvailability.html'));
-        $('#clash-analyzer').click(() => handleMenuClick('clash-analyzer', 'StudentPart/TimetableClashAnalyzer.html')); 
-        $('#room-usage').click(() => handleMenuClick('room-usage', 'StudentPart/RoomUsage.html'));
-        $('#course-list').click(() => handleMenuClick('course-list', 'StudentPart/CourseList.html')); 
-    });
-</script>
+    </script>
 </body>
+
 </html>

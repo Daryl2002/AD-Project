@@ -110,6 +110,9 @@
                     <a href="#" class="nav-link" id="clash-room">
                         <i class="fa fa-search"></i> Room Clashes
                     </a>
+                    <a href="#" class="nav-link" id="room-usage">
+                        <i class="fa fa-chart-pie"></i> Room Usage
+                    </a>
                 </div>
 
             </nav>
@@ -184,6 +187,9 @@
 
         $("#clash-room").click(() =>
             loadAdminPage("clash-room", "AdminPart/RoomClash.html"));
+
+        $("#room-usage").click(() =>
+            loadAdminPage("room-usage", "AdminPart/RoomUsage.html"));
 
         // Default page
         loadAdminPage("admin-dashboard", "AdminPart/Dashboard.html");

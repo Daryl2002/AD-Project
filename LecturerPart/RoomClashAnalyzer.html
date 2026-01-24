@@ -88,52 +88,118 @@
     /* ================= INIT ================= */
     $(document).ready(loadRooms);
 
-    /* ================= LOAD ROOMS ================= */
-    function loadRooms() {
-      cachedFetch("http://web.fc.utm.my/ttms/web_man_webservice_json.cgi?entity=ruang&kod_fakulti=fsksm")
-        .then(rooms => {
-          const targetRooms = rooms.filter(r =>
-            r.kod_ruang && r.kod_ruang.startsWith("N28")
-          );
-          return Promise.all(targetRooms.map(loadRoomSchedule));
-        })
-        .then(data => detectClashes(data.flat()))
-        .catch(showError);
-    }
+    /* ================= LOAD ROOMS (SEQUENTIAL) ================= */
+    async function loadRooms() {
+      try {
+        $("#resultBody").html(`<tr><td colspan="8" class="w3-center">Starting scan...</td></tr>`);
 
-    /* ================= LOAD ROOM SCHEDULE ================= */
-    function loadRoomSchedule(room) {
-      return cachedFetch(
-        `http://web.fc.utm.my/ttms/web_man_webservice_json.cgi?entity=jadual_ruang&sesi=${state.sesi}&semester=${state.semester}&kod_ruang=${room.kod_ruang}`
-      )
-        .then(list => {
-          if (!Array.isArray(list)) return [];
-          return list.map(j => ({
-            room,
-            hari: j.hari,
-            masa: j.masa,
-            kod_subjek: j.subjek?.kod_subjek,
-            seksyen: j.subjek?.seksyen
-          }));
-        });
+        // 1. Fetch Room List
+        const rooms = await cachedFetch("http://web.fc.utm.my/ttms/web_man_webservice_json.cgi?entity=ruang&kod_fakulti=fsksm");
+
+        let allSchedules = [];
+        let count = 0;
+        const total = rooms.length;
+
+        // 2. Sequential Fetch to match Vue reference & prevent server overwhelm
+        for (const room of rooms) {
+          count++;
+          // Optional: Update progress every few items to avoid UI flicker overkill
+          if (count % 5 === 0 || count === 1) {
+            $("#resultBody").html(`<tr><td colspan="8" class="w3-center">Scanning room ${count}/${total}: ${room.kod_ruang}...</td></tr>`);
+          }
+
+          try {
+            const list = await cachedFetch(
+              `http://web.fc.utm.my/ttms/web_man_webservice_json.cgi?entity=jadual_ruang&sesi=${state.sesi}&semester=${state.semester}&kod_ruang=${room.kod_ruang}`
+            );
+
+            if (Array.isArray(list)) {
+              const mapped = list.map(j => ({
+                room,
+                hari: j.hari,
+                masa: j.masa,
+                tarikh_mula: j.tarikh_mula,
+                kod_perkara: j.kod_perkara,
+                subjek: j.subjek
+              }));
+              allSchedules.push(...mapped);
+            }
+          } catch (err) {
+            console.warn(`Failed to load ${room.kod_ruang}`, err);
+          }
+        }
+
+        detectClashes(allSchedules);
+
+      } catch (e) {
+        showError(e);
+      }
     }
 
     /* ================= CLASH DETECTION ================= */
     function detectClashes(rows) {
       const map = {};
 
-      rows.forEach(r => {
-        if (!r.hari || !r.masa || !r.kod_subjek) return;
-        const key = `${r.room.kod_ruang}|${r.hari}|${r.masa}`;
+      rows.forEach(item => {
+        // Ensure valid keys
+        if (!item.tarikh_mula || item.masa == null || item.hari == null) return;
+
+        // Group by Date + Time + Day + Room (Scope is global list, so need Room in key)
+        const key = `${item.room.kod_ruang}|${item.tarikh_mula}|${item.masa}|${item.hari}`;
+
         if (!map[key]) map[key] = [];
-        map[key].push(r);
+
+        // CHECK FOR DUPLICATES (Refined from Vue Logic)
+        const isDuplicate = map[key].some(existing => {
+          const samePerkara = item.kod_perkara && existing.kod_perkara === item.kod_perkara;
+
+          const sameSubjekSeksyen =
+            item.subjek && existing.subjek &&
+            item.subjek.kod_subjek === existing.subjek.kod_subjek &&
+            item.subjek.seksyen === existing.subjek.seksyen;
+
+          return samePerkara || sameSubjekSeksyen;
+        });
+
+        if (!isDuplicate) {
+          map[key].push(item);
+        }
       });
 
+      // Filter groups > 1
       const clashes = Object.values(map)
         .filter(g => g.length > 1)
         .flat();
 
       renderTable(clashes);
+    }
+
+    /* ================= FORMATTERS ================= */
+    const TIME_MAP = {
+      2: '08:00 AM - 08:50 AM',
+      3: '09:00 AM - 09:50 AM',
+      4: '10:00 AM - 10:50 AM',
+      5: '11:00 AM - 11:50 AM',
+      6: '12:00 PM - 12:50 PM',
+      7: '01:00 PM - 01:50 PM',
+      8: '02:00 PM - 02:50 PM',
+      9: '03:00 PM - 03:50 PM',
+      10: '04:00 PM - 04:50 PM',
+      11: '05:00 PM - 05:50 PM',
+      12: '06:00 PM - 06:50 PM',
+      13: '07:00 PM - 07:50 PM',
+      14: '08:00 PM - 08:50 PM',
+      15: '09:00 PM - 09:50 PM',
+      16: '10:00 PM - 10:50 PM'
+    };
+
+    const DAY_MAP = {
+      1: 'AHAD', 2: 'ISNIN', 3: 'SELASA', 4: 'RABU',
+      5: 'KHAMIS', 6: 'JUMAAT', 7: 'SABTU'
+    };
+
+    function formatTime(masa) {
+      return TIME_MAP[masa] || `Slot ${masa}`;
     }
 
     /* ================= RENDER TABLE ================= */
@@ -147,9 +213,15 @@
       }
 
       let bil = 1;
-
       for (const r of rows) {
-        const lec = await getLecturer(r.kod_subjek, r.seksyen);
+        const kodSubjek = r.subjek?.kod_subjek || "";
+        const seksyen = r.subjek?.seksyen || "";
+        const displayCode = r.kod_perkara || kodSubjek;
+
+        let lec = "-";
+        if (kodSubjek && seksyen) {
+          lec = await getLecturer(kodSubjek, seksyen);
+        }
 
         body.append(`
       <tr class="clash-row">
@@ -158,9 +230,9 @@
         <td>${r.room.nama_ruang || "-"}</td>
         <td>${r.room.nama_ruang_singkatan || "-"}</td>
         <td>${r.room.kod_fakulti || "-"}</td>
-        <td>${r.hari}</td>
-        <td>${r.masa}</td>
-        <td>${r.kod_subjek} - ${r.seksyen} - ${lec}</td>
+        <td>${DAY_MAP[r.hari] || r.hari}</td>
+        <td>${formatTime(r.masa)}</td>
+        <td>${displayCode} - ${seksyen} <br> ${lec}</td>
       </tr>
     `);
       }
@@ -180,14 +252,14 @@
           dataType: "json",
           success: d => {
             const name = (d && d.length > 0 && d[0].nama)
-              ? d[0].nama.toLowerCase()
-              : "unknown";
+              ? d[0].nama
+              : "-";
             state.lecturerCache[key] = name;
             resolve(name);
           },
           error: () => {
-            state.lecturerCache[key] = "unknown";
-            resolve("unknown");
+            state.lecturerCache[key] = "-";
+            resolve("-");
           }
         });
       });
