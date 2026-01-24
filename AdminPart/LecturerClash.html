@@ -20,7 +20,7 @@
         <div class="modal-content">
             <div class="modal-header">
                 <h3>Schedule Suggestions</h3>
-                <button class="close-btn" onclick="$('#suggestionModal').hide()">&times;</button>
+                <button class="close-btn" onclick="closeModal()">&times;</button>
             </div>
             <div class="modal-body">
                 <p id="modalLecturerName" style="font-weight:bold; margin-bottom:10px;"></p>
@@ -523,46 +523,33 @@
             }
 
             function showSuggestions(item) {
-                $('#modalLecturerName').text(`Suggested Alternatives for ${item.lecturer.nama}`);
+                $('#modalLecturerName').text(`Suggested Plans for ${item.lecturer.nama}`);
                 const list = $('#modalSuggestionsList');
                 list.empty();
 
                 if (!item.suggestions || item.suggestions.length === 0) {
                     list.html('<p>No conflict-free alternative sections found.</p>');
-                    $('#suggestionModal').css('display', 'flex');
-                    return;
-                }
-
-                // Group by Section
-                const grouped = {};
-                item.suggestions.forEach(sol => {
-                    const sec = sol.oldSection ? sol.oldSection.seksyen : '?';
-                    if (!grouped[sec]) grouped[sec] = [];
-                    grouped[sec].push(sol);
-                });
-
-                Object.keys(grouped).sort().forEach(sec => {
-                    const group = grouped[sec];
-                    const subjectCode = group[0].changedSubj;
-
-                    const groupHeader = $(`<div style="background:#f3f4f6; padding:8px; font-weight:bold; border-radius:4px; margin-top:10px; margin-bottom:5px;">
-                        Suggestions for moving Section ${sec} (${subjectCode})
-                    </div>`);
-                    list.append(groupHeader);
-
-                    group.forEach((sol, i) => {
+                } else {
+                    item.suggestions.forEach((sol, i) => {
+                        const oldSec = sol.oldSection ? sol.oldSection.seksyen : '?';
                         const newSec = sol.newSection.seksyen;
                         const code = sol.changedSubj;
+
                         list.append(`
-                            <div class="suggestion-item" style="padding-left:15px; border-bottom:1px solid #eee;">
-                                <span style="color:#6b7280; font-size:0.85em; margin-right:8px;">${i + 1}.</span>
-                                <span>Switch to <strong style="color:#15803d;">${code}-${newSec}</strong></span>
+                            <div class="suggestion-item">
+                                <strong>Option ${i + 1}:</strong> 
+                                <span>Switch <strong style="color:#b91c1c;">${code}-${oldSec}</strong> to <strong style="color:#15803d;">${code}-${newSec}</strong></span>
                             </div>
                         `);
                     });
-                });
-
+                }
                 $('#suggestionModal').css('display', 'flex');
+                $('body').addClass('modal-open');
+            }
+
+            window.closeModal = function () {
+                $('#suggestionModal').hide();
+                $('body').removeClass('modal-open');
             }
 
             $(document).ready(function () {

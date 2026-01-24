@@ -1,13 +1,17 @@
 :root {
-    --primary-color: #3b82f6;
-    /* Blue for Lecturer */
-    --primary-hover: #2563eb;
+    --primary-color: #fca311;
+    /* UTM Gold */
+    --primary-hover: #e0910f;
     --secondary-color: #1f2937;
     --bg-color: #f3f4f6;
     --text-main: #374151;
     --text-light: #6b7280;
     --border-color: #e5e7eb;
     --white: #ffffff;
+}
+
+body.modal-open {
+    overflow: hidden;
 }
 
 body {
@@ -50,7 +54,7 @@ body {
 /* Progress Section */
 .status-bar {
     padding: 16px;
-    background: #eef2ff;
+    background: #fffcf0;
     border-bottom: 1px solid var(--border-color);
     display: none;
 }
@@ -65,14 +69,14 @@ body {
 }
 
 .progress-track {
-    background: #dbeafe;
+    background: #fef3c7;
     height: 8px;
     border-radius: 4px;
     overflow: hidden;
 }
 
 .progress-fill {
-    background: var(--primary-color);
+    background: #fca311;
     height: 100%;
     width: 0%;
     transition: width 0.3s ease;
@@ -210,6 +214,8 @@ body {
 }
 
 .suggestion-item {
-    padding: 8px;
+    padding: 10px;
+    border-bottom: 1px solid #f3f4f6;
+    font-family: monospace;
     font-size: 0.95rem;
 }

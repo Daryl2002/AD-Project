@@ -11,6 +11,10 @@
     --white: #ffffff;
 }
 
+body.modal-open {
+    overflow: hidden;
+}
+
 body {
     font-family: 'Inter', system-ui, -apple-system, sans-serif;
     background-color: var(--bg-color);
