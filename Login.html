@@ -60,6 +60,7 @@
     </div>
 
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
+    <script src="CacheUtil.js"></script>
 
     <script>
         const BASE_URL =
@@ -91,7 +92,7 @@
             const authUrl =
                 `${BASE_URL}?entity=authentication&login=${loginId}&password=${password}`;
 
-            // 1️⃣ Authenticate
+            // 1️⃣ Authenticate - DO NOT CACHE (security sensitive)
             fetch(authUrl)
                 .then(res => res.json())
                 .then(data => {
@@ -103,18 +104,14 @@
                     const userSession = data[0];
 
                     // Save normal user session
-                    localStorage.setItem(
-                        "TTMSFC_userSession",
-                        JSON.stringify(userSession)
-                    );
+                    safeSetItem("TTMSFC_userSession", JSON.stringify(userSession));
 
                     // 2️⃣ Admin mode requested?
                     if (loginAsAdmin) {
-                        // Check if user is a student first
+                        // Check if user is a student first - USE CACHE for faster role detection
                         const checkStudentUrl = `${BASE_URL}?entity=pelajar_subjek&no_matrik=${userSession.login_name}`;
 
-                        fetch(checkStudentUrl)
-                            .then(r => r.json())
+                        cachedFetch(checkStudentUrl)
                             .then(sData => {
                                 if (Array.isArray(sData) && sData.length > 0) {
                                     // It IS a student
@@ -133,15 +130,30 @@
                     }
                 })
                 .catch(err => {
-                    if (detectStudentOrLecturer(userSession)) {
-                        alert("Login successfully");
-                    }
-                    else {
-                        alert("Login failed. Invalid credentials or connection error.");
-                        console.error(err);
-                    }
+                    // Unified error message for all users
+                    alert("Invalid Id or password");
+                    console.warn("Login attempt failed:", err);
                 });
         });
+
+        // ===============================
+        // SAFE STORAGE HELPER
+        // ===============================
+        function safeSetItem(key, value) {
+            try {
+                localStorage.setItem(key, value);
+            } catch (e) {
+                if (e.name === 'QuotaExceededError') {
+                    console.warn("Storage full, clearing cache and retrying...");
+                    localStorage.clear();
+                    try {
+                        localStorage.setItem(key, value);
+                    } catch (e2) {
+                        alert("Storage is full and cannot be cleared. Please free up space.");
+                    }
+                }
+            }
+        }
 
         // ===============================
         // ADMIN ESCALATION
@@ -151,6 +163,7 @@
             const adminUrl =
                 `http://web.fc.utm.my/ttms/auth-admin.php?session_id=${userSession.session_id}`;
 
+            // DO NOT CACHE admin auth (security sensitive)
             fetch(adminUrl)
                 .then(res => res.json())
                 .then(adminData => {
@@ -158,10 +171,7 @@
                     if (Array.isArray(adminData) && adminData[0]?.session_id) {
 
                         // ✅ Admin granted
-                        localStorage.setItem(
-                            "TTMSFC_adminSession",
-                            JSON.stringify(adminData[0])
-                        );
+                        safeSetItem("TTMSFC_adminSession", JSON.stringify(adminData[0]));
 
                         window.location.replace("AdminMain.html");
                     } else {
@@ -184,8 +194,8 @@
             const studentUrl =
                 `${BASE_URL}?entity=pelajar_subjek&no_matrik=${loginName}`;
 
-            fetch(studentUrl)
-                .then(res => res.json())
+            // USE CACHE for role detection - this data doesn't change frequently
+            cachedFetch(studentUrl)
                 .then(data => {
 
                     if (Array.isArray(data) && data.length > 0) {

@@ -6,6 +6,8 @@
     <link rel="stylesheet" href="Styles/RoomAvailabilityStyle.css">
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
     <script src="../Authenticate.js"></script>
+    <script src="../CacheUtil.js"></script>
+    <script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
 </head>
 <body>
 
@@ -96,6 +98,11 @@
         <div id="pagination" class="pagination" style="display: flex; justify-content: center; gap: 5px;"></div>
     </div>
 </div>
+
+<div id="availabilityTrendsContainer" style="display: none; margin: 30px 0; padding: 20px; background: #f8fafc; border-radius: 8px;">
+    <h3 style="color: #aa841d; font-weight: 600; margin-bottom: 20px; text-align: center;">Availability Trends by Time Slot</h3>
+    <div id="availabilityTrendsChart" style="width: 100%; height: 400px;"></div>
+</div>
 <script>
 // Configuration
 const BASE_API_URL = "http://web.fc.utm.my/ttms/web_man_webservice_json.cgi";
@@ -113,16 +120,93 @@ let filteredRooms = [];
 let totalPages = 1;
 let selectedDay = 2; // Monday (2 = Monday in UTM system)
 
+// Persist/restore state so navigating away and back feels seamless
+const ROOM_AVAIL_STATE_KEY = 'TTMS_roomAvailability_state_v1';
+function saveState() {
+    try {
+        sessionStorage.setItem(ROOM_AVAIL_STATE_KEY, JSON.stringify({
+            allRooms,
+            roomSchedules,
+            currentFilter,
+            currentSearch,
+            currentPage,
+            filteredRooms,
+            totalPages,
+            selectedDay,
+            startTime: $("#startTime").val(),
+            endTime: $("#endTime").val(),
+            hasAvailabilityData: roomSchedules && Object.keys(roomSchedules).length > 0,
+            savedAt: Date.now()
+        }));
+    } catch (e) {
+        // ignore
+    }
+}
+
+function restoreState() {
+    try {
+        const raw = sessionStorage.getItem(ROOM_AVAIL_STATE_KEY);
+        if (!raw) return false;
+        const st = JSON.parse(raw);
+        if (!st || !Array.isArray(st.allRooms)) return false;
+
+        allRooms = st.allRooms || [];
+        roomSchedules = st.roomSchedules || {};
+        currentFilter = st.currentFilter || 'all';
+        currentSearch = st.currentSearch || '';
+        currentPage = st.currentPage || 1;
+        filteredRooms = st.filteredRooms || [];
+        totalPages = st.totalPages || 1;
+        selectedDay = st.selectedDay || 2;
+
+        if (st.startTime) $("#startTime").val(st.startTime);
+        if (st.endTime) $("#endTime").val(st.endTime);
+        $("#searchInput").val(currentSearch);
+
+        // Restore active day button
+        $(".day-filter-btn").removeClass("active");
+        $(`.day-filter-btn`).filter(function () { return $(this).text().trim().toUpperCase() === getDayShort(selectedDay); }).addClass("active");
+
+        // Restore active filter tag
+        $(".filter-tag").removeClass("active");
+        $(".filter-tag").each(function () {
+            const txt = $(this).text().trim();
+            if (currentFilter === 'all' && txt.includes('All Rooms')) $(this).addClass('active');
+            else if (txt === currentFilter) $(this).addClass('active');
+            else if (currentFilter === 'Bilik Kuliah' && txt.includes('Lecture Rooms')) $(this).addClass('active');
+        });
+
+        // If we had rooms cached, render immediately
+        if (allRooms.length > 0) {
+            filterRooms();
+            displayCurrentPage();
+            saveState();
+            return true;
+        }
+        return false;
+    } catch (e) {
+        return false;
+    }
+}
+
+function getDayShort(day) {
+    return ({ 2: 'MON', 3: 'TUE', 4: 'WED', 5: 'THU', 6: 'FRI' }[day]) || 'MON';
+}
+
 // Initialize the page
 $(document).ready(function() {
     // Set up search input event listener
     $("#searchInput").on("keyup", function() {
         currentSearch = $(this).val().toLowerCase();
         applyFilters();
+        saveState();
     });
     
     console.log("Page loaded, fetching room data...");
-    loadRoomData();
+    // Try to restore first for seamless UX, otherwise fetch
+    if (!restoreState()) {
+        loadRoomData();
+    }
 });
 
 // Select day (Monday to Friday)
@@ -137,6 +221,7 @@ function selectDay(day) {
     if (roomSchedules && Object.keys(roomSchedules).length > 0) {
         applyFilters();
     }
+    saveState();
 }
 
 // Get day name from number
@@ -201,6 +286,7 @@ function filterByCategory(category) {
     $(event.target).closest(".filter-tag").removeClass("w3-light-grey").addClass("active w3-blue");
     
     applyFilters();
+    saveState();
 }
 
 // Apply filters and update pagination
@@ -213,6 +299,12 @@ function applyFilters() {
     
     // Then display the current page
     displayCurrentPage();
+    saveState();
+    
+    // Update availability trends chart if data is available
+    if (isChartLibReady && Object.keys(roomSchedules).length > 0) {
+        drawAvailabilityTrends();
+    }
 }
 
 // Filter rooms based on search and category
@@ -361,6 +453,7 @@ function displayCurrentPage() {
     $("#noResults").hide();
     $("#roomTableContainer").show();
     $("#paginationContainer").show();
+    saveState();
 }
 
 // Update pagination buttons
@@ -424,6 +517,7 @@ function changePage(page) {
     
     currentPage = page;
     displayCurrentPage();
+    saveState();
     
     // Scroll to top of table
     $('html, body').animate({
@@ -448,37 +542,27 @@ function loadRoomData() {
     // API URL for FSKSM rooms
     const apiUrl = `${BASE_API_URL}?entity=ruang&kod_fakulti=${FACULTY_CODE}`;
     
-    $.ajax({
-        url: apiUrl,
-        type: "GET",
-        dataType: "json",
-        timeout: 10000,
-        success: function(rooms) {
+    cachedFetch(apiUrl, { staleWhileRevalidate: true })
+        .then(rooms => {
             console.log("Room list data received:", rooms);
-            
+
             if (!rooms || !Array.isArray(rooms) || rooms.length === 0) {
                 showError("No room data available from server");
                 return;
             }
-            
+
             allRooms = rooms;
             roomSchedules = {}; // Clear previous schedules
-            
+
             // Initial filter and display
             filterRooms();
             displayCurrentPage();
-        },
-        error: function(xhr, status, error) {
-            console.error("Error loading room list:", status, error);
-            let errorMsg = "Failed to load room list";
-            if (status === "timeout") {
-                errorMsg = "Server timeout - try again";
-            } else if (status === "parsererror") {
-                errorMsg = "Invalid data format from room list API";
-            }
-            showError(errorMsg + ": " + (error || status));
-        }
-    });
+            saveState();
+        })
+        .catch(error => {
+            console.error("Error loading room list:", error);
+            showError("Failed to load room list: " + (error?.message || String(error)));
+        });
 }
 
 // Function to check availability for all rooms
@@ -506,17 +590,12 @@ function checkAvailability() {
         
         const scheduleUrl = `${BASE_API_URL}?entity=jadual_ruang&sesi=${CURRENT_SESSION}&semester=${CURRENT_SEMESTER}&kod_ruang=${encodeURIComponent(roomCode)}`;
         
-        return $.ajax({
-            url: scheduleUrl,
-            type: "GET",
-            dataType: "json",
-            timeout: 8000
-        }).then(function(schedule) {
-            return { roomCode, schedule };
-        }).catch(function(error) {
-            console.warn(`Failed to fetch schedule for ${roomCode}:`, error);
-            return { roomCode, schedule: [] };
-        });
+        return cachedFetch(scheduleUrl, { staleWhileRevalidate: true })
+            .then(schedule => ({ roomCode, schedule }))
+            .catch(error => {
+                console.warn(`Failed to fetch schedule for ${roomCode}:`, error);
+                return { roomCode, schedule: [] };
+            });
     });
     
     // Fetch all schedules in parallel
@@ -535,6 +614,12 @@ function checkAvailability() {
             // Re-filter and display with availability
             filterRooms();
             displayCurrentPage();
+            saveState();
+            
+            // Draw availability trends chart
+            if (isChartLibReady) {
+                drawAvailabilityTrends();
+            }
         })
         .catch(error => {
             console.error("Error fetching schedules:", error);
@@ -575,6 +660,72 @@ function showError(message) {
     
     $("#errorMessage").text(message);
     $("#errorDisplay").show();
+}
+
+// Initialize Google Charts for availability trends
+let isChartLibReady = false;
+if (typeof google !== 'undefined') {
+    google.charts.load('current', { 'packages': ['corechart'] });
+    google.charts.setOnLoadCallback(function () {
+        isChartLibReady = true;
+        if (filteredRooms.length > 0 && Object.keys(roomSchedules).length > 0) {
+            drawAvailabilityTrends();
+        }
+    });
+}
+
+function drawAvailabilityTrends() {
+    if (!isChartLibReady || typeof google === 'undefined' || !google.visualization) return;
+    if (filteredRooms.length === 0 || Object.keys(roomSchedules).length === 0) {
+        $('#availabilityTrendsContainer').hide();
+        return;
+    }
+
+    // Calculate availability percentage for each time slot (8:00 to 17:00)
+    const timeSlots = [];
+    const availabilityData = [['Time Slot', 'Availability %']];
+    
+    for (let hour = 8; hour <= 17; hour++) {
+        let availableCount = 0;
+        let totalCount = 0;
+        
+        filteredRooms.forEach(room => {
+            const schedule = roomSchedules[room.kod_ruang] || [];
+            const isAvailable = isRoomAvailable(schedule, selectedDay, hour, hour + 1);
+            totalCount++;
+            if (isAvailable) availableCount++;
+        });
+        
+        const availabilityPercent = totalCount > 0 ? Math.round((availableCount / totalCount) * 100) : 0;
+        const timeLabel = `${hour}:00`;
+        availabilityData.push([timeLabel, availabilityPercent]);
+    }
+
+    const data = google.visualization.arrayToDataTable(availabilityData);
+
+    const options = {
+        title: `Room Availability Trends - ${getDayName(selectedDay)}`,
+        hAxis: {
+            title: 'Time Slot',
+            titleTextStyle: { color: '#333' }
+        },
+        vAxis: {
+            title: 'Availability Percentage (%)',
+            minValue: 0,
+            maxValue: 100,
+            format: '#\'%\''
+        },
+        legend: { position: 'none' },
+        colors: ['#10b981'],
+        lineWidth: 3,
+        pointSize: 6,
+        chartArea: { width: '85%', height: '70%' },
+        animation: { startup: true, duration: 800, easing: 'out' }
+    };
+
+    const chart = new google.visualization.LineChart(document.getElementById('availabilityTrendsChart'));
+    chart.draw(data, options);
+    $('#availabilityTrendsContainer').show();
 }
 </script>
 

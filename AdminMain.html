@@ -24,7 +24,7 @@
                     const userSession = JSON.parse(userSessionStr);
                     if (!userSession.session_id) throw new Error("No session ID");
 
-                    // Use the endpoint from AjaxThing line 61
+                    // Use the endpoint from AjaxThing line 61 - skip cache for auth (security sensitive)
                     const response = await fetch(`http://web.fc.utm.my/ttms/auth-admin.php?session_id=${userSession.session_id}`);
                     const data = await response.json();
 
@@ -110,6 +110,9 @@
                     <a href="#" class="nav-link" id="clash-room">
                         <i class="fa fa-search"></i> Room Clashes
                     </a>
+                    <a href="#" class="nav-link" id="room-usage">
+                        <i class="fa fa-chart-pie"></i> Room Usage
+                    </a>
                 </div>
 
             </nav>
@@ -128,7 +131,7 @@
     </div>
 
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
-
+    <script src="CacheUtil.js"></script>
 
     <script>
         const BASE_URL =
@@ -174,16 +177,19 @@
             loadAdminPage("admin-students", "AdminPart/Studentlist.html"));
 
         $("#admin-lecturers").click(() =>
-            loadAdminPage("admin-lecturers", "AdminPart/LecturerList.html"));
+            loadAdminPage("admin-lecturers", "AdminPart/Lecturerlist.html"));
 
         $("#clash-student").click(() =>
-            loadAdminPage("clash-student", "AdminPart/ClashStudent.html"));
+            loadAdminPage("clash-student", "AdminPart/StudentClash.html"));
 
         $("#clash-lecturer").click(() =>
-            loadAdminPage("clash-lecturer", "AdminPart/ClashLecturer.html"));
+            loadAdminPage("clash-lecturer", "AdminPart/LecturerClash.html"));
 
         $("#clash-room").click(() =>
             loadAdminPage("clash-room", "AdminPart/ClashRoom.html"));
+
+        $("#room-usage").click(() =>
+            loadAdminPage("room-usage", "AdminPart/RoomUsage.html"));
 
         // Default page
         loadAdminPage("admin-dashboard", "AdminPart/Dashboard.html");

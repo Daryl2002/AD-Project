@@ -1,0 +1,252 @@
+:root {
+    --primary-color: #fca311;
+    /* UTM Gold */
+    --primary-hover: #e0910f;
+    --secondary-color: #14213d;
+    /* Slate */
+    --bg-color: #f3f4f6;
+    --text-main: #374151;
+    --text-light: #6b7280;
+    --border-color: #e5e7eb;
+    --white: #ffffff;
+}
+
+body {
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    background-color: var(--bg-color);
+    margin: 0;
+    padding: 0;
+    color: var(--text-main);
+}
+
+.page-container {
+    padding: 24px;
+    max-width: 1400px;
+    margin: 0 auto;
+}
+
+.header-section {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 24px;
+}
+
+.page-title {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--secondary-color);
+    margin: 0;
+}
+
+.action-bar {
+    display: flex;
+    gap: 12px;
+}
+
+.btn-scan {
+    background-color: var(--primary-color);
+    color: var(--white);
+    border: none;
+    padding: 10px 20px;
+    border-radius: 6px;
+    font-weight: 600;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    transition: background-color 0.2s;
+}
+
+.btn-scan:hover {
+    background-color: var(--primary-hover);
+}
+
+.btn-scan:disabled {
+    background-color: var(--text-light);
+    cursor: not-allowed;
+}
+
+/* Card */
+.card-box {
+    background: var(--white);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    overflow: hidden;
+}
+
+/* Progress Section */
+.status-bar {
+    padding: 16px;
+    background: #eef2ff;
+    border-bottom: 1px solid var(--border-color);
+    display: none;
+    /* Hidden by default */
+}
+
+.status-text {
+    font-size: 0.9rem;
+    color: var(--secondary-color);
+    font-weight: 500;
+    margin-bottom: 8px;
+    display: flex;
+    justify-content: space-between;
+}
+
+.progress-track {
+    background: #dbeafe;
+    height: 8px;
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+.progress-fill {
+    background: var(--primary-color);
+    height: 100%;
+    width: 0%;
+    transition: width 0.3s ease;
+}
+
+/* Table */
+.data-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.data-table th,
+.data-table td {
+    padding: 12px 16px;
+    text-align: left;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.data-table th {
+    background-color: #f9fafb;
+    font-weight: 600;
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    color: var(--text-light);
+    position: sticky;
+    top: 0;
+}
+
+.data-table tr:hover {
+    background-color: #fffbeb;
+    /* Light yellow hover */
+}
+
+/* Suggestion Styles */
+.suggestion-link {
+    color: #4f46e5;
+    font-weight: 700;
+    text-decoration: underline;
+    cursor: pointer;
+    font-size: 1.1rem;
+}
+
+.suggestion-link:hover {
+    color: #4338ca;
+}
+
+.suggestion-link.zero {
+    color: #9ca3af;
+    text-decoration: none;
+    cursor: default;
+}
+
+/* Modal */
+.modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.5);
+    display: none;
+    z-index: 1000;
+    align-items: center;
+    justify-content: center;
+}
+
+.modal-content {
+    background: white;
+    width: 600px;
+    max-width: 90%;
+    border-radius: 8px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    padding: 20px;
+    position: relative;
+    margin: 100px auto;
+    /* Fallback for flex */
+}
+
+.modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 15px;
+    border-bottom: 1px solid #e5e7eb;
+    padding-bottom: 10px;
+}
+
+.close-btn {
+    background: none;
+    border: none;
+    font-size: 1.5rem;
+    cursor: pointer;
+}
+
+.suggestion-item {
+    padding: 10px;
+    border-bottom: 1px solid #f3f4f6;
+    font-family: monospace;
+    font-size: 0.95rem;
+}
+
+.sugg-change {
+    color: red;
+    font-weight: bold;
+}
+
+.clash-detail {
+    font-size: 0.85rem;
+    color: #b91c1c;
+    /* Red text for clashes */
+    background: #fef2f2;
+    padding: 4px 8px;
+    border-radius: 4px;
+    display: inline-block;
+    margin-bottom: 4px;
+    border: 1px solid #fecaca;
+}
+
+.clash-row {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.badge {
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 0.75rem;
+    font-weight: 600;
+}
+
+.badge-faculty {
+    background: #e0e7ff;
+    color: #3730a3;
+}
+
+.badge-count {
+    background: #fee2e2;
+    color: #991b1b;
+}
+
+/* Empty State */
+.empty-state {
+    padding: 40px;
+    text-align: center;
+    color: var(--text-light);
+}

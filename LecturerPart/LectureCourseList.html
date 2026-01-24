@@ -1,90 +1,257 @@
-<html>
+<!DOCTYPE html>
+<html lang="en">
+
 <head>
-  <title>CourseList</title>
-  <link rel="stylesheet" href="https://www.w3schools.com/w3css/5/w3.css"> 
-  <script src="../Authenticate.js"></script>
+  <title>My Course List</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
   <script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
-  
-  <style>
-    #chart_div {
-      margin: 0 auto; 
-    }
-  </style>
+  <!-- Use Google Fonts -->
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
+
+  <script src="../CacheUtil.js"></script>
+
 
 </head>
+
 <body>
+  <link rel="stylesheet" href="Styles/LectureCourseList.css">
 
-<div id="chart_div" style="width: 900px; height: 500px;"></div>
-<hr>
+  <div class="page-header">
+    <div class="header-title">
+      <h2>Course Management</h2>
+      <p>Overview of your assigned subjects for <span id="current-session-display">Loading...</span></p>
+    </div>
+  </div>
 
-<table class="w3-table-all w3-hoverable">
-  <tr>
-    <th>Course Name</th>
-    <th>Course Code</th>
-    <th>Sections</th>
-    <th>Lecturers</th>
-    <th>Students</th>
-  </tr>
+  <!-- Stats Row -->
+  <div class="stats-grid">
+    <div class="stat-card">
+      <div class="stat-icon bg-blue-light">
+        <i class="fa fa-book"></i>
+      </div>
+      <div class="stat-info">
+        <h4 id="total-courses">0</h4>
+        <span>Active Courses</span>
+      </div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-icon bg-green-light">
+        <i class="fa fa-users"></i>
+      </div>
+      <div class="stat-info">
+        <h4 id="total-students">0</h4>
+        <span>Total Students</span>
+      </div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-icon bg-purple-light">
+        <i class="fa fa-puzzle-piece"></i>
+      </div>
+      <div class="stat-info">
+        <h4 id="total-sections">0</h4>
+        <span>Total Sections</span>
+      </div>
+    </div>
+  </div>
 
-</table>
-<p></p>
+  <div class="content-grid">
+    <!-- Course List (Left) -->
+    <div class="card">
+      <div class="card-header">
+        <h3><i class="fa fa-list-ul" style="margin-right:8px; color:var(--primary-color);"></i> My Course List</h3>
+        <button onclick="loadData()" style="background:none; border:none; color:var(--primary-color); cursor:pointer;">
+          <i class="fa fa-refresh"></i>
+        </button>
+      </div>
+      <div class="card-body">
+        <div id="loading" class="loading-state">
+          <i class="fa fa-circle-o-notch fa-spin"></i> Fetching your courses...
+        </div>
+        <div id="error-msg" class="loading-state" style="display:none; color: #ef4444;">
+          <i class="fa fa-exclamation-circle"></i> Failed to load data.
+        </div>
+
+        <div class="table-responsive" id="table-container" style="display:none;">
+          <table class="modern-table">
+            <thead>
+              <tr>
+                <th>Code</th>
+                <th>Course Name</th>
+                <th>Section</th>
+                <th>Students</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody id="course-table-body">
+              <!-- Rows go here -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- Charts (Right) -->
+    <div class="card">
+      <div class="card-header">
+        <h3><i class="fa fa-pie-chart" style="margin-right:8px; color:var(--primary-color);"></i> Enrollment Analysis
+        </h3>
+      </div>
+      <div class="card-body chart-body">
+        <div id="chart_div" style="width: 100%; height: 100%;"></div>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
+  <script>
+    (function () {
+      // ================= STATE (Scoped Locally) =================
+      // Safely access parent window variables without redeclaring global consts
+      let currentSesi = window.parent.currentSesi;
+      let currentSemester = window.parent.currentSemester;
+      const userSession = window.parent.userSession || JSON.parse(localStorage.getItem("TTMSFC_userSession"));
+
+      // Use no_pekerja (API ID) if available, otherwise login_name
+      const staffId = userSession?.no_pekerja || userSession?.login_name || '0';
+
+      // ================= INIT =================
+      $(document).ready(function () {
+        // Wait for parent session to be ready if null
+        if (!currentSesi || !currentSemester) {
+          // If parent hasn't loaded session yet, fallback to fetching it ourselves or waiting
+          fetchSession().then(() => loadData());
+        } else {
+          updateSessionDisplay();
+          loadData();
+        }
+
+        // Init Charts
+        if (typeof google !== 'undefined' && google.charts) {
+          google.charts.load('current', { packages: ['corechart'] });
+          google.charts.setOnLoadCallback(() => {
+            // Chart will be drawn when data is ready
+          });
+        }
+      });
+
+      function updateSessionDisplay() {
+        $('#current-session-display').text(`Sesi ${currentSesi} Sem ${currentSemester}`);
+      }
+
+      function fetchSession() {
+        return cachedFetch("http://web.fc.utm.my/ttms/web_man_webservice_json.cgi?entity=sesisemester")
+          .then(data => {
+            const active = data.find(s => s.sesi_semester_id) || data[0];
+            currentSesi = active.sesi;
+            currentSemester = active.semester;
+            updateSessionDisplay();
+          });
+      }
+
+      // ================= LOAD DATA =================
+      function loadData() {
+        $('#loading').show();
+        $('#table-container').hide();
+        $('#error-msg').hide();
+
+        // Use CACHE UTIL - entity=pensyarah_subjek
+        const url = `http://web.fc.utm.my/ttms/web_man_webservice_json.cgi?entity=pensyarah_subjek&no_pekerja=${staffId}`;
+        console.log("Fetching courses for:", staffId);
+
+        cachedFetch(url)
+          .then(data => {
+            // Filter by Current Session
+            const myCourses = data.filter(d => d.sesi === currentSesi && d.semester == currentSemester);
+            renderDashboard(myCourses);
+          })
+          .catch(err => {
+            console.error(err);
+            $('#loading').hide();
+            $('#error-msg').show();
+          });
+      }
+
+      // Expose loadData globally ONLY if needed by button click, 
+      // but usually binding inside $(document).ready is better. 
+      // However, the HTML has `onclick="loadData()"` so we must expose it.
+      // We attach it to the window object specifically.
+      window.loadData = loadData;
+
+      function renderDashboard(courses) {
+        $('#loading').hide();
+
+        if (courses.length === 0) {
+          $('#table-container').html('<div class="loading-state">No courses found for this semester.</div>').show();
+          return;
+        }
+
+        $('#table-container').show();
+        const tbody = $('#course-table-body');
+        tbody.empty();
+
+        let totalStudents = 0;
+        let totalSecs = courses.length;
+        // Count unique subject codes
+        const uniqueSubjs = new Set(courses.map(c => c.kod_subjek)).size;
+
+        courses.forEach(c => {
+          const studentCount = parseInt(c.bil_pelajar || 0);
+          totalStudents += studentCount;
+
+          const row = `
+                      <tr>
+                          <td><strong>${c.kod_subjek}</strong></td>
+                          <td>${c.nama_subjek}</td>
+                          <td><span class="badge">Sec ${c.seksyen}</span></td>
+                          <td>${studentCount}</td>
+                          <td><span class="badge badge-primary">Active</span></td>
+                      </tr>
+                  `;
+          tbody.append(row);
+        });
+
+        // Update Stats
+        $('#total-courses').text(uniqueSubjs);
+        $('#total-students').text(totalStudents);
+        $('#total-sections').text(totalSecs);
+
+        // Draw Chart
+        drawChart(courses);
+      }
+
+      function drawChart(courses) {
+        if (!google.visualization) return;
+
+        // Aggregate students by Subject Code (combine sections)
+        const subjectMap = {};
+        courses.forEach(c => {
+          const code = c.kod_subjek;
+          if (!subjectMap[code]) subjectMap[code] = 0;
+          subjectMap[code] += parseInt(c.bil_pelajar || 0);
+        });
+
+        const dataArray = [['Course', 'Students']];
+        Object.keys(subjectMap).forEach(code => {
+          dataArray.push([code, subjectMap[code]]);
+        });
+
+        const data = google.visualization.arrayToDataTable(dataArray);
+
+        const options = {
+          title: 'Student Distribution by Course',
+          pieHole: 0.4,
+          colors: ['#10b981', '#3b82f6', '#8b5cf6', '#f59e0b', '#ef4444'],
+          chartArea: { width: '90%', height: '80%' },
+          legend: { position: 'bottom' }
+        };
+
+        const chart = new google.visualization.PieChart(document.getElementById('chart_div'));
+        chart.draw(data, options);
+      }
+    })(); 
+  </script>
 
 </body>
+
 </html>
-
-<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
-<script>
-var url = "http://web.fc.utm.my/ttms/web_man_webservice_json.cgi?entity=subjek&sesi=2025/2026&semester=1";
-
-alert("Access TTMS-AJAX service");
-fetch(url)
-.then(res => res.json())
-.then(jsonInst => { 
-  
-  for (var i = 0; i < jsonInst.length; i++) {
-    
-    var row = $('<tr></tr>');
-    row.append('<td>' + jsonInst[i].nama_subjek + '</td>');
-    row.append('<td>' + jsonInst[i].kod_subjek + '</td>');
-    row.append('<td>' + jsonInst[i].bil_seksyen + '</td>');
-    row.append('<td>' + jsonInst[i].bil_pensyarah + '</td>');
-    row.append('<td>' + jsonInst[i].bil_pelajar + '</td>');
-    
-    $('table').append(row);
-  }
-  
-  jsonInst.sort((a, b) => +b.bil_pelajar - +a.bil_pelajar);
-  var top10Courses = jsonInst.slice(0, 10);
-  google.charts.load('current', {'packages':['bar']});
-  google.charts.setOnLoadCallback(drawChart);
-
-  function drawChart() {
-
-    var data = new google.visualization.DataTable();
-    data.addColumn('string', 'Course Name');
-    data.addColumn('number', 'Students');
-    
-    var chartData = top10Courses.map(course => 
-      [course.nama_subjek, +course.bil_pelajar]
-    );
-    
-    data.addRows(chartData);
-
-    var options = {
-      title: 'Top 10 Courses',
-      hAxis: {
-          title: 'Total Population',
-          minValue: 0
-      },
-      vAxis: {
-          title: 'Course Name'
-      },
-      bars: 'horizontal'
-    };
-
-    var chart = new google.charts.Bar(document.getElementById('chart_div'));
-    chart.draw(data, google.charts.Bar.convertOptions(options));
-  }
-  
-}).catch(err => console.log(err));
-</script>

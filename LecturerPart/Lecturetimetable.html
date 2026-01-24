@@ -6,6 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
+
     <!-- CSS Path fixed: Relative to MainLecturer.html since it's loaded dynamically -->
     <link rel="stylesheet" href="Styles/MyTimetableStyle.css">
 
@@ -19,6 +20,114 @@
             border-radius: 12px;
             font-size: 0.8rem;
             font-weight: 600;
+        }
+
+        .teaching-load-btn {
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 8px;
+            font-size: 0.95rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 2px 4px rgba(16, 185, 129, 0.2);
+        }
+
+        .teaching-load-btn:hover {
+            background: linear-gradient(135deg, #059669 0%, #047857 100%);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(16, 185, 129, 0.3);
+        }
+
+        .teaching-load-btn:active {
+            transform: translateY(0);
+        }
+
+        /* Modal Styles */
+        .teaching-load-modal {
+            display: none;
+            position: fixed;
+            z-index: 10000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            animation: fadeIn 0.3s ease;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+            }
+
+            to {
+                opacity: 1;
+            }
+        }
+
+        .teaching-load-modal-content {
+            background-color: white;
+            margin: 5% auto;
+            padding: 0;
+            border-radius: 12px;
+            width: 90%;
+            max-width: 700px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+            animation: slideDown 0.3s ease;
+            overflow: hidden;
+        }
+
+        @keyframes slideDown {
+            from {
+                transform: translateY(-50px);
+                opacity: 0;
+            }
+
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+
+        .teaching-load-modal-header {
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+            color: white;
+            padding: 20px 25px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .teaching-load-modal-header h3 {
+            margin: 0;
+            font-size: 1.3rem;
+            font-weight: 600;
+        }
+
+        .teaching-load-modal-close {
+            color: white;
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+            line-height: 1;
+            transition: transform 0.2s ease;
+        }
+
+        .teaching-load-modal-close:hover {
+            transform: scale(1.2);
+        }
+
+        .teaching-load-modal-body {
+            padding: 20px;
+        }
+
+        #teachingLoadChartModal {
+            width: 70%;
+            margin: 0 auto;
+            height: 200px;
         }
     </style>
 </head>
@@ -45,6 +154,14 @@
         </div>
 
         <div class="chart-container">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                <h3 style="margin: 0; color: #1e293b; font-size: 1.1em;">Weekly Schedule Overview</h3>
+                <button id="teachingLoadBtn" class="teaching-load-btn" onclick="openTeachingLoadModal()"
+                    style="display: none;">
+                    <i class="fa fa-pie-chart" style="margin-right: 8px;"></i>
+                    Teaching Load Distribution
+                </button>
+            </div>
             <div id="freeTimeChartDiv"></div>
         </div>
 
@@ -86,10 +203,27 @@
         </div>
     </div>
 
+    <!-- Teaching Load Distribution Modal -->
+    <div id="teachingLoadModal" class="teaching-load-modal" onclick="closeTeachingLoadModal(event)">
+        <div class="teaching-load-modal-content" onclick="event.stopPropagation()">
+            <div class="teaching-load-modal-header">
+                <h3><i class="fa fa-pie-chart" style="margin-right: 10px;"></i>Teaching Load Distribution by Course</h3>
+                <span class="teaching-load-modal-close" onclick="closeTeachingLoadModal()">&times;</span>
+            </div>
+            <div class="teaching-load-modal-body">
+                <p style="text-align: center; color: #64748b; font-size: 0.95rem; margin-bottom: 20px;">
+                    This chart illustrates the distribution of your weekly teaching hours across different courses for
+                    the current semester.
+                </p>
+                <div id="teachingLoadChartModal"></div>
+            </div>
+        </div>
+    </div>
+
     <script>
         $(document).ready(function () {
             // --- GLOBAL TRACKING FOR FREE TIME ---
-            const HOURS_PER_DAY = 10;
+            const HOURS_PER_DAY = 9;
             let occupiedSlots = new Set();
             const DAYS_OF_WEEK = {
                 2: 'Monday',
@@ -133,6 +267,7 @@
             // CHART RETRY LOGIC
             let isChartLibReady = false;
             let chartRetry = 0;
+            let courseTeachingHours = {}; // Track hours per course
 
             function initCharts() {
                 try {
@@ -141,7 +276,9 @@
                         google.charts.setOnLoadCallback(function () {
                             isChartLibReady = true;
                             console.log("✅ Google Charts Library Loaded");
-                            if (occupiedSlots.size > 0) drawFreeTimeChart();
+                            if (occupiedSlots.size > 0) {
+                                drawFreeTimeChart();
+                            }
                         });
                     } else {
                         chartRetry++;
@@ -176,8 +313,7 @@
             // ==========================================
 
             function fetchCurrentSession() {
-                return fetch("http://web.fc.utm.my/ttms/web_man_webservice_json.cgi?entity=sesisemester")
-                    .then(res => res.json())
+                return cachedFetch("http://web.fc.utm.my/ttms/web_man_webservice_json.cgi?entity=sesisemester")
                     .then(sessemList => {
                         const active = sessemList.find(s => s.sesi_semester_id) || sessemList[0];
                         currentSesi = active.sesi;
@@ -201,7 +337,7 @@
             function buildEmptyTable() {
                 let body = "";
                 // Match MyTimetable.html: 0 to 9 (10 slots)
-                for (let hour = 0; hour <= 9; hour++) {
+                for (let hour = 0; hour <= 8; hour++) {
                     body += "<tr>";
                     // Use .time-cell for proper styling from CSS
                     body += `<td class="time-cell">${formatTime(hour)}</td>`;
@@ -223,8 +359,7 @@
 
                 console.log("📡 Fetching lecturer subjects from:", url);
 
-                fetch(url)
-                    .then(res => res.json())
+                cachedFetch(url)
                     .then(subjects => {
                         console.log("📦 All subjects received:", subjects);
 
@@ -247,6 +382,10 @@
                             $("#timetableContainer").show(); // Use new ID
                             console.log("✅ Timetable loaded successfully!");
                             drawFreeTimeChart();
+                            // Show button if we have teaching data
+                            if (Object.keys(courseTeachingHours).length > 0) {
+                                $("#teachingLoadBtn").show();
+                            }
                         });
                     })
                     .catch(err => {
@@ -284,8 +423,7 @@
             function fetchSubjectTimetable(subject) {
                 const url = `http://web.fc.utm.my/ttms/web_man_webservice_json.cgi?entity=jadual_subjek&sesi=${subject.sesi}&semester=${subject.semester}&kod_subjek=${subject.kod_subjek}&seksyen=${subject.seksyen}`;
 
-                return fetch(url)
-                    .then(res => res.json())
+                return cachedFetch(url)
                     .then(times => {
                         if (Array.isArray(times)) {
                             times.forEach(slot => {
@@ -303,11 +441,24 @@
             // ==========================================
             function placeIntoTable(subject, slot) {
                 const day = slot.hari;
-                // 0-based index correction
-                const time = slot.masa - 1;
+                // 0-based index correction: masa 4 (10am) -> index 2 (8am+2 = 10am)
+                // Assuming masa begins at 7am or similar 1-based index that needs shifting relative to 8am start
+                const time = slot.masa - 2;
 
                 const slotKey = `${day}-${time}`;
                 occupiedSlots.add(slotKey);
+
+                // Track teaching hours per course
+                const courseKey = `${subject.kod_subjek}-${subject.seksyen}`;
+                if (!courseTeachingHours[courseKey]) {
+                    courseTeachingHours[courseKey] = {
+                        code: subject.kod_subjek,
+                        name: subject.nama_subjek,
+                        section: subject.seksyen,
+                        hours: 0
+                    };
+                }
+                courseTeachingHours[courseKey].hours++;
 
                 const room = slot.ruang ? (slot.ruang.nama_ruang_singkatan || slot.ruang.kod_ruang || 'N/A') : 'N/A';
 
@@ -399,6 +550,61 @@
                 const chart = new google.visualization.ColumnChart(document.getElementById('freeTimeChartDiv'));
                 chart.draw(data, options);
             }
+
+            function drawTeachingLoadChart() {
+                if (!isChartLibReady || typeof google === 'undefined' || !google.visualization) return;
+                if (Object.keys(courseTeachingHours).length === 0) return;
+
+                const dataArray = [['Course', 'Teaching Hours']];
+                Object.values(courseTeachingHours).forEach(course => {
+                    const label = `${course.code} (Sec ${course.section})`;
+                    dataArray.push([label, course.hours]);
+                });
+
+                const data = google.visualization.arrayToDataTable(dataArray);
+
+                const options = {
+                    pieHole: 0.4,
+                    chartArea: { width: '90%', height: '90%' },
+                    legend: {
+                        position: 'right',
+                        textStyle: { fontSize: 13, color: '#1e293b' },
+                        alignment: 'center'
+                    },
+                    colors: ['#10b981', '#3b82f6', '#8b5cf6', '#f59e0b', '#ef4444', '#ec4899', '#6366f1'],
+                    animation: { startup: true, duration: 800, easing: 'out' },
+                    pieSliceText: 'value',
+                    pieSliceTextStyle: { fontSize: 13, bold: true, color: '#1e293b' },
+                    tooltip: { textStyle: { fontSize: 12 } }
+                };
+
+                const chart = new google.visualization.PieChart(document.getElementById('teachingLoadChartModal'));
+                chart.draw(data, options);
+            }
+
+            // Modal functions
+            window.openTeachingLoadModal = function () {
+                if (Object.keys(courseTeachingHours).length === 0) {
+                    alert("No teaching data available.");
+                    return;
+                }
+                drawTeachingLoadChart();
+                $("#teachingLoadModal").fadeIn(300);
+            };
+
+            window.closeTeachingLoadModal = function (event) {
+                if (event && event.target.id !== 'teachingLoadModal' && !event.target.classList.contains('teaching-load-modal-close')) {
+                    return;
+                }
+                $("#teachingLoadModal").fadeOut(300);
+            };
+
+            // Close modal on ESC key
+            $(document).keydown(function (e) {
+                if (e.key === "Escape" && $("#teachingLoadModal").is(":visible")) {
+                    closeTeachingLoadModal();
+                }
+            });
         });
     </script>
 </body>

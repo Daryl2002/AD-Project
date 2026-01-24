@@ -1,0 +1,728 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>UTM Admin - System Analyzer Dashboard</title>
+    <!-- Fonts -->
+    <link
+        href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Inter:wght@400;500;600&display=swap"
+        rel="stylesheet">
+    <!-- Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <!-- Scripts -->
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
+    <script src="https://www.gstatic.com/charts/loader.js"></script>
+
+    <!-- NOTE: These paths assume this file is loaded in an iframe or context where strict relative paths apply. 
+         If loaded via AdminMain, ensure these resolve correctly. -->
+    <script src="../Authenticate.js"></script>
+    <script src="../CacheUtil.js"></script>
+
+    <style>
+        :root {
+            /* UTM Corporate Colors */
+            --utm-maroon: #540004;
+            --utm-gold: #FDBE33;
+
+            /* Dashboard Palace */
+            --primary: #6366f1;
+            /* Indigo */
+            --secondary: #ec4899;
+            /* Pink */
+            --accent: #8b5cf6;
+            /* Violet */
+            --success: #10b981;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+
+            --bg-body: #f3f4f6;
+            --bg-card: rgba(255, 255, 255, 0.9);
+            --glass-border: rgba(255, 255, 255, 0.5);
+
+            --text-main: #1f2937;
+            --text-muted: #6b7280;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-body);
+            color: var(--text-main);
+            margin: 0;
+            padding: 20px;
+        }
+
+        /* --- Header & Controls --- */
+        .dashboard-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 25px;
+        }
+
+        .header-title h1 {
+            font-family: 'Outfit', sans-serif;
+            font-weight: 700;
+            font-size: 1.8rem;
+            margin: 0;
+            color: #111827;
+            letter-spacing: -0.5px;
+        }
+
+        .header-title p {
+            margin: 5px 0 0;
+            color: var(--text-muted);
+            font-size: 0.9rem;
+        }
+
+        .action-btn {
+            background: linear-gradient(135deg, var(--primary), var(--accent));
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            box-shadow: 0 4px 6px -1px rgba(99, 102, 241, 0.4);
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .action-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 15px -3px rgba(99, 102, 241, 0.5);
+        }
+
+        .action-btn:disabled {
+            opacity: 0.7;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        /* --- KPI Grid --- */
+        .kpi-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .kpi-card {
+            background: var(--bg-card);
+            backdrop-filter: blur(12px);
+            border: 1px solid white;
+            border-radius: 16px;
+            padding: 20px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+            position: relative;
+            overflow: hidden;
+            transition: transform 0.2s;
+        }
+
+        .kpi-card:hover {
+            transform: translateY(-2px);
+        }
+
+        .kpi-icon {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            font-size: 1.5rem;
+            opacity: 0.2;
+        }
+
+        .kpi-label {
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .kpi-value {
+            font-family: 'Outfit', sans-serif;
+            font-size: 2.5rem;
+            font-weight: 700;
+            margin: 10px 0 5px;
+            color: #111827;
+        }
+
+        .kpi-trend {
+            font-size: 0.8rem;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .trend-up {
+            color: var(--success);
+        }
+
+        .trend-down {
+            color: var(--danger);
+        }
+
+        .trend-neutral {
+            color: var(--text-muted);
+        }
+
+        /* --- Charts Context --- */
+        .charts-row {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(450px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .chart-card {
+            background: white;
+            border-radius: 16px;
+            padding: 20px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+            border: 1px solid #f3f4f6;
+        }
+
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .card-title {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: var(--text-main);
+        }
+
+        /* --- Data Tables --- */
+        .data-section {
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+            overflow: hidden;
+        }
+
+        .tabs {
+            display: flex;
+            border-bottom: 1px solid #f3f4f6;
+            background: #f9fafb;
+            padding: 0 20px;
+        }
+
+        .tab-btn {
+            padding: 15px 20px;
+            background: transparent;
+            border: none;
+            border-bottom: 2px solid transparent;
+            font-weight: 600;
+            color: var(--text-muted);
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .tab-btn.active {
+            color: var(--primary);
+            border-bottom-color: var(--primary);
+        }
+
+        .tab-btn:hover {
+            color: var(--text-main);
+        }
+
+        .table-responsive {
+            padding: 0;
+            overflow-x: auto;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        th {
+            background: #f9fafb;
+            padding: 12px 20px;
+            text-align: left;
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            font-weight: 600;
+            letter-spacing: 0.5px;
+        }
+
+        td {
+            padding: 12px 20px;
+            border-bottom: 1px solid #f3f4f6;
+            font-size: 0.9rem;
+        }
+
+        tr:last-child td {
+            border-bottom: none;
+        }
+
+        .status-badge {
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+
+        .status-bad {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+
+        .status-warn {
+            background: #fef3c7;
+            color: #92400e;
+        }
+
+        .status-good {
+            background: #d1fae5;
+            color: #065f46;
+        }
+
+        /* Loaders */
+        .spinner-sm {
+            width: 16px;
+            height: 16px;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            border-top-color: white;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="dashboard-header">
+        <div class="header-title">
+            <h1>System Analyzer</h1>
+            <p>Real-time diagnostics for Schedules, Room Usage, and Enrollment efficiency.</p>
+        </div>
+        <div style="display:flex; gap:10px; align-items: center;">
+            <div id="last-update" style="font-size:0.85rem; color:var(--text-muted);">
+                Sem: <strong id="currentSemBadge">...</strong>
+            </div>
+            <button class="action-btn" onclick="runDiagnostics()" id="btnScan">
+                <i class="fas fa-microchip"></i> Run Diagnostics
+            </button>
+        </div>
+    </div>
+
+    <!-- KPI Cards -->
+    <div class="kpi-grid">
+        <!-- Card 1: Risk (Clashes) -->
+        <div class="kpi-card" style="border-top: 4px solid var(--danger);"
+            title="Number of detected room double-bookings. Any value above 0 indicates a schedule conflict that needs immediate attention.">
+            <div class="kpi-icon"><i class="fas fa-triangle-exclamation" style="color:var(--danger)"></i></div>
+            <div class="kpi-label">Risk Level (Clashes)</div>
+            <div class="kpi-value" id="kpi-clash-count">-</div>
+            <div class="kpi-trend" id="kpi-clash-detail">
+                <span class="trend-neutral">Pending Scan...</span>
+            </div>
+        </div>
+
+        <!-- Card 2: Room Efficiency -->
+        <div class="kpi-card" style="border-top: 4px solid var(--success);"
+            title="Percentage of total available time (50 hours/week) that rooms are effectively utilized. Low values indicate wasted space; high values indicate overcrowding.">
+            <div class="kpi-icon"><i class="fas fa-building-circle-check" style="color:var(--success)"></i></div>
+            <div class="kpi-label">Active Utilization</div>
+            <div class="kpi-value" id="kpi-util-rate">%</div>
+            <div class="kpi-trend">
+                <span class="trend-up" id="kpi-util-text">Avg. Weekly Load</span>
+            </div>
+        </div>
+
+        <!-- Card 3: Optimization Opportunity -->
+        <div class="kpi-card" style="border-top: 4px solid var(--warning);"
+            title="Count of subjects with fewer than 10 students. These 'micro-classes' may be occupying large venues unnecessarily.">
+            <div class="kpi-icon"><i class="fas fa-compress-arrows-alt" style="color:var(--warning)"></i></div>
+            <div class="kpi-label">Inefficient Classes</div>
+            <div class="kpi-value" id="kpi-inefficient">-</div>
+            <div class="kpi-trend">
+                <span class="trend-down">Total Enrollment < 10% Capacity</span>
+            </div>
+        </div>
+
+        <!-- Card 4: System Load -->
+        <div class="kpi-card" style="border-top: 4px solid var(--primary);"
+            title="The total number of student enrollments across all active subjects in the current semester.">
+            <div class="kpi-icon"><i class="fas fa-server" style="color:var(--primary)"></i></div>
+            <div class="kpi-label">Total Enrollment</div>
+            <div class="kpi-value" id="kpi-enrollment">-</div>
+            <div class="kpi-trend">
+                <span class="trend-neutral" id="kpi-subjects-count">0 Subjects active</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Charts Section -->
+    <div class="charts-row">
+        <div class="chart-card">
+            <div class="card-header" style="flex-direction:column; align-items:flex-start;">
+                <div class="card-title">Room Optimization Map <span
+                        style="font-size:0.8rem; font-weight:400; color:#6b7280; margin-left:10px;">(Capacity vs.
+                        Usage)</span></div>
+                <!-- Chart Legend / Guide -->
+                <div
+                    style="font-size:0.75rem; background:#f9fafb; padding:10px; border-radius:8px; margin-top:10px; color:#4b5563; line-height:1.4; width:100%;">
+                    <strong>Output Guide:</strong><br>
+                    • <span style="color:#ef4444;">● Red</span>: <strong>Underutilized</strong> (Used < 20% of week).
+                        Large rooms here are invalid.<br>
+                        • <span style="color:#10b981;">● Green</span>: <strong>High Usage</strong> (Used > 60% of week).
+                        Good
+                        efficiency.<br>
+                        • <span style="color:#3b82f6;">● Blue</span>: <strong>Balanced</strong> usage.<br>
+                        <em>Goal: Move dots from Red (Left) to Green (Right).</em>
+                </div>
+            </div>
+            <div id="scatter_div" style="width: 100%; height: 300px;">
+                <div style="display:flex; align-items:center; justify-content:center; height:100%; color:#9ca3af;">
+                    Waiting for data...
+                </div>
+            </div>
+        </div>
+
+        <div class="chart-card">
+            <div class="card-header">
+                <div class="card-title">Workload Distribution</div>
+            </div>
+            <div id="hist_div" style="width: 100%; height: 300px;">
+                <div style="display:flex; align-items:center; justify-content:center; height:100%; color:#9ca3af;">
+                    Waiting for data...
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+
+    <script>
+        (function () {
+            // --- State ---
+            let currentSesi = '2025/2026';
+            let currentSem = '1';
+            let allSubjects = [];
+            let allRooms = [];
+
+            // --- Init ---
+            $(document).ready(init);
+
+            async function init() {
+                // 1. Load Google Charts
+                if (typeof google !== 'undefined') {
+                    google.charts.load('current', { 'packages': ['corechart'] });
+                }
+
+                // 2. Fetch Session Info
+                try {
+                    const sesiData = await cachedFetch("http://web.fc.utm.my/ttms/web_man_webservice_json.cgi?entity=sesisemester");
+                    if (sesiData && sesiData.length > 0) {
+                        currentSesi = sesiData[0].sesi;
+                        currentSem = sesiData[0].semester;
+                        $('#currentSemBadge').text(`${currentSesi} - Sem ${currentSem}`);
+                    }
+                } catch (e) { console.error("Session fetch error", e); }
+            }
+
+            // --- Core Logic: Run Diagnostics ---
+            window.runDiagnostics = async function () {
+                const btn = $('#btnScan');
+                btn.prop('disabled', true).html('<div class="spinner-sm"></div> Scanning...');
+
+                try {
+                    // Update Status
+                    updateKPI('kpi-clash-count', '...', 'Scanning...');
+
+                    // 1. Fetch Master Data
+                    const pSubjects = cachedFetch(`http://web.fc.utm.my/ttms/web_man_webservice_json.cgi?entity=subjek_seksyen&sesi=${currentSesi}&semester=${currentSem}`);
+                    const pRooms = cachedFetch("http://web.fc.utm.my/ttms/web_man_webservice_json.cgi?entity=ruang&kod_fakulti=fsksm");
+
+                    const [subjects, rooms] = await Promise.all([pSubjects, pRooms]);
+
+                    allSubjects = Array.isArray(subjects) ? subjects : [];
+                    allRooms = Array.isArray(rooms) ? rooms : [];
+
+                    // 2. Process Enrollment & Efficiency (Instant)
+                    processEnrollmentDocs(allSubjects);
+                    processRoomEfficiency(allSubjects, allRooms);
+
+
+
+                    // 4. Simulate Clash Check (To avoid 30s delay on demo)
+                    // Real implementation would trigger the iterator from StudentClash.html
+                    // For System Analyzer top-level, we might want a faster check:
+                    // Just check "Room Double Bookings" (Jadual Ruang) instead of "Student Clashes".
+                    // It's much faster.
+                    await checkRoomConflicts(allRooms);
+
+                    btn.html('<i class="fas fa-rotate-right"></i> Refresh');
+                } catch (e) {
+                    console.error(e);
+                    alert("Diagnostics Failed: " + e.message);
+                    btn.html('Retry');
+                } finally {
+                    btn.prop('disabled', false);
+                }
+            };
+
+            // --- Analysis Modules ---
+
+            function processEnrollmentDocs(subjects) {
+                let totalStudents = 0;
+                let subjectCount = new Set();
+
+                subjects.forEach(s => {
+                    totalStudents += parseInt(s.bil_pelajar || 0);
+                    subjectCount.add(s.kod_subjek);
+                });
+
+                // Animate Numbers
+                animateValue("kpi-enrollment", 0, totalStudents, 1000);
+                $('#kpi-subjects-count').text(`${subjectCount.size} Active Subjects`);
+            }
+
+            function processRoomEfficiency(subjects, rooms) {
+                // Map Room Capacities
+                const roomCapMap = {};
+                rooms.forEach(r => roomCapMap[r.kod_ruang] = parseInt(r.kapasiti || 0));
+
+                let inefficientCount = 0;
+                const scatterData = [['Room Capacity', 'Class Size', { role: 'style' }, { role: 'tooltip' }]];
+
+                subjects.forEach(s => {
+                    // Find where this subject is held (requires joining jadwal... simplified here if filtered)
+                    // Since master `subjek_seksyen` doesn't always have room info directly attached without deeper fetch,
+                    // we might need to rely on assumptions or skipping exact room mapping for the *Quick* scan.
+
+                    // However, we can measure "Small Classes" regardless of room:
+                    const size = parseInt(s.bil_pelajar || 0);
+                    if (size > 0 && size < 10) inefficientCount++;
+                });
+
+                animateValue("kpi-inefficient", 0, inefficientCount, 1000);
+
+                // Draw Histogram of Class Sizes
+                drawClassSizeHistogram(subjects);
+            }
+
+            async function checkRoomConflicts(rooms) {
+                // We will check a subset of busy rooms or just N28
+                // Check N28 only for speed
+                const n28Rooms = rooms.filter(r => r.kod_ruang && r.kod_ruang.startsWith('N28'));
+
+                // Fetch schedules for these rooms
+                // Limit to first 20 for demo speed if needed, but let's try 50 parallel
+                const limited = n28Rooms.slice(0, 30);
+
+                const promises = limited.map(r =>
+                    cachedFetch(`http://web.fc.utm.my/ttms/web_man_webservice_json.cgi?entity=jadual_ruang&sesi=${currentSesi}&semester=${currentSem}&kod_ruang=${r.kod_ruang}`)
+                        .then(sched => ({ room: r, sched: sched || [] }))
+                        .catch(() => ({ room: r, sched: [] }))
+                );
+
+                const results = await Promise.all(promises);
+
+                let totalSlots = 0;
+                let usedSlots = 0;
+                let overlaps = 0;
+
+                results.forEach(res => {
+                    const slots = new Set();
+                    res.sched.forEach(s => {
+                        const key = `${s.hari}-${s.masa}`;
+                        if (slots.has(key)) overlaps++;
+                        slots.add(key);
+                    });
+
+                    // Capacity: 5 days * 10 hours = 50 slots
+                    totalSlots += 50;
+                    usedSlots += slots.size;
+                });
+
+                const utilRate = Math.round((usedSlots / totalSlots) * 100);
+
+                $('#kpi-clash-count').text(overlaps);
+                $('#kpi-clash-detail').html(overlaps > 0 ? '<span class="trend-down">Room Double-Bookings</span>' : '<span class="trend-up">Clean Schedule</span>');
+
+                $('#kpi-util-rate').text(utilRate + "%");
+
+                drawScatterEfficiency(results);
+            }
+
+            // --- Charting ---
+            function drawClassSizeHistogram(subjects) {
+                if (!google.visualization) return;
+
+                const data = new google.visualization.DataTable();
+                data.addColumn('string', 'Subject');
+                data.addColumn('number', 'Students');
+
+                // Top 20 biggest classes
+                const valid = subjects
+                    .map(s => ([s.nama_subjek, parseInt(s.bil_pelajar || 0)]))
+                    .sort((a, b) => b[1] - a[1])
+                    .slice(0, 10);
+
+                data.addRows(valid);
+
+                const options = {
+                    title: 'Top 10 Largest Classes',
+                    legend: { position: 'none' },
+                    colors: ['#6366f1'],
+                    hAxis: { title: 'Students' },
+                    vAxis: { textStyle: { fontSize: 10 } }
+                };
+
+                const chart = new google.visualization.BarChart(document.getElementById('hist_div'));
+                chart.draw(data, options);
+            }
+
+            function drawScatterEfficiency(roomResults) {
+                if (!google.visualization) return;
+                console.log("Drawing Scatter Chart v2 (Rich Tooltips Active)");
+
+                const data = new google.visualization.DataTable();
+                // Removed String Col to force correct Scatter behavior
+                data.addColumn('number', 'Utilization %'); // X-Axis
+                data.addColumn('number', 'Capacity (Seats)'); // Y-Axis
+                data.addColumn({ type: 'string', role: 'style' }); // Color
+                data.addColumn({ type: 'string', role: 'tooltip', p: { html: true } }); // Custom Tooltip
+
+                const rows = roomResults.map(Change => {
+                    const room = Change.room;
+                    const cap = parseInt(room.kapasiti || 0);
+                    const hours = Change.sched.length;
+                    const util = Math.round((hours / 50) * 100);
+
+                    // Explicit Logic Chain
+                    let color = '#3b82f6'; // Default Blue
+                    let status = 'Balanced';
+                    let statusBg = '#eff6ff'; // Light Blue bg
+
+                    if (util < 20) {
+                        color = '#ef4444'; // Red
+                        status = 'Underutilized';
+                        statusBg = '#fef2f2';
+                    } else if (util > 60) {
+                        color = '#10b981'; // Green
+                        status = 'High Demand';
+                        statusBg = '#ecfdf5';
+                    } else {
+                        // Explicitly set Blue for clarity
+                        color = '#3b82f6';
+                        status = 'Balanced';
+                        statusBg = '#eff6ff';
+                    }
+
+                    // Rich Tooltip HTML
+                    const displayName = room.nama_ruang || room.kod_ruang;
+                    const displayType = room.jenis || 'General Room';
+
+                    const tip = `
+                        <div style="padding:12px; width:220px; font-family:Inter,sans-serif; background:white; border:1px solid #e5e7eb; box-shadow:0 4px 6px -1px rgba(0,0,0,0.1);">
+                            <div style="font-size:0.95rem; font-weight:700; color:#1f2937; margin-bottom:2px; line-height:1.2;">
+                                ${displayName}
+                            </div>
+                            <div style="color:#6b7280; font-size:0.75rem; margin-bottom:8px;">
+                                ${room.kod_ruang} • ${displayType}
+                            </div>
+                            
+                            <span style="background:${statusBg}; color:${color}; padding:3px 8px; border-radius:12px; font-weight:600; font-size:0.75rem; border:1px solid ${color}40;">
+                                ● ${status}
+                            </span>
+                            
+                            <hr style="margin:10px 0; border:0; border-top:1px solid #e5e7eb;">
+                            
+                            <div style="display:grid; grid-template-columns: 1fr auto; gap:4px; font-size:0.85rem; color:#374151;">
+                                <span>Weekly load:</span> <strong>${hours} hrs</strong>
+                                <span>Utilization:</span> <strong>${util}%</strong>
+                                <span>Capacity:</span> <strong>${cap} Seats</strong>
+                            </div>
+                        </div>
+                    `;
+
+                    return [
+                        util,
+                        cap,
+                        `fill-color: ${color}; stroke-color: white; stroke-width: 1; opacity: 0.9;`,
+                        tip
+                    ];
+                });
+
+                data.addRows(rows);
+
+                const options = {
+                    title: 'Room Efficiency Map',
+                    hAxis: {
+                        title: 'Utilization Rate (%)',
+                        minValue: 0,
+                        maxValue: 100,
+                        gridlines: { count: 5, color: '#f3f4f6' },
+                        textStyle: { color: '#6b7280' }
+                    },
+                    vAxis: {
+                        title: 'Room Capacity (Seats)',
+                        minValue: 0,
+                        gridlines: { color: '#f3f4f6' },
+                        textStyle: { color: '#6b7280' }
+                    },
+                    legend: 'none',
+                    // IMPORTANT: hover enabled, html enabled
+                    tooltip: { isHtml: true, trigger: 'hover' },
+                    chartArea: { width: '80%', height: '70%' },
+                    bubble: {
+                        textStyle: { fontSize: 11, color: 'transparent' },
+                        stroke: 'transparent'
+                    },
+                    animation: {
+                        startup: true,
+                        duration: 1000,
+                        easing: 'out'
+                    }
+                };
+
+                const chart = new google.visualization.ScatterChart(document.getElementById('scatter_div'));
+                chart.draw(data, options);
+            }
+
+
+
+            function updateKPI(id, val, text) {
+                $(`#${id}`).text(val);
+                // $(`#${id}-text`).text(text);
+            }
+
+            function animateValue(id, start, end, duration) {
+                const obj = document.getElementById(id);
+                if (!obj) return;
+                let startTimestamp = null;
+                const step = (timestamp) => {
+                    if (!startTimestamp) startTimestamp = timestamp;
+                    const progress = Math.min((timestamp - startTimestamp) / duration, 1);
+                    obj.innerHTML = Math.floor(progress * (end - start) + start).toLocaleString();
+                    if (progress < 1) {
+                        window.requestAnimationFrame(step);
+                    }
+                };
+                window.requestAnimationFrame(step);
+            }
+
+        })();
+    </script>
+</body>
+
+</html>
