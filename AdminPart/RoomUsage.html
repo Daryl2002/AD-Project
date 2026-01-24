@@ -109,30 +109,31 @@
             $("#sessionSem").text(`${currentSesi} - Semester ${currentSemester}`);
 
             // 1. Convert Google Charts load to a non-blocking safe init with RETRY
-            let chartRetryCount = 0;
+            // 1. Robust Google Charts Loader (Handles SPA Injection)
             function initGoogleCharts() {
-                try {
-                    if (typeof google !== 'undefined' && google.charts) {
-                        google.charts.load('current', { 'packages': ['bar', 'corechart', 'line', 'gauge'] });
-                        google.charts.setOnLoadCallback(function () {
-                            isChartLibLoaded = true;
-                            if (filteredRooms.length > 0) {
-                                drawRoomUsageChart(filteredRooms);
+                // Check if google loader is present
+                if (typeof google === 'undefined' || !google.charts) {
+                    console.log("Google Charts not loaded, fetching loader.js...");
+                    $.getScript("https://www.gstatic.com/charts/loader.js", function () {
+                        console.log("Loader.js loaded, initializing...");
+                        initGoogleCharts(); // Retry
+                    }).fail(function () {
+                        $("#chart_div").html('<div class="w3-padding w3-text-red">Error loading chart library.</div>').show();
+                    });
+                    return;
+                }
 
-                            }
-                        });
-                    } else {
-                        chartRetryCount++;
-                        if (chartRetryCount < 20) { // Try for 10 seconds
-                            setTimeout(initGoogleCharts, 500);
-                        } else {
-                            console.warn("Google Charts gave up loading.");
-                            $("#chart_div").html('<div class="w3-padding w3-text-grey">Chart could not be loaded (Network issue).</div>').show();
+                try {
+                    google.charts.load('current', { 'packages': ['bar', 'corechart', 'line', 'gauge'] });
+                    google.charts.setOnLoadCallback(function () {
+                        isChartLibLoaded = true;
+                        // If data is ready, update display immediately
+                        if (filteredRooms.length > 0) {
+                            updateDisplay();
                         }
-                    }
+                    });
                 } catch (e) {
-                    console.warn("Google Charts init error, retrying...", e);
-                    setTimeout(initGoogleCharts, 500);
+                    console.error("Google Charts load error:", e);
                 }
             }
             initGoogleCharts();
