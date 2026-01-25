@@ -2,8 +2,7 @@
     --primary-color: #fca311;
     /* UTM Gold */
     --primary-hover: #e0910f;
-    --secondary-color: #14213d;
-    /* Slate */
+    --secondary-color: #1f2937;
     --bg-color: #f3f4f6;
     --text-main: #374151;
     --text-light: #6b7280;
@@ -43,34 +42,6 @@ body {
     margin: 0;
 }
 
-.action-bar {
-    display: flex;
-    gap: 12px;
-}
-
-.btn-scan {
-    background-color: var(--primary-color);
-    color: var(--white);
-    border: none;
-    padding: 10px 20px;
-    border-radius: 6px;
-    font-weight: 600;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    transition: background-color 0.2s;
-}
-
-.btn-scan:hover {
-    background-color: var(--primary-hover);
-}
-
-.btn-scan:disabled {
-    background-color: var(--text-light);
-    cursor: not-allowed;
-}
-
 /* Card */
 .card-box {
     background: var(--white);
@@ -83,10 +54,9 @@ body {
 /* Progress Section */
 .status-bar {
     padding: 16px;
-    background: #eef2ff;
+    background: #fffcf0;
     border-bottom: 1px solid var(--border-color);
     display: none;
-    /* Hidden by default */
 }
 
 .status-text {
@@ -99,14 +69,14 @@ body {
 }
 
 .progress-track {
-    background: #dbeafe;
+    background: #fef3c7;
     height: 8px;
     border-radius: 4px;
     overflow: hidden;
 }
 
 .progress-fill {
-    background: var(--primary-color);
+    background: #fca311;
     height: 100%;
     width: 0%;
     transition: width 0.3s ease;
@@ -136,8 +106,44 @@ body {
 }
 
 .data-table tr:hover {
-    background-color: #fffbeb;
-    /* Light yellow hover */
+    background-color: #eff6ff;
+}
+
+/* Detail Styles */
+.clash-detail {
+    font-size: 0.85rem;
+    color: #b91c1c;
+    background: #fef2f2;
+    padding: 4px 8px;
+    border-radius: 4px;
+    display: inline-block;
+    margin-bottom: 4px;
+    border: 1px solid #fecaca;
+}
+
+.clash-row {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.badge {
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 0.75rem;
+    font-weight: 600;
+}
+
+.badge-faculty {
+    background: #e0e7ff;
+    color: #3730a3;
+}
+
+/* Empty State */
+.empty-state {
+    padding: 40px;
+    text-align: center;
+    color: var(--text-light);
 }
 
 /* Suggestion Styles */
@@ -168,6 +174,7 @@ body {
     height: 100%;
     background: rgba(0, 0, 0, 0.5);
     display: none;
+    /* Initially hidden */
     z-index: 1000;
     align-items: center;
     justify-content: center;
@@ -181,8 +188,8 @@ body {
     box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
     padding: 20px;
     position: relative;
-    margin: 100px auto;
-    /* Fallback for flex */
+    max-height: 80vh;
+    overflow-y: auto;
 }
 
 .modal-header {
@@ -199,6 +206,11 @@ body {
     border: none;
     font-size: 1.5rem;
     cursor: pointer;
+    color: #6b7280;
+}
+
+.close-btn:hover {
+    color: #000;
 }
 
 .suggestion-item {
@@ -206,51 +218,4 @@ body {
     border-bottom: 1px solid #f3f4f6;
     font-family: monospace;
     font-size: 0.95rem;
-}
-
-.sugg-change {
-    color: red;
-    font-weight: bold;
-}
-
-.clash-detail {
-    font-size: 0.85rem;
-    color: #b91c1c;
-    /* Red text for clashes */
-    background: #fef2f2;
-    padding: 4px 8px;
-    border-radius: 4px;
-    display: inline-block;
-    margin-bottom: 4px;
-    border: 1px solid #fecaca;
-}
-
-.clash-row {
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-}
-
-.badge {
-    padding: 2px 8px;
-    border-radius: 12px;
-    font-size: 0.75rem;
-    font-weight: 600;
-}
-
-.badge-faculty {
-    background: #e0e7ff;
-    color: #3730a3;
-}
-
-.badge-count {
-    background: #fee2e2;
-    color: #991b1b;
-}
-
-/* Empty State */
-.empty-state {
-    padding: 40px;
-    text-align: center;
-    color: var(--text-light);
 }

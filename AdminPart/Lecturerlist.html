@@ -1,6 +1,22 @@
 <html>
-<script src="../Authenticate.js"></script>
-<script src="../CacheUtil.js"></script>
+<script>
+    // Load scripts with correct paths (fixes path issues when loaded via jQuery .load())
+    // When loaded into AdminMain.html, window.location points to AdminMain.html (in root)
+    (function () {
+        // Get root directory - remove filename from AdminMain.html's URL
+        const rootUrl = window.location.href.substring(0, window.location.href.lastIndexOf('/'));
+
+        if (typeof cachedFetch === 'undefined') {
+            const script1 = document.createElement('script');
+            script1.src = rootUrl + '/CacheUtil.js';
+            document.head.appendChild(script1);
+        }
+        // Authenticate.js runs immediately on load, so we load it
+        const script2 = document.createElement('script');
+        script2.src = rootUrl + '/Authenticate.js';
+        document.head.appendChild(script2);
+    })();
+</script>
 <link rel="stylesheet" href="Styles/lecturerList.css">
 
 <div class="page-container">
@@ -236,6 +252,12 @@
 
         // --- Chart Logic ---
         function updateChart() {
+            // Check if chart container still exists (prevents errors when navigating away)
+            const chartContainer = document.getElementById('topLecturerChart');
+            if (!chartContainer) {
+                console.warn('Chart container not found, skipping chart update');
+                return;
+            }
             if (!isChartLibReady || allLecturers.length === 0) return;
 
             // 1. Get Top 10 by Student Count
@@ -256,13 +278,13 @@
 
             // 3. Options
             const options = {
-                title: 'Top 10 Lecturers by Student Load',
-                titleTextStyle: {
-                    color: '#374151',
-                    fontSize: 16,
-                    bold: true
+                chartArea: {
+                    width: '45%',  // Reduced width to give more space for y-axis labels
+                    height: '80%',
+                    left: 220,  // Reserve space on left for long names
+                    top: 20,
+                    right: 20
                 },
-                chartArea: { width: '60%', height: '80%' },
                 hAxis: {
                     title: 'Total Students',
                     minValue: 0,
@@ -270,7 +292,8 @@
                     gridlines: { color: '#f3f4f6' }
                 },
                 vAxis: {
-                    textStyle: { color: '#374151', fontSize: 11 }
+                    textStyle: { color: '#374151', fontSize: 10 },
+                    textPosition: 'out'  // Ensure text is outside the chart area
                 },
                 colors: ['#4285F4'],
                 legend: { position: 'none' },
