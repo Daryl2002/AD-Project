@@ -304,7 +304,7 @@ body.modal-open {
 }
 
 .room-meta span::after {
-    content: "•";
+    content: "\2022";
     margin-left: 6px;
     opacity: 0.5;
 }
